@@ -349,7 +349,7 @@ function itemsInPeriod(group, periodId){
 // C 是「第一次＋第二次」（原有計畫金額＋這次加碼的金額，兩筆相加看總投入）。
 const FINANCE_DIFF_FORMULA = { bank:(f,s)=> s-f, expense:(f,s)=> f-s, plan:(f,s)=> f+s };
 // 1. 指定 Firestore 裡面的文件 ID（可自訂名稱）
-const USER_DOC_ID = "main_user"; 
+
 
 // 2. 替代原本舊有的 saveState
 async function saveState() {
