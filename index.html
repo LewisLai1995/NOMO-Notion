@@ -256,40 +256,62 @@ async function loadState() {
   }
 }
 
-// 雲端儲存 (Save to Firestore) - 安全轉譯版
+// 1. 雲端儲存 (Save to Firestore) — 字串包裝版 (完全免疫 Nested Array 錯誤)
 async function saveState() {
   if (!window.db || !window.doc) return; 
   try {
-    // 複製 state 並處理 financeReviewWindows
-    const stateCopy = JSON.parse(JSON.stringify(state));
+    const rawDataString = JSON.stringify(state);
     
-    if (stateCopy.financeReviewWindows && Array.isArray(stateCopy.financeReviewWindows)) {
-      stateCopy.financeReviewWindows = stateCopy.financeReviewWindows.map(w => 
-        Array.isArray(w) ? { start: w[0], end: w[1] } : w
-      );
-    }
-
-    const snap = {
-      theme: stateCopy.theme,
-      roles: stateCopy.roles,
-      nicknames: stateCopy.nicknames,
-      agentsEnabled: stateCopy.agentsEnabled,
-      projects: stateCopy.projects,
-      todos: stateCopy.todos,
-      personaEvents: stateCopy.personaEvents,
-      finance: stateCopy.finance,
-      financeReviewWindows: stateCopy.financeReviewWindows,
-      integrations: stateCopy.integrations,
-      personaCalMonth: stateCopy.personaCalMonth,
-      projectCalMonth: stateCopy.projectCalMonth,
+    await window.setDoc(window.doc(window.db, "appData", "main_user"), {
+      jsonPayload: rawDataString,
       updatedAt: new Date().toISOString()
-    };
+    }, { merge: true });
 
-    await window.setDoc(window.doc(window.db, "appData", "main_user"), snap, { merge: true });
     console.log("☁️ 已成功同步至 Firebase 雲端！");
   } catch (e) {
     console.error("❌ Firebase 儲存失敗:", e);
   }
+}
+
+// 2. 雲端載入 (Load from Firestore)
+async function loadState() {
+  let retries = 0;
+  while ((!window.db || !window.doc) && retries < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    retries++;
+  }
+
+  if (!window.db || !window.doc) {
+    console.warn("⚠️ Firebase SDK 載入超時，暫時使用預設資料。");
+    if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
+    return;
+  }
+
+  try {
+    const docRef = window.doc(window.db, "appData", "main_user");
+    const docSnap = await window.getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      // 優先讀取字串打包的 jsonPayload，若為舊版資料則直接 Object.assign
+      if (data.jsonPayload) {
+        const parsedState = JSON.parse(data.jsonPayload);
+        Object.assign(state, parsedState);
+      } else {
+        Object.assign(state, data);
+      }
+      
+      console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
+    } else {
+      console.log("☁️ 連線成功！Firebase 目前無舊資料，將以預設資料初始化。");
+      await saveState();
+    }
+  } catch (e) {
+    console.error("❌ Firebase 讀取失敗:", e);
+  }
+
+  if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
 }
 
 // 3. 頁面初始化進入點
