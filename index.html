@@ -1,32 +1,27 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <!-- 引入 Firebase Web SDK (v10 modular script) -->
+<!-- 引入 Firebase Web SDK (CDN 網址版) -->
 <script type="module">
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBYnDlI-vtArtYpbWhtzvrqX3q2GWh7_n8",
-  authDomain: "nomo-notion.firebaseapp.com",
-  projectId: "nomo-notion",
-  storageBucket: "nomo-notion.firebasestorage.app",
-  messagingSenderId: "266342683533",
-  appId: "1:266342683533:web:b3af7f2a38795d175ca3c4",
-  measurementId: "G-QMB0C7FB3E"
-};
+  // 你的 Web App Firebase 設定
+  const firebaseConfig = {
+    apiKey: "AIzaSyBYnDlI-vtArtYpbWhtzvrqX3q2GWh7_n8",
+    authDomain: "nomo-notion.firebaseapp.com",
+    projectId: "nomo-notion",
+    storageBucket: "nomo-notion.firebasestorage.app",
+    messagingSenderId: "266342683533",
+    appId: "1:266342683533:web:b3af7f2a38795d175ca3c4",
+    measurementId: "G-QMB0C7FB3E"
+  };
 
-
-  // 2. 初始化 Firebase & Firestore
+  // 初始化 Firebase & Firestore
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // 3. 綁定到全域 window 物件，讓原本的 JS 邏輯可以呼叫
+  // 掛載至 window 全域，讓主程式的 loadState / saveState 可以直接呼叫
   window.db = db;
   window.doc = doc;
   window.setDoc = setDoc;
