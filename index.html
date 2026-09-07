@@ -1,6 +1,42 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+  <!-- 引入 Firebase Web SDK (v10 modular script) -->
+<script type="module">
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBYnDlI-vtArtYpbWhtzvrqX3q2GWh7_n8",
+  authDomain: "nomo-notion.firebaseapp.com",
+  projectId: "nomo-notion",
+  storageBucket: "nomo-notion.firebasestorage.app",
+  messagingSenderId: "266342683533",
+  appId: "1:266342683533:web:b3af7f2a38795d175ca3c4",
+  measurementId: "G-QMB0C7FB3E"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+  };
+
+  // 2. 初始化 Firebase & Firestore
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 3. 綁定到全域 window 物件，讓原本的 JS 邏輯可以呼叫
+  window.db = db;
+  window.doc = doc;
+  window.setDoc = setDoc;
+  window.getDoc = getDoc;
+  window.onSnapshot = onSnapshot;
+</script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>NOMO.notion · 個人全方位 AI 助理平台</title>
@@ -254,13 +290,49 @@ function itemsInPeriod(group, periodId){
 // 差額公式因區塊而異：A 是「第二次－第一次」（現金增加為正）、B 維持「第一次－第二次」（少花為正）、
 // C 是「第一次＋第二次」（原有計畫金額＋這次加碼的金額，兩筆相加看總投入）。
 const FINANCE_DIFF_FORMULA = { bank:(f,s)=> s-f, expense:(f,s)=> f-s, plan:(f,s)=> f+s };
-async function saveState(){
-  try{
-    const snap = { theme:state.theme, roles:state.roles, nicknames:state.nicknames, agentsEnabled:state.agentsEnabled,
-      projects:state.projects, todos:state.todos, personaEvents:state.personaEvents, finance:state.finance, financeReviewWindows:state.financeReviewWindows,
-      integrations:state.integrations, personaCalMonth:state.personaCalMonth, projectCalMonth:state.projectCalMonth };
-    await window.storage.set('appState', JSON.stringify(snap), false);
-  }catch(e){ /* memory-only fallback */ }
+// 1. 指定 Firestore 裡面的文件 ID（可自訂名稱）
+const USER_DOC_ID = "main_user"; 
+
+// 2. 替代原本舊有的 saveState
+async function saveState() {
+  if (!window.db || !window.doc) return; 
+  try {
+    const snap = {
+      theme: state.theme,
+      roles: state.roles,
+      nicknames: state.nicknames,
+      agentsEnabled: state.agentsEnabled,
+      projects: state.projects,
+      todos: state.todos,
+      personaEvents: state.personaEvents,
+      finance: state.finance,
+      financeReviewWindows: state.financeReviewWindows,
+      integrations: state.integrations,
+      personaCalMonth: state.personaCalMonth,
+      projectCalMonth: state.projectCalMonth,
+      updatedAt: new Date().toISOString()
+    };
+    // 寫入 Firestore 的 'appData' 集合中
+    await window.setDoc(window.doc(window.db, "appData", USER_DOC_ID), snap, { merge: true });
+    console.log("☁️ 已成功同步至 Firebase 雲端！");
+  } catch (e) {
+    console.error("Firebase 儲存失敗:", e);
+  }
+}
+
+// 3. 替代原本舊有的 loadState
+async function loadState() {
+  if (!window.db || !window.doc) return;
+  try {
+    const docRef = window.doc(window.db, "appData", USER_DOC_ID);
+    const docSnap = await window.getDoc(docRef);
+    if (docSnap.exists()) {
+      Object.assign(state, docSnap.data());
+      console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
+    }
+  } catch (e) {
+    console.error("Firebase 讀取失敗:", e);
+  }
 }
 
 /* ============================================================ ZEN PEBBLE MASCOT SYSTEM ============================================================ */
