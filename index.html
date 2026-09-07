@@ -220,9 +220,8 @@ const state = {
 // Firestore 指定儲存的文件 ID
 const USER_DOC_ID = "main_user"; 
 
-// 1. 雲端載入 (Load from Firestore)
+// 雲端載入 (Load from Firestore)
 async function loadState() {
-  // 自動等待 Firebase SDK 初始化完成（最多等 5 秒）
   let retries = 0;
   while ((!window.db || !window.doc) && retries < 50) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -231,16 +230,25 @@ async function loadState() {
 
   if (!window.db || !window.doc) {
     console.warn("⚠️ Firebase SDK 載入超時，暫時使用預設資料。");
-    normalizeFinanceShape();
+    if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
     return;
   }
 
   try {
-    const docRef = window.doc(window.db, "appData", USER_DOC_ID);
+    const docRef = window.doc(window.db, "appData", "main_user");
     const docSnap = await window.getDoc(docRef);
     
     if (docSnap.exists()) {
-      Object.assign(state, docSnap.data());
+      const data = docSnap.data();
+      
+      // 解析字串打包的 jsonPayload
+      if (data.jsonPayload) {
+        const parsedState = JSON.parse(data.jsonPayload);
+        Object.assign(state, parsedState);
+      } else {
+        Object.assign(state, data);
+      }
+      
       console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
     } else {
       console.log("☁️ 連線成功！Firebase 目前無舊資料，將以預設資料初始化。");
@@ -250,16 +258,14 @@ async function loadState() {
     console.error("❌ Firebase 讀取失敗:", e);
   }
 
-  // 確保財務資料結構格式完整
-  if (typeof normalizeFinanceShape === "function") {
-    normalizeFinanceShape();
-  }
+  if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
 }
 
-// 1. 雲端儲存 (Save to Firestore) — 字串包裝版 (完全免疫 Nested Array 錯誤)
+// 雲端儲存 (Save to Firestore) — 全資料字串化版
 async function saveState() {
   if (!window.db || !window.doc) return; 
   try {
+    // 將所有資料轉為純文字 JSON 字串，徹底解決 Nested Array 報錯
     const rawDataString = JSON.stringify(state);
     
     await window.setDoc(window.doc(window.db, "appData", "main_user"), {
