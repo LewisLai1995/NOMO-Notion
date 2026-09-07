@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>造物場域 · 個人全方位 AI 助理平台</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700;900&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --paper:#F6F3EC; --paper-deep:#EFEADF; --ink:#2B2A28; --ink-soft:#5B5850; --line:#DBD4C4; --good:#4C8B5C; --danger:#B23A3A; --clay:#B5654A; --gold:#A97F2E; --sage:#7A8B6F; --indigo:#3B4A5A; }
+  *{font-family:'Noto Sans TC',sans-serif;}
+  .font-display{font-family:'Noto Serif TC',serif;}
+  .font-mono{font-family:'JetBrains Mono',monospace;}
+  body{background:var(--paper); color:var(--ink);}
+  .paper-texture{background-image: radial-gradient(circle at 1px 1px, rgba(43,42,40,0.045) 1px, transparent 0); background-size: 18px 18px;}
+  .scrollbar-thin::-webkit-scrollbar{width:6px;height:6px;}
+  .scrollbar-thin::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+  .nav-item{position:relative;transition:all .18s ease;}
+  .nav-item.active{background:var(--ink);color:var(--paper);}
+  .nav-item.active .nav-dot{background:var(--paper);}
+  .nav-item:not(.active):hover{background:var(--paper-deep);}
+  .card{background:#fff;border:1px solid var(--line);transition:box-shadow .15s ease;}
+  .card:hover{box-shadow:0 4px 16px rgba(43,42,40,0.06);}
+  .stage-pill{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.04em;}
+  .mascot-pos{position:absolute;pointer-events:auto;bottom:-7px;}
+  .mascot-wrap{transition:transform .2s ease;}
+  .mascot-figure{transform-origin:50% 100%;} /* rotate around the stone's own base, never its center, so it can't dip below the ground line */
+  .pebble-idle{animation:pebbleIdle 3.4s ease-in-out infinite;}
+  .jumping .pebble-idle{animation-play-state:paused;}
+  .pebble-roll{animation:pebbleRoll 0.9s ease-in-out 1;}
+  .pebble-wiggle{animation:pebbleWiggle 0.5s ease-in-out;}
+  @keyframes pebbleIdle{0%,100%{transform:rotate(0deg);}50%{transform:rotate(3deg);}}
+  @keyframes pebbleRoll{0%{transform:translate(0,0) rotate(0deg);}25%{transform:translate(calc(var(--jump-dx) * 0.3),0) rotate(-15deg);}50%{transform:translate(calc(var(--jump-dx) * 0.55),0) rotate(10deg);}75%{transform:translate(calc(var(--jump-dx) * 0.85),0) rotate(-6deg);}100%{transform:translate(var(--jump-dx),0) rotate(0deg);}}
+  @keyframes pebbleWiggle{0%,100%{transform:rotate(0deg);}25%{transform:rotate(-8deg);}75%{transform:rotate(8deg);}}
+  .city-skyline{position:absolute;left:0;right:0;bottom:0;height:150px;pointer-events:none;}
+  .scene-box{position:relative;overflow:hidden;}
+  .speech-bubble{filter: drop-shadow(0 6px 18px rgba(43,42,40,0.18));}
+  .speech-bubble:after{content:'';position:absolute;bottom:-8px;left:var(--arrow-x,50%);margin-left:-7px;width:14px;height:14px;background:#fff;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg);}
+  .fade-in{animation:fadeIn .3s ease both;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .tag{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);}
+  ::selection{background:var(--ink);color:var(--paper);}
+  .stage-track::-webkit-scrollbar{height:5px;}
+  .stage-track::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+  /* custom no-scroll checkbox: gray -> green */
+  .ck{width:17px;height:17px;border-radius:6px;border:1.6px solid var(--line);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease;flex-shrink:0;background:#fff;}
+  .ck:hover{border-color:var(--ink-soft);}
+  .ck.done{background:var(--good);border-color:var(--good);}
+  .ck svg{opacity:0;transform:scale(.5);transition:all .15s ease;}
+  .ck.done svg{opacity:1;transform:scale(1);}
+  .swatch{width:24px;height:24px;border-radius:999px;cursor:pointer;border:2px solid transparent;transition:transform .12s ease;}
+  .swatch:hover{transform:scale(1.12);}
+  .swatch.sel{border-color:var(--ink);}
+  .cal-cell{aspect-ratio:1/0.72;font-size:9px;}
+  .toggle{width:34px;height:19px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .15s ease;flex-shrink:0;}
+  .toggle.on{background:var(--good);}
+  .toggle .knob{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:999px;background:#fff;transition:left .15s ease;}
+  .toggle.on .knob{left:17px;}
+  @media (prefers-reduced-motion: reduce){ .fade-in,.pebble-idle,.pebble-roll,.pebble-wiggle{animation:none!important;transition:none!important;} }
+</style>
+</head>
+<body class="paper-texture min-h-screen">
+<div id="app" class="flex min-h-screen">
+  <aside class="w-[220px] shrink-0 border-r flex flex-col justify-between py-6 px-4 sticky top-0 h-screen overflow-y-auto scrollbar-thin" style="border-color:var(--line);">
+    <div>
+      <div class="flex items-center gap-2 px-2 mb-8">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none"><path d="M15 3 L27 15 L15 27 L3 15 Z" stroke="var(--ink)" stroke-width="1.6"/><circle cx="15" cy="15" r="4" stroke="var(--ink)" stroke-width="1.6"/></svg>
+        <div><div class="font-display font-bold text-[16px] leading-none">造物場域</div><div class="text-[9px] tracking-widest mt-0.5" style="color:var(--ink-soft);">THE CRAFT REALM</div></div>
+      </div>
+      <nav class="flex flex-col gap-1" id="nav"></nav>
+    </div>
+    <div class="px-2">
+      <div class="text-[10px] font-mono tracking-widest mb-2" style="color:var(--ink-soft);">今日 · <span id="todayLabel"></span></div>
+      <div class="rounded-lg p-3 text-[11px] leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft);">展覽是時間的藝術，行事是時間的紀律。</div>
+    </div>
+  </aside>
+  <main class="flex-1 min-w-0 relative h-screen overflow-y-auto scrollbar-thin"><div id="view" class="p-8 max-w-[1180px] mx-auto"></div></main>
+</div>
+<script>
+/* ============================================================ UTILS ============================================================ */
+const STAGES = ["洽談需求","提案","得標","結構設計與調整","結構定稿","平面進稿","平面設計與調整","平面定稿","發包","施工","交場","展期","撤場","結案","結款"];
+const STAGE_OFFSETS = [-60,-52,-45,-38,-30,-24,-18,-12,-7,0,7,21,28,35,42];
+function pad2(n){ return String(n).padStart(2,'0'); }
+function toISO(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; } // local-time date, never UTC
+const todayISO = ()=> toISO(new Date());
+const addDays = (iso,n)=>{ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+n); return toISO(dt); };
+const fmt = iso => { const d=new Date(iso+"T00:00:00"); return `${d.getMonth()+1}/${d.getDate()}`; };
+const diffDays = (a,b)=> Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000);
+const el = html => { const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; };
+function hexToRgba(hex,a){ const h=(hex||'#999999').replace('#',''); const full=h.length===3?h.split('').map(c=>c+c).join(''):h; const n=parseInt(full,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+function contrastText(hex){ const h=(hex||'#999999').replace('#',''); const r=parseInt(h.substr(0,2),16), g=parseInt(h.substr(2,2),16), b=parseInt(h.substr(4,2),16); const yiq=(r*299+g*587+b*114)/1000; return yiq>=150?'#2B2A28':'#FFFFFF'; }
+function isBiweeklyReviewDate(iso){
+  const day = new Date(iso+"T00:00:00").getDate();
+  const windows = (typeof state!=='undefined' && state.financeReviewWindows) || [[4,7],[18,20]];
+  return windows.some(([a,b])=> day>=a && day<=b);
+}
+function nextBiweeklyDate(iso){
+  let d = iso;
+  for(let i=0;i<62;i++){ if(isBiweeklyReviewDate(d)) return d; d = addDays(d,1); }
+  return iso;
+}
+function uid(){ return Date.now()+Math.floor(Math.random()*1000); }
+function eventKind(e){ return e.kind || 'todo'; } // backward-compatible: legacy items default to 'todo'
+
+const PALETTE = ["#B5654A","#7A8B6F","#A97F2E","#3B4A5A","#9E5A47","#596B51","#C28D38","#A66B72","#5A738E","#6B705C","#70637A","#42413D"];
+const PALETTE_NAMES = {"#B5654A":"磚紅","#7A8B6F":"鼠尾草綠","#A97F2E":"暖金","#3B4A5A":"靛青","#9E5A47":"灰陶","#596B51":"苔綠","#C28D38":"赭黃","#A66B72":"煙燻粉","#5A738E":"石灰藍","#6B705C":"深橄欖","#70637A":"紫灰","#42413D":"墨碳"};
+
+/* custom no-scroll checkbox */
+function checkboxEl(checked,onToggle){
+  const btn = el(`<button type="button" class="ck ${checked?'done':''}"><svg viewBox="0 0 16 16" width="10" height="10"><path d="M3 8.5 L6.5 12 L13 4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`);
+  btn.addEventListener('click', e=>{ e.stopPropagation(); checked=!checked; btn.classList.toggle('done',checked); onToggle(checked,btn); });
+  return btn;
+}
+
+/* ============================================================ STATE ============================================================ */
+const state = {
+  route:"today", detailProjectId:null, detailTab:"main", todayISO: todayISO(),
+  theme:{ project:"#B5654A", life:"#7A8B6F", finance:"#A97F2E" },
+  roles:{ project:"architect", life:"sprout", finance:"stacked" },
+  nicknames:{ project:"坦坦", life:"露米", finance:"諾米" },
+  agentsEnabled:{ project:true, life:true, finance:true },
+  projects:[
+    { id:"p1", name:"森之光 — 台北當代館特展", client:"台北當代藝術館", budget:1200000, dealAmount:1080000, contactName:"游先生", contactPhone:"0912-345-678",
+      constructionDate: addDays(todayISO(),10), viewStageIndex:null, color:"#B5654A", settled:false, settlement:null,
+      contractors:[ {id:"c1",name:"陳師傅",trade:"木作",phone:"0933-111-222",arrival:addDays(todayISO(),8)}, {id:"c2",name:"高師傅",trade:"燈光",phone:"0955-222-333",arrival:addDays(todayISO(),9)} ],
+      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),10),off), done:i<9, note:"", checklist: i===8?[{label:"木作廠商",done:true},{label:"大圖輸出",done:true},{label:"燈光工程",done:false},{label:"電視租賃",done:false}]:[] })) },
+    { id:"p2", name:"時間膠囊 — 新竹科學園區常設展", client:"新竹科學園區管理局", budget:2600000, dealAmount:2450000, contactName:"林小姐", contactPhone:"0922-888-999",
+      constructionDate: addDays(todayISO(),42), viewStageIndex:null, color:"#3B4A5A", settled:false, settlement:null,
+      contractors:[ {id:"c3",name:"周師傅",trade:"結構",phone:"0966-555-666",arrival:addDays(todayISO(),40)} ],
+      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),42),off), done:i<4, note:"", checklist:[] })) },
+    { id:"p3", name:"海岸線記事 — 高雄港區裝置", client:"高雄港務局", budget:860000, dealAmount:820000, contactName:"黃先生", contactPhone:"0977-123-456",
+      constructionDate: addDays(todayISO(),-20), viewStageIndex:null, color:"#C28D38", settled:true, settlement:{additionalAmount:20000, actualCost:690000}, settledAt: addDays(todayISO(),3),
+      contractors:[ {id:"c4",name:"陳師傅",trade:"木作",phone:"0933-111-222",arrival:addDays(todayISO(),-22)} ],
+      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),-20),off), done:true, note:"", checklist:[] })) },
+  ],
+  todos:[
+    {id:1, text:"確認燈光廠商報價", done:false, date: todayISO(), agent:"project"},
+    {id:2, text:"核對第一銀行本週扣款明細", done:false, date: todayISO(), agent:"finance"},
+    {id:3, text:"確認木作廠商合約用印", done:false, date: addDays(todayISO(),1), agent:"project"},
+    {id:4, text:"檢視信用卡費預抓金額是否足夠", done:false, date: addDays(todayISO(),1), agent:"finance"},
+    {id:5, text:"回傳上一版結構圖修改", done:false, date: addDays(todayISO(),-1), agent:"project"},
+  ],
+  personaEvents:[
+    {id:101, text:"回覆策展人平面圖修改意見", done:false, date: todayISO(), kind:"todo"},
+    {id:102, text:"陳語安生日：準備小禮物", done:false, date: addDays(todayISO(),6), kind:"todo"},
+    {id:103, text:"寄送生日卡片給林知遠", done:false, date: addDays(todayISO(),1), kind:"todo"},
+    {id:104, text:"回覆家人聚餐時間", done:false, date: addDays(todayISO(),-1), kind:"todo"},
+    {id:105, text:"晚上 7 點：策展人視訊會議", done:false, date: todayISO(), kind:"schedule"},
+  ],
+  personaCalMonth: todayISO().slice(0,7), personaSelectedDate: todayISO(),
+  projectCalMonth: todayISO().slice(0,7), projectCalSelected:null, projectListTab:"active",
+  weekOffset:0, weekSelectedDate:null, financeSettingsOpen:false,
+  financeReviewWindows:[[4,7],[18,20]],
+  finance:{
+    // Each "period" is one salary cycle with up to two reviews: `first` (when salary lands)
+    // and `second` (later, once known bills like credit cards have cleared, to compare
+    // actual vs reserved). Items store their value per period as {periodId: value} maps —
+    // not parallel arrays — so an item created mid-cycle simply has no earlier entries,
+    // instead of needing null-padding across a shared index.
+    periods: [
+      {id:"pr1", month:addDays(todayISO(),-42).slice(0,7), firstDate:addDays(todayISO(),-42), secondDate:addDays(todayISO(),-28)},
+      {id:"pr2", month:todayISO().slice(0,7), firstDate:addDays(todayISO(),-2), secondDate:null},
+    ],
+    bank:[
+      {id:"b1",label:"將來主戶", first:{pr1:186000,pr2:179000}, second:{pr1:172000}},
+      {id:"b2",label:"卡費口袋", first:{pr1:42000,pr2:40000}, second:{pr1:31200}},
+      {id:"b3",label:"第一銀行", first:{pr1:96000,pr2:102000}, second:{pr1:101000}},
+    ],
+    expense:[
+      {id:"e1",label:"工作午餐", first:{pr1:4200,pr2:4100}, second:{pr1:3900}},
+      {id:"e2",label:"雜支", first:{pr1:2100,pr2:1900}, second:{pr1:1800}},
+      {id:"e3",label:"卡費預抓 A", first:{pr1:18000,pr2:18000}, second:{pr1:17200}},
+      {id:"e4",label:"卡費預抓 B", first:{pr1:6500,pr2:6500}, second:{pr1:6500}},
+      {id:"e5",label:"電話費", first:{pr1:899,pr2:899}, second:{pr1:899}},
+    ],
+    plan:[
+      {id:"c1",label:"備用金", first:{pr1:30000,pr2:32000}, second:{pr1:32000}},
+      {id:"c2",label:"旅遊基金", first:{pr1:15000,pr2:19000}, second:{pr1:17000}},
+      {id:"c3",label:"股市投資", first:{pr1:50000,pr2:58000}, second:{pr1:54000}},
+    ],
+  },
+  integrations:[
+    {id:"gcal", name:"Google Calendar", desc:"雙向同步展覽節點與個人行程", connected:true},
+    {id:"line", name:"LINE 通知", desc:"重要階段與盤點日推播提醒", connected:false},
+    {id:"bank", name:"銀行帳戶匯入", desc:"自動帶入帳戶餘額（唯讀）", connected:false},
+    {id:"drive", name:"雲端硬碟", desc:"同步展覽圖檔與發包文件", connected:true},
+  ]
+};
+
+/* persistence — artifact-safe window.storage API (never localStorage) */
+async function loadState(){
+  try{
+    const res = await window.storage.get('appState', false);
+    if(res && res.value) Object.assign(state, JSON.parse(res.value));
+  }catch(e){ /* first run or storage unavailable */ }
+  normalizeFinanceShape();
+}
+// A session saved by an earlier version of this app could have `finance` in one of two older
+// shapes: a plain object keyed by label, or the later flat-array-of-values-per-date shape.
+// Loading either straight into state silently breaks everything in the Reserve page. Detect
+// and migrate to the current periods/first-second shape here, once, right after loading.
+function isValidFinanceGroup(g){
+  return Array.isArray(g) && g.every(item => item && typeof item.first==='object' && typeof item.second==='object');
+}
+function normalizeFinanceShape(){
+  const f = state.finance;
+  if(!Array.isArray(f.periods)) f.periods = [];
+  const oldDates = Array.isArray(f.dates) ? f.dates : null;
+  ['bank','expense','plan'].forEach(key=>{
+    if(isValidFinanceGroup(f[key])) return;
+    if(Array.isArray(f[key]) && f[key].every(it=>it && Array.isArray(it.values))){
+      // migrate the flat values[] shape: one period per old date, all treated as "first" reviews
+      if(oldDates && !f.periods.length){
+        f.periods = oldDates.map((d,i)=>({id:'pr'+i, month:d.slice(0,7), firstDate:d, secondDate:null}));
+      }
+      f[key] = f[key].map(it=>{
+        const first = {};
+        (it.values||[]).forEach((v,i)=>{ if(v!=null && f.periods[i]) first[f.periods[i].id]=v; });
+        return { id:it.id, label:it.label, first, second:{} };
+      });
+    } else if(f[key] && typeof f[key]==='object' && !Array.isArray(f[key])){
+      f[key] = Object.entries(f[key]).map(([label,v],i)=> ({ id:key[0]+'legacy'+i, label, first:{}, second:{} }));
+    } else {
+      f[key] = []; // unrecoverable — start empty rather than crash
+    }
+  });
+  delete f.dates;
+}
+function periodById(id){ return state.finance.periods.find(p=>p.id===id); }
+function latestPeriod(){ const ps=state.finance.periods; return ps.length ? ps[ps.length-1] : null; }
+function findOpenPeriod(){ return [...state.finance.periods].reverse().find(p=>p.firstDate && !p.secondDate) || null; }
+function lastReviewDateLabel(){
+  const p = latestPeriod();
+  if(!p) return null;
+  return p.secondDate || p.firstDate;
+}
+// "effective" value for a period = second review if it's been done, else the first-review figure.
+function effectiveValue(item, periodId){
+  if(item.second && item.second[periodId]!=null) return item.second[periodId];
+  if(item.first && item.first[periodId]!=null) return item.first[periodId];
+  return null;
+}
+function sumEffective(group, periodId){
+  return state.finance[group].reduce((s,item)=> s+(effectiveValue(item,periodId)||0), 0);
+}
+function sumPhase(group, periodId, phase){
+  return state.finance[group].reduce((s,item)=> s+((item[phase] && item[phase][periodId]!=null) ? item[phase][periodId] : 0), 0);
+}
+function itemsInPeriod(group, periodId){
+  return state.finance[group].filter(item => (item.first && item.first[periodId]!=null) || (item.second && item.second[periodId]!=null));
+}
+// 差額公式因區塊而異：A 是「第二次－第一次」（現金增加為正）、B 維持「第一次－第二次」（少花為正）、
+// C 是「第一次＋第二次」（原有計畫金額＋這次加碼的金額，兩筆相加看總投入）。
+const FINANCE_DIFF_FORMULA = { bank:(f,s)=> s-f, expense:(f,s)=> f-s, plan:(f,s)=> f+s };
+async function saveState(){
+  try{
+    const snap = { theme:state.theme, roles:state.roles, nicknames:state.nicknames, agentsEnabled:state.agentsEnabled,
+      projects:state.projects, todos:state.todos, personaEvents:state.personaEvents, finance:state.finance, financeReviewWindows:state.financeReviewWindows,
+      integrations:state.integrations, personaCalMonth:state.personaCalMonth, projectCalMonth:state.projectCalMonth };
+    await window.storage.set('appState', JSON.stringify(snap), false);
+  }catch(e){ /* memory-only fallback */ }
+}
+
+/* ============================================================ ZEN PEBBLE MASCOT SYSTEM ============================================================ */
+/* Six river pebbles, each its own height/width/tilt — no shared skeleton, each is its own
+   complete hand-built silhouette (per spec: no gourd/snowman/potato shapes). Uniform
+   currentColor stroke + translucent currentColor fill, fully themeable. */
+const PEBBLE_SVG = {
+  architect: (color)=> `<path d="M 12 18 C 12 12, 38 12, 38 18 L 42 38 C 42 43, 36 45, 25 45 C 14 45, 8 43, 8 38 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 14 14 L 36 14 C 36 14, 38 18, 25 18 Z M 10 18 H 40" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+    <circle cx="18" cy="28" r="2.2" fill="currentColor"/><circle cx="18.6" cy="27.4" r="0.7" fill="#FFF"/>
+    <circle cx="32" cy="28" r="2.2" fill="currentColor"/><circle cx="32.6" cy="27.4" r="0.7" fill="#FFF"/>
+    <path d="M 22 35 H 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`,
+  sprout: (color)=> `<path d="M 25 14 C 36 14, 45 22, 45 32 C 45 42, 36 45, 25 45 C 14 45, 5 42, 5 32 C 5 22, 14 14, 25 14 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 25 14 Q 22 7 17 9 M 25 14 Q 28 6 33 8 M 25 14 V 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+    <circle cx="17" cy="28" r="2.5" fill="currentColor"/><circle cx="17.8" cy="27.2" r="0.8" fill="#FFF"/>
+    <circle cx="33" cy="28" r="2.5" fill="currentColor"/><circle cx="33.8" cy="27.2" r="0.8" fill="#FFF"/>
+    <path d="M 21 34 Q 25 37 29 34" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
+  stacked: (color)=> `<path d="M 25 22 C 38 22, 44 28, 44 36 C 44 43, 36 45, 25 45 C 14 45, 6 43, 6 36 C 6 28, 12 22, 25 22 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
+    <circle cx="25" cy="14" r="8" fill="${color}" fill-opacity="0.25" stroke="currentColor" stroke-width="1.8"/>
+    <circle cx="22" cy="13" r="1.5" fill="currentColor"/><circle cx="28" cy="13" r="1.5" fill="currentColor"/>
+    <path d="M 23 17 Q 25 18.5 27 17" stroke="currentColor" stroke-width="1.4" fill="none"/>
+    <circle cx="18" cy="33" r="2" fill="currentColor"/><circle cx="32" cy="33" r="2" fill="currentColor"/>
+    <path d="M 22 38 Q 25 40 28 38" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/>`,
+  catear: (color)=> `<g transform="rotate(8 25 25)">
+    <path d="M 16 12 L 20 18 C 22 16, 28 16, 30 18 L 34 12 C 42 18, 43 32, 40 40 C 36 46, 14 46, 10 40 C 7 32, 8 18, 16 12 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="19" cy="27" r="2.2" fill="currentColor"/><circle cx="31" cy="27" r="2.2" fill="currentColor"/>
+    <path d="M 22 34 Q 25 36 28 34" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>`,
+  shiba: (color)=> `<path d="M 25 16 C 40 16, 47 24, 47 33 C 47 42, 38 44, 25 44 C 12 44, 3 42, 3 33 C 3 24, 10 16, 25 16 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
+    <path d="M 15 22 H 19 M 31 22 H 35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="17" cy="28" r="2.2" fill="currentColor"/><circle cx="33" cy="28" r="2.2" fill="currentColor"/>
+    <ellipse cx="25" cy="32" rx="2" ry="1.3" fill="currentColor"/>
+    <path d="M 22 36 Q 25 38 28 36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>`,
+  scholar: (color)=> `<path d="M 25 6 C 33 6, 38 18, 38 34 C 38 43, 33 46, 25 46 C 17 46, 12 43, 12 34 C 12 18, 17 6, 25 6 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
+    <circle cx="18" cy="24" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <circle cx="32" cy="24" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <line x1="23" y1="24" x2="27" y2="24" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="18" cy="24" r="1.8" fill="currentColor"/><circle cx="32" cy="24" r="1.8" fill="currentColor"/>
+    <path d="M 22 35 L 25 38 L 28 35" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`,
+};
+const PEBBLE_SIZE = { architect:[48,48], sprout:[44,44], stacked:[44,44], catear:[50,50], shiba:[48,44], scholar:[40,48] };
+function nomoBlobSVG(variant,w,h,fillColor){
+  const size = PEBBLE_SIZE[variant]||[44,44];
+  w = w||size[0]; h = h||size[1];
+  // viewBox cropped to 46 (not 50) so the stone's own drawn bottom edge sits flush against
+  // the SVG's bounding box — the paths' bottoms all land around y=44-46, so this removes the
+  // few units of invisible padding that used to make every stone look like it was floating.
+  // Cropped to 47.5 (not 46) — architect/sprout/stacked bottom out around y45 but scholar and
+  // the rotated catear reach closer to y47 once their 2px stroke is accounted for; 46 was
+  // clipping the bottom edge off those two variants.
+  return `<svg width="${w}" height="${h}" viewBox="0 0 50 47.5" preserveAspectRatio="none" fill="none">${(PEBBLE_SVG[variant]||PEBBLE_SVG.sprout)(fillColor||'currentColor')}</svg>`;
+}
+const ANIMAL_TEMPLATES = {
+  architect:(w,h,c)=> nomoBlobSVG('architect',w,h,c),
+  sprout:(w,h,c)=> nomoBlobSVG('sprout',w,h,c),
+  stacked:(w,h,c)=> nomoBlobSVG('stacked',w,h,c),
+  catear:(w,h,c)=> nomoBlobSVG('catear',w,h,c),
+  shiba:(w,h,c)=> nomoBlobSVG('shiba',w,h,c),
+  scholar:(w,h,c)=> nomoBlobSVG('scholar',w,h,c),
+};
+const ANIMAL_LABEL = {architect:"🏗️ 工程方角石",sprout:"🌿 萌芽圓胖石",stacked:"💰 財富疊疊石",catear:"🐱 靈感貓耳石",shiba:"🐕 長平柴犬石",scholar:"👓 學者眼鏡石"};
+const ROLE_META = {
+  project:{ label:"專案", desc:"專案時程管理", route:"projectlog", agendaTitle:"專案待辦" },
+  life:{ label:"日常", desc:"日常時間梳理", route:"persona", agendaTitle:"日常待辦" },
+  finance:{ label:"資產", desc:"雙週資產盤點", route:"reserve", agendaTitle:"財務提醒" },
+};
+const ROLE_IDS = ["project","life","finance"];
+function roleSVG(roleId,color,w,h){
+  const key = state.roles[roleId] || 'sprout';
+  const svg = (ANIMAL_TEMPLATES[key]||ANIMAL_TEMPLATES.sprout)(w,h);
+  return `<span style="color:${color};display:inline-flex;">${svg}</span>`;
+}
+function roleMsgHome(roleId){
+  if(roleId==="project"){
+    const n = state.todos.filter(t=>t.agent==='project' && !t.done).length;
+    return `今天專案還有 ${n} 個待辦事項未完成`;
+  }
+  if(roleId==="life"){
+    const next = [...state.personaEvents].filter(e=>!e.done && diffDays(state.todayISO,e.date)>=0).sort((a,b)=>diffDays(state.todayISO,a.date)-diffDays(state.todayISO,b.date))[0];
+    if(next) return `下一個行程是 ${fmt(next.date)} 的 ${next.text||'（未命名）'}`;
+    return "目前沒有排定中的行程";
+  }
+  const last = lastReviewDateLabel();
+  const d = diffDays(state.todayISO, nextBiweeklyDate(state.todayISO));
+  return d===0 ? "今天是雙週盤點日！快來確認銀行餘額吧" : `距離下次雙週盤點還有 ${d} 天${last?`，上次盤點在 ${fmt(last)}`:''}。`;
+}
+function roleMsgPage(roleId){
+  if(roleId==="project"){ const n = state.projects.filter(p=>!p.settled).length; return `目前手上有 ${n} 個進行中的專案，記得盯緊發包與時程進度喔！`; }
+  if(roleId==="life"){ const n = state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date.slice(0,7)===state.personaCalMonth).length; return `這個月已經安排了 ${n} 筆行程，點日曆上的日期就能直接新增行程或待辦喔！`; }
+  const last = lastReviewDateLabel(); return last?`上次盤點在 ${fmt(last)}，別忘了每半個月回來記一次帳喔！`:'還沒有任何盤點紀錄，點進去開始第一次盤點吧！';
+}
+
+function citySkylineSVG(){
+  // Deterministic (not random) so the skyline doesn't jump on every re-render.
+  const heights = [58,96,42,124,70,104,46,138,74,52,114,62,98,44,128,60,84,50,118,68,54,104,44,90];
+  const vbH = 140, baseY = vbH-1; // ground line pinned to the exact bottom edge (1px margin only to avoid stroke clipping)
+  let x = 4, buildings = '';
+  heights.forEach((h,i)=>{
+    const w = 20 + (i%3)*6;
+    const y = baseY-h;
+    buildings += `<rect x="${x}" y="${y}" width="${w}" height="${h}" stroke="var(--line)" stroke-width="1"/>`;
+    const cols = Math.max(2, Math.floor(w/9)), rows = Math.max(2, Math.floor(h/14));
+    for(let r=0;r<rows;r++){
+      const wy = y+8+r*13; if(wy>baseY-6) break;
+      for(let c=0;c<cols;c++){ const wx=x+5+c*8; if(wx+3>x+w-3) break; buildings += `<rect x="${wx}" y="${wy}" width="3" height="4" fill="var(--line)" opacity="0.5"/>`; }
+    }
+    if(h>110){ buildings += `<path d="M${x} ${y} L${x+w/2} ${y-16} L${x+w} ${y}" stroke="var(--line)" stroke-width="1"/>`; }
+    if(h>120){ buildings += `<line x1="${x+w/2}" y1="${y-16}" x2="${x+w/2}" y2="${y-30}" stroke="var(--line)" stroke-width="1"/><circle cx="${x+w/2}" cy="${y-31}" r="1.6" fill="var(--line)"/>`; }
+    x += w+6;
+  });
+  return `<svg class="city-skyline" viewBox="0 0 ${x+4} ${vbH}" preserveAspectRatio="none" fill="none">
+    <line x1="0" y1="${baseY}" x2="${x+4}" y2="${baseY}" stroke="var(--line)" stroke-width="1"/>
+    ${buildings}
+  </svg>`;
+}
+const mascotState = ROLE_IDS.reduce((acc,id,i)=>{ acc[id]={x:20+i*90}; return acc; },{});
+let mascotWalkTimer = null, openMascot = null;
+function initMascotScene(sceneEl){
+  if(!sceneEl) return;
+  if(mascotWalkTimer){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; }
+  renderMascotScene(sceneEl); mascotStep(sceneEl);
+  mascotWalkTimer = setInterval(()=>mascotStep(sceneEl), 3800);
+}
+function mascotStep(sceneEl){
+  if(!document.body.contains(sceneEl)){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; return; }
+  const w = sceneEl.clientWidth||420; const maxX = Math.max(60,w-72);
+  ROLE_IDS.forEach(id=>{
+    if(!state.agentsEnabled[id] || openMascot===id) return;
+    const cur = mascotState[id];
+    // small, gentle roll — 20-45px per step, not a full-width teleport
+    const stepMin = 20, stepMax = 45;
+    const dir = Math.random()<0.5 ? -1 : 1;
+    let nx = cur.x + dir*(stepMin + Math.random()*(stepMax-stepMin));
+    nx = Math.max(8, Math.min(maxX, nx));
+    const dx = nx - cur.x;
+    const node = document.getElementById('mascot-pos-'+id);
+    const fig = node && node.querySelector('.mascot-figure');
+    if(fig){
+      fig.style.setProperty('--jump-dx', dx+'px');
+      fig.classList.remove('pebble-idle');
+      fig.classList.add('pebble-roll','jumping');
+      fig.addEventListener('animationend', function onEnd(){
+        fig.classList.remove('pebble-roll','jumping');
+        fig.classList.add('pebble-idle');
+        fig.style.transform='';
+        fig.style.removeProperty('--jump-dx');
+        if(node) node.style.left = nx+'px';
+      }, {once:true});
+    }
+    cur.x = nx;
+  });
+}
+function bubbleContent(id){
+  const color = state.theme[id]; const nick = state.nicknames[id];
+  let extra='';
+  if(id==='project'){
+    extra = `<div class="mt-3 pt-3 border-t" style="border-color:var(--line)">
+      <select id="qaProjectSelect" class="w-full text-[12px] border rounded px-2 py-1 mb-2 bg-white" style="border-color:var(--line)">${state.projects.filter(p=>!p.settled).map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select>
+      <div class="flex gap-1.5"><input id="qaProjectText" type="text" placeholder="新增待辦…" class="flex-1 text-[12px] border rounded px-2 py-1" style="border-color:var(--line)"/><button id="qaProjectAdd" class="text-[12px] px-2.5 rounded font-medium" style="background:${color};color:${contrastText(color)}">＋</button></div></div>`;
+  } else if(id==='life'){
+    extra = `<div class="mt-3 pt-3 border-t" style="border-color:var(--line)">
+      <input id="qaLifeDate" type="date" value="${state.todayISO}" class="w-full text-[12px] border rounded px-2 py-1 mb-2" style="border-color:var(--line)"/>
+      <div class="flex gap-1.5"><input id="qaLifeText" type="text" placeholder="新增日常行程…" class="flex-1 text-[12px] border rounded px-2 py-1" style="border-color:var(--line)"/><button id="qaLifeAdd" class="text-[12px] px-2.5 rounded font-medium" style="background:${color};color:${contrastText(color)}">＋</button></div></div>`;
+  }
+  return `<div class="text-[10px] font-mono tracking-widest mb-1" style="color:${color}">${nick.toUpperCase()}</div><div class="text-[13px] leading-relaxed">${roleMsgHome(id)}</div>${extra}`;
+}
+function renderMascotScene(sceneEl){
+  sceneEl.querySelectorAll('.mascot-pos, .speech-bubble').forEach(n=>n.remove());
+  ROLE_IDS.filter(id=>state.agentsEnabled[id]).forEach(id=>{
+    const pos = mascotState[id]; const color = state.theme[id];
+    const isOpen = openMascot===id;
+    const node = el(`<div id="mascot-pos-${id}" class="mascot-pos" style="left:${pos.x}px;">
+      <button data-mascot="${id}" class="mascot-figure mascot-wrap ${isOpen?'pebble-wiggle':'pebble-idle'}">${roleSVG(id,color)}</button></div>`);
+    if(isOpen){
+      const fig=node.querySelector('.mascot-figure');
+      fig.addEventListener('animationend', ()=>{ fig.classList.remove('pebble-wiggle'); fig.classList.add('pebble-idle'); }, {once:true});
+    }
+    sceneEl.appendChild(node);
+  });
+  sceneEl.querySelectorAll('[data-mascot]').forEach(b=> b.addEventListener('click', e=>{
+    e.stopPropagation();
+    openMascot = openMascot===b.dataset.mascot?null:b.dataset.mascot; renderMascotScene(sceneEl);
+  }));
+
+  // The bubble is a direct child of the scene (not nested inside the stone's own
+  // shrink-to-fit wrapper) and positioned purely in scene-pixel coordinates — this avoids
+  // the old bug where the wrapper's width silently collapsed to the button's width and
+  // threw off every "centered" calculation built on top of it.
+  if(openMascot){
+    const btn = sceneEl.querySelector(`#mascot-pos-${openMascot} .mascot-figure`);
+    if(btn){
+      const bubble = el(`<div class="speech-bubble absolute bg-white rounded-xl border p-3.5 fade-in z-20" style="border-color:var(--line);">${bubbleContent(openMascot)}</div>`);
+      bubble.style.width = '256px'; bubble.style.maxWidth = '80vw';
+      bubble.addEventListener('click', e=> e.stopPropagation());
+      sceneEl.appendChild(bubble);
+      const sceneRect = sceneEl.getBoundingClientRect();
+      const btnRect = btn.getBoundingClientRect();
+      const bw = bubble.offsetWidth;
+      const charCenterX = (btnRect.left - sceneRect.left) + btnRect.width/2;
+      const charTop = (btnRect.top - sceneRect.top);
+      const margin = 8;
+      let bubbleLeft = charCenterX - bw/2;
+      bubbleLeft = Math.max(margin, Math.min(bubbleLeft, sceneEl.clientWidth - bw - margin));
+      bubble.style.left = bubbleLeft + 'px';
+      bubble.style.bottom = (sceneEl.clientHeight - charTop + 14) + 'px';
+      bubble.style.setProperty('--arrow-x', (charCenterX - bubbleLeft) + 'px');
+
+      const qp = bubble.querySelector('#qaProjectAdd');
+      if(qp) qp.addEventListener('click', e=>{ e.stopPropagation(); const pid=bubble.querySelector('#qaProjectSelect').value; const txt=bubble.querySelector('#qaProjectText').value.trim(); const proj=state.projects.find(p=>p.id===pid); if(txt&&proj){ state.todos.push({id:uid(),text:`「${proj.name}」${txt}`,done:false,date:state.todayISO,agent:"project"}); openMascot=null; commit(); } });
+      const ql = bubble.querySelector('#qaLifeAdd');
+      if(ql) ql.addEventListener('click', e=>{ e.stopPropagation(); const d=bubble.querySelector('#qaLifeDate').value||state.todayISO; const txt=bubble.querySelector('#qaLifeText').value.trim(); if(txt){ state.personaEvents.push({id:uid(),text:txt,done:false,date:d,kind:"schedule"}); openMascot=null; commit(); } });
+    }
+  }
+  bindMascotOutsideClick(sceneEl);
+}
+let mascotOutsideClickBound = false;
+function bindMascotOutsideClick(sceneEl){
+  if(mascotOutsideClickBound) return;
+  mascotOutsideClickBound = true;
+  // one listener for the page's whole lifetime — always resolves the *current* scene at
+  // click-time rather than closing over a specific (possibly stale/detached) node.
+  document.addEventListener('click', ()=>{
+    if(!openMascot) return;
+    openMascot = null;
+    const scene = document.getElementById('mascotScene');
+    if(scene) renderMascotScene(scene);
+  });
+}
+
+function statusColor(status){ return {"未開始":"var(--ink-soft)","進行中":"var(--clay)","待確認":"var(--gold)","已完成":"var(--sage)","延遲":"#B23A3A","已結案":"#6B705C"}[status] || "var(--ink)"; }
+function projectStatus(p){ if(p.settled) return "已結案"; return p.stages.every(s=>s.done) ? "已完成" : "進行中"; }
+function currentStageIndex(p){ const i=p.stages.findIndex(s=>!s.done); return i===-1?p.stages.length-1:i; }
+
+/* ============================================================ MODAL ============================================================ */
+function openModal(innerEl, onDismiss, lockBackdrop){
+  closeModal();
+  const overlay = el(`<div id="modalOverlay" class="fixed inset-0 z-50 flex items-center justify-center p-6" style="background:rgba(43,42,40,0.45);"></div>`);
+  const box = el(`<div class="bg-white rounded-2xl p-6 w-full max-w-[500px] max-h-[85vh] overflow-y-auto scrollbar-thin fade-in" style="box-shadow:0 4px 16px rgba(43,42,40,0.06);border:1px solid var(--line);"></div>`);
+  box.appendChild(innerEl); overlay.appendChild(box);
+  if(!lockBackdrop) overlay.addEventListener('click', e=>{ if(e.target===overlay){ closeModal(); if(onDismiss) onDismiss(); } });
+  document.body.appendChild(overlay);
+}
+function closeModal(){ const o=document.getElementById('modalOverlay'); if(o) o.remove(); }
+// Native prompt()/confirm()/alert() get silently blocked in this sandboxed preview (no
+// allow-modals), which is why every button that used to call them just looked "broken" with
+// no error. These are drop-in in-page replacements built on the same openModal system.
+function promptModal(title, fields, onSubmit){
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="font-display font-bold text-[17px] mb-4">${title}</div>`));
+  const inputs = {};
+  fields.forEach(f=>{
+    const row = el(`<label class="text-[12px] block mb-3" style="color:var(--ink-soft)">${f.label}<input type="${f.type||'text'}" value="${String(f.value||'').replace(/"/g,'&quot;')}" placeholder="${f.placeholder||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>`);
+    inputs[f.key] = row.querySelector('input');
+    wrap.appendChild(row);
+  });
+  const footer = el(`<div class="flex justify-end gap-2 mt-2"><button id="pmCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="pmOk" class="text-[13px] px-4 py-2 rounded-lg" style="background:var(--ink);color:#fff">確認</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#pmCancel').addEventListener('click', closeModal);
+  const submit = ()=>{
+    const values = {}; fields.forEach(f=> values[f.key]=inputs[f.key].value.trim());
+    closeModal(); onSubmit(values);
+  };
+  footer.querySelector('#pmOk').addEventListener('click', submit);
+  Object.values(inputs).forEach(inp=> inp.addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); }));
+  openModal(wrap);
+  requestAnimationFrame(()=>{ const first=fields[0] && inputs[fields[0].key]; if(first) first.focus(); });
+}
+function confirmModal(message, onConfirm, opts){
+  opts = opts||{};
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="text-[14px] mb-5 leading-relaxed" style="color:var(--ink)">${message}</div>`));
+  const footer = el(`<div class="flex justify-end gap-2"><button id="cmCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">${opts.cancelLabel||'取消'}</button><button id="cmOk" class="text-[13px] px-4 py-2 rounded-lg" style="background:${opts.color||'var(--ink)'};color:#fff">${opts.okLabel||'確定'}</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#cmCancel').addEventListener('click', closeModal);
+  footer.querySelector('#cmOk').addEventListener('click', ()=>{ closeModal(); onConfirm(); });
+  openModal(wrap);
+}
+function alertModal(message){
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="text-[14px] mb-5 leading-relaxed" style="color:var(--ink)">${message}</div>`));
+  const footer = el(`<div class="flex justify-end"><button id="amOk" class="text-[13px] px-4 py-2 rounded-lg" style="background:var(--ink);color:#fff">知道了</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#amOk').addEventListener('click', closeModal);
+  openModal(wrap);
+}
+
+/* ============================================================ ROUTER ============================================================ */
+function commit(){ render(); saveState(); }
+function visibleNav(){
+  return NAV.filter(n=>{
+    const roleForRoute = ROLE_IDS.find(r=>ROLE_META[r].route===n.id);
+    return !roleForRoute || state.agentsEnabled[roleForRoute];
+  });
+}
+const NAV = [
+  {id:"today", label:"Today’s Scope", icon:iconHome},
+  {id:"projectlog", label:"專案 Project Log", icon:iconProject},
+  {id:"persona", label:"日常 Persona", icon:iconLife},
+  {id:"reserve", label:"資產 Reserve", icon:iconFinance},
+  {id:"fellows", label:"夥伴 Fellows", icon:iconAgent},
+  {id:"connections", label:"系統 Connections", icon:iconPlug},
+];
+function iconHome(a){return sw(`<path d="M3 10 L11 3 L19 10" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9 V18 H17 V9" stroke-linejoin="round"/>`,a);}
+function iconProject(a){return sw(`<rect x="3" y="6" width="16" height="12" rx="1"/><path d="M7 6 V4 H15 V6" /><path d="M3 11 H19"/>`,a);}
+function iconLife(a){return sw(`<rect x="3" y="4" width="16" height="15" rx="1"/><path d="M3 9 H19"/><path d="M7 2 V6 M15 2 V6"/>`,a);}
+function iconFinance(a){return sw(`<path d="M11 3 V19" stroke-linecap="round"/><path d="M6 7 H15.5 A3 3 0 0 1 15.5 13 H6" stroke-linecap="round"/>`,a);}
+function iconAgent(a){return sw(`<circle cx="11" cy="8" r="4"/><path d="M4 19 C4 14 7 12 11 12 C15 12 18 14 18 19"/>`,a);}
+function iconPlug(a){return sw(`<path d="M8 3 V8 M14 3 V8" stroke-linecap="round"/><path d="M6 8 H16 V11 A5 5 0 0 1 6 11 Z"/><path d="M11 16 V20" stroke-linecap="round"/>`,a);}
+function sw(inner,a){return `<svg width="18" height="22" viewBox="0 0 22 22" fill="none" stroke="${a?'var(--paper)':'var(--ink)'}" stroke-width="1.5">${inner}</svg>`;}
+function renderNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = visibleNav().map(n=>`<button data-route="${n.id}" class="nav-item ${state.route===n.id?'active':''} flex items-center gap-3 rounded-lg px-3 py-2.5 text-left w-full">
+    <span class="shrink-0">${n.icon(state.route===n.id)}</span><span class="text-[13px] font-medium">${n.label}</span><span class="nav-dot ml-auto w-1.5 h-1.5 rounded-full" style="background:var(--line);"></span></button>`).join('');
+  nav.querySelectorAll('[data-route]').forEach(b=> b.addEventListener('click', ()=>{ state.route=b.dataset.route; state.detailProjectId=null; if(b.dataset.route==="projectlog") state.projectListTab="active"; render(); }));
+}
+function render(){
+  state.todayISO = todayISO(); // keeps yesterday/today/tomorrow rolling forward automatically
+  if(!visibleNav().find(n=>n.id===state.route)) state.route = "today";
+  renderNav();
+  document.getElementById('todayLabel').textContent = state.todayISO.slice(5).replace('-','/');
+  const view = document.getElementById('view');
+  view.innerHTML=''; view.classList.remove('fade-in'); void view.offsetWidth; view.classList.add('fade-in');
+  if(state.route==="today"){ view.appendChild(renderToday()); initMascotScene(document.getElementById('mascotScene')); }
+  else {
+    if(mascotWalkTimer){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; }
+    if(state.route==="projectlog") view.appendChild(state.detailProjectId ? renderProjectDetail(state.detailProjectId) : renderProjectLog());
+    else if(state.route==="persona") view.appendChild(renderPersona());
+    else if(state.route==="reserve") view.appendChild(renderReserve());
+    else if(state.route==="fellows") view.appendChild(renderFellows());
+    else if(state.route==="connections") view.appendChild(renderConnections());
+  }
+}
+function pageHead(eyebrow,title,sub,color){
+  color = color||'var(--ink)';
+  return `<div class="mb-8"><div class="text-[11px] font-mono tracking-[0.2em] mb-1.5" style="color:${color==='var(--ink)'?'var(--ink-soft)':color}">${eyebrow}</div>
+  <h1 class="font-display font-bold text-[30px]" style="color:${color}">${title}</h1>${sub?`<p class="text-[13px] mt-1.5" style="color:var(--ink-soft)">${sub}</p>`:''}</div>`;
+}
+function agentPageHeader(roleId,eyebrow,title){
+  const color = state.theme[roleId]; const nick = state.nicknames[roleId];
+  const row = el(`<div class="flex items-start justify-between gap-6 mb-8 flex-wrap"></div>`);
+  const left = el(`<div class="max-w-[380px]"></div>`);
+  left.innerHTML = `<div class="text-[11px] font-mono tracking-[0.2em] mb-1.5" style="color:${color}">${eyebrow}</div><h1 class="font-display font-bold text-[30px]" style="color:${color}">${title}</h1>`;
+  const bubble = el(`<div class="card rounded-2xl p-4 flex items-center gap-3 max-w-[360px]" style="background:${hexToRgba(color,0.07)};">
+    <div class="shrink-0 rounded-full w-16 h-16 flex items-center justify-center overflow-hidden" style="background:${hexToRgba(color,0.16)};">${roleSVG(roleId,color,46,42)}</div>
+    <div class="text-[12px] leading-relaxed"><div class="text-[10px] font-mono tracking-widest mb-1" style="color:${color}">${ROLE_META[roleId].label} · ${nick}</div>${roleMsgPage(roleId)}</div></div>`);
+  row.append(left,bubble); return row;
+}
+
+/* ============================================================ TODAY'S SCOPE ============================================================ */
+function derivedItemsFor(roleId, dateISO){
+  const items = [];
+  if(roleId==="project") state.projects.filter(p=>!p.settled).forEach(p=> p.stages.forEach(s=>{ if(s.date===dateISO) items.push(`「${p.name}」進入「${s.name}」階段`); }));
+  if(roleId==="finance" && isBiweeklyReviewDate(dateISO)) items.push("雙週資產盤點日：核對銀行餘額");
+  return items;
+}
+function weekDates(offset){ const base = addDays(state.todayISO, offset*7); return [...Array(7)].map((_,i)=>addDays(base,i)); }
+function countAgentItems(roleId, dateISO){
+  if(roleId==="project") return state.projects.filter(p=>!p.settled).reduce((n,p)=>n+p.stages.filter(s=>s.date===dateISO).length,0);
+  if(roleId==="life") return state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date===dateISO).length;
+  return isBiweeklyReviewDate(dateISO)?1:0;
+}
+function buildDayDetail(dateISO){
+  // Calendar/schedule view (NOT the todo list) — project stage dates, persona events, finance review dates.
+  const wrap = el(`<div class="flex flex-col gap-3"></div>`);
+  const sources = [
+    {id:"project", items: derivedItemsFor("project", dateISO)},
+    {id:"life", items: state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date===dateISO).map(e=>e.text||'（未命名）')},
+    {id:"finance", items: derivedItemsFor("finance", dateISO)},
+  ];
+  sources.forEach(({id,items})=>{
+    if(!state.agentsEnabled[id] || !items.length) return;
+    const color = state.theme[id];
+    const group = el(`<div></div>`);
+    group.innerHTML = `<div class="flex items-center gap-1.5 mb-1"><span class="w-1.5 h-1.5 rounded-full" style="background:${color}"></span><span class="text-[11px] font-mono tracking-widest" style="color:${color}">${ROLE_META[id].label}的行程（${state.nicknames[id]}）</span></div>`;
+    items.forEach(txt=> group.appendChild(el(`<div class="text-[13px] mb-1 pl-3" style="color:var(--ink)">・${txt}</div>`)));
+    wrap.appendChild(group);
+  });
+  if(!wrap.children.length) wrap.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有排定的行程。</div>`));
+  return wrap;
+}
+function weekStrip(){
+  const wrap = el(`<div class="card rounded-xl p-5 mb-5"></div>`);
+  const head = el(`<div class="flex items-center justify-between mb-3"></div>`);
+  head.innerHTML = `<div class="text-[11px] font-mono tracking-widest" style="color:var(--ink-soft)">一週總覽 · WEEK AHEAD</div>`;
+  const nav = el(`<div class="flex items-center gap-2"></div>`);
+  const prev = el(`<button class="text-[12px] px-2 py-0.5 rounded border" style="border-color:var(--line)">‹ 上一週</button>`);
+  const next = el(`<button class="text-[12px] px-2 py-0.5 rounded border" style="border-color:var(--line)">下一週 ›</button>`);
+  prev.addEventListener('click', ()=>{ state.weekOffset--; refreshWeekStrip(); });
+  next.addEventListener('click', ()=>{ state.weekOffset++; refreshWeekStrip(); });
+  nav.append(prev,next); head.appendChild(nav); wrap.appendChild(head);
+  const grid = el(`<div class="grid grid-cols-7 gap-2" id="weekGrid"></div>`);
+  wrap.appendChild(grid);
+  const detailWrap = el(`<div class="mt-4 pt-4 border-t" style="border-color:var(--line)" id="weekDetail"></div>`);
+  wrap.appendChild(detailWrap);
+  fillWeekGrid(grid); fillWeekDetail(detailWrap);
+  return wrap;
+}
+function fillWeekGrid(grid){
+  grid.innerHTML='';
+  const sel = state.weekSelectedDate || state.todayISO;
+  weekDates(state.weekOffset).forEach(d=>{
+    const projN = countAgentItems('project',d), lifeN = countAgentItems('life',d), finN = countAgentItems('finance',d);
+    const isToday = d===state.todayISO, isSel = d===sel;
+    const cell = el(`<button class="rounded-lg p-2 text-center" style="background:${isSel?'var(--paper-deep)':'transparent'};border:1.5px solid ${isSel?'var(--ink)':(isToday?'var(--ink-soft)':'var(--line)')};">
+      <div class="text-[10px]" style="color:var(--ink-soft)">${new Date(d+"T00:00:00").toLocaleDateString('zh-TW',{weekday:'short'})}</div>
+      <div class="text-[13px] font-display font-semibold mb-1">${fmt(d)}</div>
+      <div class="flex items-center justify-center gap-1 h-2">
+        ${projN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.project}"></span>`:''}
+        ${lifeN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.life}"></span>`:''}
+        ${finN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.finance}"></span>`:''}
+        ${(!projN&&!lifeN&&!finN)?`<span class="w-1 h-1 rounded-full" style="background:var(--line)"></span>`:''}
+      </div></button>`);
+    cell.addEventListener('click', ()=>{ state.weekSelectedDate=d; refreshWeekStrip(); });
+    grid.appendChild(cell);
+  });
+}
+function fillWeekDetail(wrapEl){
+  const sel = state.weekSelectedDate || state.todayISO;
+  wrapEl.innerHTML = `<div class="text-[12px] font-medium mb-2">${fmt(sel)} 的行程</div>`;
+  wrapEl.appendChild(buildDayDetail(sel));
+}
+function refreshWeekStrip(){ const grid=document.getElementById('weekGrid'); const detail=document.getElementById('weekDetail'); if(grid) fillWeekGrid(grid); if(detail) fillWeekDetail(detail); }
+
+const HOME_COL_H = 440;
+function agendaCard(dateISO, title, opts){
+  opts = opts||{}; const editable = opts.editable!==false;
+  const card = el(`<div class="card rounded-xl p-5 flex flex-col" style="height:${HOME_COL_H}px;"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium">${title}</div><span class="text-[11px] font-mono" style="color:var(--ink-soft)">${fmt(dateISO)}</span></div><div class="flex flex-col gap-4 overflow-y-auto scrollbar-thin flex-1" id="agenda-body-${dateISO}-${title}"></div></div>`);
+  const body = card.querySelector(`#agenda-body-${dateISO}-${title}`.replace(/\s/g,''));
+  ROLE_IDS.filter(id=>state.agentsEnabled[id]).forEach(roleId=>{
+    const color = state.theme[roleId];
+    const group = el(`<div></div>`);
+    group.innerHTML = `<div class="flex items-center gap-1.5 mb-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:${color}"></span><span class="text-[11px] font-mono tracking-widest" style="color:${color}">${ROLE_META[roleId].agendaTitle}（${state.nicknames[roleId]}）</span></div>`;
+    const itemsWrap = el(`<div class="flex flex-col gap-1"></div>`);
+    const isLife = roleId==="life";
+    const arr = isLife ? state.personaEvents.filter(e=>eventKind(e)==='todo') : state.todos.filter(t=>t.agent===roleId);
+    const todos = arr.filter(t=>t.date===dateISO);
+    const derived = derivedItemsFor(roleId, dateISO);
+    function placeholder(){ return el(`<div class="text-[12px] pl-[22px] placeholder-row" style="color:var(--ink-soft)">沒有安排</div>`); }
+    if(!todos.length && !derived.length) itemsWrap.appendChild(placeholder());
+    function buildRow(t){
+      const row = el(`<div class="flex items-center gap-2 group"></div>`);
+      const cb = checkboxEl(t.done, checked=>{ t.done=checked; input.style.color=checked?'var(--ink-soft)':'var(--ink)'; input.style.textDecoration=checked?'line-through':'none'; saveState(); });
+      const input = el(`<input type="text" placeholder="輸入內容…" value="${String(t.text).replace(/"/g,'&quot;')}" class="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-[color:var(--line)] focus:border-[color:var(--ink)] text-[13px] outline-none py-0.5" style="color:${t.done?'var(--ink-soft)':'var(--ink)'};${t.done?'text-decoration:line-through;':''}"/>`);
+      input.addEventListener('change', e=>{ t.text=e.target.value; saveState(); });
+      const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
+      del.addEventListener('click', ()=>{
+        if(isLife) state.personaEvents = state.personaEvents.filter(x=>x.id!==t.id); else state.todos = state.todos.filter(x=>x.id!==t.id);
+        row.remove(); saveState();
+        if(!itemsWrap.querySelector('.group') && !itemsWrap.querySelector('.derived-line')) itemsWrap.appendChild(placeholder());
+      });
+      row.append(cb,input,del); return row;
+    }
+    todos.forEach(t=> itemsWrap.appendChild(buildRow(t)));
+    derived.forEach(txt=> itemsWrap.appendChild(el(`<div class="text-[13px] pl-[22px] derived-line" style="color:var(--ink-soft)">・${txt}</div>`)));
+    group.appendChild(itemsWrap);
+    if(editable){
+      const addBtn = el(`<button class="text-[11px] pl-[22px] mt-1" style="color:${color}">＋ 新增</button>`);
+      addBtn.addEventListener('click', ()=>{
+        const t = {id:uid(), text:"", done:false, date:dateISO}; if(!isLife) t.agent=roleId; else t.kind="todo";
+        if(isLife) state.personaEvents.push(t); else state.todos.push(t);
+        const ph = itemsWrap.querySelector('.placeholder-row'); if(ph) ph.remove();
+        const row = buildRow(t); itemsWrap.appendChild(row); saveState();
+        requestAnimationFrame(()=> row.querySelector('input').focus());
+      });
+      group.appendChild(addBtn);
+    }
+    body.appendChild(group);
+  });
+  return card;
+}
+function overdueCard(){
+  const card = el(`<div class="card rounded-xl p-5 flex flex-col" style="height:${HOME_COL_H}px;"><div class="flex items-center justify-between mb-1"><div class="text-[13px] font-medium">累積未完成事項</div><span class="text-[11px] font-mono" style="color:var(--ink-soft)">OVERDUE</span></div><p class="text-[11px] mb-2" style="color:var(--ink-soft)">今日未完成的事項，過了午夜會自動移入這裡</p><div class="flex flex-col gap-4 overflow-y-auto scrollbar-thin flex-1" id="overdueBody"></div></div>`);
+  const body = card.querySelector('#overdueBody');
+  ROLE_IDS.filter(id=>state.agentsEnabled[id]).forEach(roleId=>{
+    const color = state.theme[roleId];
+    const group = el(`<div></div>`);
+    group.innerHTML = `<div class="flex items-center gap-1.5 mb-1.5"><span class="w-1.5 h-1.5 rounded-full" style="background:${color}"></span><span class="text-[11px] font-mono tracking-widest" style="color:${color}">${ROLE_META[roleId].agendaTitle}（${state.nicknames[roleId]}）</span></div>`;
+    const itemsWrap = el(`<div class="flex flex-col gap-1"></div>`);
+    const isLife = roleId==="life";
+    const arr = isLife ? state.personaEvents.filter(e=>eventKind(e)==='todo') : state.todos.filter(t=>t.agent===roleId);
+    const items = arr.filter(t=> t.date < state.todayISO && !t.done);
+    function placeholder(){ return el(`<div class="text-[12px] pl-[22px] placeholder-row" style="color:var(--ink-soft)">沒有累積未完成事項</div>`); }
+    if(!items.length) itemsWrap.appendChild(placeholder());
+    function buildRow(t){
+      const row = el(`<div class="flex items-center gap-2 group"></div>`);
+      const cb = checkboxEl(t.done, checked=>{ t.done=checked; if(checked){ row.remove(); if(!itemsWrap.querySelector('.group')) itemsWrap.appendChild(placeholder()); } saveState(); });
+      const input = el(`<input type="text" value="${String(t.text).replace(/"/g,'&quot;')}" class="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-[color:var(--line)] focus:border-[color:var(--ink)] text-[13px] outline-none py-0.5"/>`);
+      input.addEventListener('change', e=>{ t.text=e.target.value; saveState(); });
+      const dateTag = el(`<span class="text-[10px] font-mono shrink-0" style="color:var(--ink-soft)">${fmt(t.date)}</span>`);
+      const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
+      del.addEventListener('click', ()=>{
+        if(isLife) state.personaEvents = state.personaEvents.filter(x=>x.id!==t.id); else state.todos = state.todos.filter(x=>x.id!==t.id);
+        row.remove(); saveState();
+        if(!itemsWrap.querySelector('.group')) itemsWrap.appendChild(placeholder());
+      });
+      row.append(cb,input,dateTag,del); return row;
+    }
+    items.forEach(t=> itemsWrap.appendChild(buildRow(t)));
+    group.appendChild(itemsWrap);
+    body.appendChild(group);
+  });
+  return card;
+}
+function renderToday(){
+  const wrap = el(`<div></div>`);
+  const headerRow = el(`<div class="flex items-start justify-between gap-6 mb-6 flex-wrap"></div>`);
+  const left = el(`<div class="max-w-[360px] shrink-0"></div>`);
+  left.innerHTML = `<div class="text-[11px] font-mono tracking-[0.2em] mb-1.5" style="color:var(--ink-soft)">MORNING BRIEF</div>
+    <h1 class="font-display font-bold text-[30px] leading-tight">Today’s Scope</h1>
+    <p class="text-[13px] mt-1.5" style="color:var(--ink-soft)">${new Date(state.todayISO+"T00:00:00").toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</p>
+    <p class="text-[12px] mt-3" style="color:var(--ink-soft)">夥伴們正在城市裡巡邏，點一下看看他們想說什麼，也可以直接快速新增事項。</p>`;
+  const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px]">${citySkylineSVG()}</div>`);
+  headerRow.append(left,scene); wrap.appendChild(headerRow);
+  wrap.appendChild(weekStrip());
+
+  const grid = el(`<div class="grid grid-cols-3 gap-5 mb-6"></div>`);
+  grid.append(agendaCard(state.todayISO,"今日待辦"), agendaCard(addDays(state.todayISO,1),"明日預備"), overdueCard());
+  wrap.appendChild(grid);
+
+  const strip = el(`<div class="mt-6"></div>`);
+  strip.innerHTML = `<div class="text-[13px] font-medium mb-3">專案管線一覽</div>`;
+  const listCard = el(`<div class="card rounded-xl overflow-hidden"></div>`);
+  listCard.appendChild(el(`<div class="flex items-center justify-between px-4 py-2.5 text-[11px] font-mono tracking-widest" style="color:var(--ink-soft);background:var(--paper-deep);"><span>專案名稱</span><span>目前進程</span></div>`));
+  state.projects.filter(p=>!p.settled).forEach(p=> listCard.appendChild(projectListRow(p)));
+  strip.appendChild(listCard); wrap.appendChild(strip);
+  return wrap;
+}
+
+/* ============================================================ PROJECT LOG ============================================================ */
+function projectListRow(p){
+  const status = projectStatus(p); const sc = statusColor(status); const idx = currentStageIndex(p);
+  const d = diffDays(state.todayISO, p.constructionDate);
+  const row = el(`<button class="w-full flex items-center justify-between gap-4 px-4 py-3.5 text-left border-b last:border-b-0 hover:bg-[color:var(--paper-deep)] transition-colors" style="border-color:var(--line);">
+    <div class="flex items-center gap-3 min-w-0"><span class="w-2 h-2 rounded-full shrink-0" style="background:${p.color}"></span><span class="tag shrink-0" style="border-color:${sc};color:${sc}">${status}</span><span class="font-display font-medium text-[14px] truncate">${p.name}</span></div>
+    <div class="flex items-center gap-4 shrink-0"><span class="text-[12px] hidden sm:inline" style="color:var(--ink-soft)">${STAGES[idx]}</span>
+      <div class="w-24 h-1.5 rounded-full hidden md:block" style="background:var(--paper-deep)"><div class="h-1.5 rounded-full" style="width:${(idx/(STAGES.length-1))*100}%;background:${p.color}"></div></div>
+      <span class="text-[11px] font-mono w-12 text-right" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span></div></button>`);
+  row.addEventListener('click', ()=>{ state.route="projectlog"; state.detailProjectId=p.id; state.detailTab="main"; render(); });
+  return row;
+}
+function projectCard(p){
+  const status = projectStatus(p); const sc = statusColor(status); const idx = currentStageIndex(p);
+  const d = diffDays(state.todayISO,p.constructionDate);
+  const card = el(`<button class="card rounded-xl p-4 text-left" style="border-left:3px solid ${p.color};">
+    <div class="flex items-center justify-between mb-2"><span class="tag" style="border-color:${sc};color:${sc}">${status}</span><span class="text-[11px] font-mono" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span></div>
+    <div class="font-display font-semibold text-[15px] mb-1">${p.name}</div><div class="text-[11px] mb-3" style="color:var(--ink-soft)">${p.client}</div>
+    <div class="text-[11px] mb-1" style="color:var(--ink-soft)">現階段：${STAGES[idx]}</div>
+    <div class="w-full h-1.5 rounded-full" style="background:var(--paper-deep)"><div class="h-1.5 rounded-full" style="width:${(idx/(STAGES.length-1))*100}%;background:${p.color}"></div></div></button>`);
+  card.addEventListener('click', ()=>{ state.detailProjectId=p.id; state.detailTab="main"; render(); });
+  return card;
+}
+function projectCreateModal(){
+  const randomColor = PALETTE[Math.floor(Math.random()*PALETTE.length)];
+  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${state.theme.project}">建立新專案</div><div class="flex flex-col gap-3">
+    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱 <span style="color:#B23A3A">*</span><input id="fName" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/><span id="fNameErr" class="text-[11px] hidden" style="color:#B23A3A">請輸入專案名稱</span></label>
+    <label class="text-[12px]" style="color:var(--ink-soft)">客戶<input id="fClient" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">預算成本<input id="fBudget" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="fDeal" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名<input id="fContact" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="fPhone" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
+    <label class="text-[12px]" style="color:var(--ink-soft)">預計進場施工日期（用於自動排 15 階段時程）<input id="fDate" type="date" value="${addDays(state.todayISO,30)}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
+    <div class="flex justify-end gap-2 mt-5"><button id="fCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="fSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${state.theme.project};color:${contrastText(state.theme.project)}">建立專案</button></div></div>`);
+  const nameInput = form.querySelector('#fName'); const nameErr = form.querySelector('#fNameErr');
+  nameInput.addEventListener('input', ()=>{ if(nameInput.value.trim()){ nameErr.classList.add('hidden'); nameInput.style.borderColor='var(--line)'; } });
+  form.querySelector('#fCancel').addEventListener('click', closeModal);
+  form.querySelector('#fSubmit').addEventListener('click', ()=>{
+    const name = nameInput.value.trim();
+    if(!name){ nameErr.classList.remove('hidden'); nameInput.style.borderColor='#B23A3A'; nameInput.focus(); return; }
+    const client = form.querySelector('#fClient').value.trim();
+    const budget = parseFloat(form.querySelector('#fBudget').value)||0;
+    const dealAmount = parseFloat(form.querySelector('#fDeal').value)||0;
+    const contactName = form.querySelector('#fContact').value.trim();
+    const contactPhone = form.querySelector('#fPhone').value.trim();
+    const cDate = form.querySelector('#fDate').value||addDays(state.todayISO,30);
+    state.projects.push({ id:"p"+uid(), name, client, budget, dealAmount, contactName, contactPhone, constructionDate:cDate, viewStageIndex:null, color:randomColor, settled:false, settlement:null, contractors:[],
+      stages: STAGE_OFFSETS.map((off,i)=>({name:STAGES[i],date:addDays(cDate,off),done:false,note:"",checklist:[]})) });
+    closeModal(); commit();
+  });
+  return form;
+}
+function editProjectModal(p){
+  const color = state.theme.project;
+  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">編輯專案</div><div class="flex flex-col gap-3">
+    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱<input id="eName" type="text" value="${p.name}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">預算成本<input id="eBudget" type="number" value="${p.budget}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="eDeal" type="number" value="${p.dealAmount}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名<input id="eContact" type="text" value="${p.contactName||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="ePhone" type="text" value="${p.contactPhone||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div></div>
+    <div class="flex justify-end gap-2 mt-5"><button id="eCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="eSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存</button></div></div>`);
+  form.querySelector('#eCancel').addEventListener('click', closeModal);
+  form.querySelector('#eSubmit').addEventListener('click', ()=>{
+    p.name = form.querySelector('#eName').value.trim()||p.name;
+    p.budget = parseFloat(form.querySelector('#eBudget').value)||0;
+    p.dealAmount = parseFloat(form.querySelector('#eDeal').value)||0;
+    p.contactName = form.querySelector('#eContact').value.trim();
+    p.contactPhone = form.querySelector('#ePhone').value.trim();
+    closeModal(); commit();
+  });
+  return form;
+}
+function addStageModal(p){
+  const color = state.theme.project;
+  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">新增客製時程</div>
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">階段名稱<input id="sName" type="text" placeholder="例如：業主二次確認" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <label class="text-[12px] block mb-4" style="color:var(--ink-soft)">日期<input id="sDate" type="date" value="${state.todayISO}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div class="flex justify-end gap-2"><button id="sCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="sSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">新增</button></div></div>`);
+  form.querySelector('#sCancel').addEventListener('click', closeModal);
+  form.querySelector('#sSubmit').addEventListener('click', ()=>{
+    const name = form.querySelector('#sName').value.trim(); if(!name) return;
+    const date = form.querySelector('#sDate').value||state.todayISO;
+    p.stages.push({name,date,done:false,note:"",checklist:[]});
+    p.viewStageIndex = p.stages.length-1;
+    closeModal(); commit();
+  });
+  return form;
+}
+function settlementModal(p, onCancel){
+  const color = state.theme.finance;
+  const form = el(`<div><div class="font-display font-bold text-[19px] mb-1" style="color:${color}">專案財務結算</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">「${p.name}」即將結案，請完整填寫以下資訊才能完成結案。</p>
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">主案議定金額 <span style="color:#B23A3A">*</span><input id="stDeal" type="number" value="${p.dealAmount||''}" placeholder="若建立專案時未填談定金額，請在此補上" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">追加金額<input id="stAdd" type="number" value="0" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <label class="text-[12px] block mb-4" style="color:var(--ink-soft)">實際成本 <span style="color:#B23A3A">*</span><input id="stCost" type="number" value="${p.budget||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div class="border-t pt-4 mb-3" style="border-color:var(--line)"><div class="text-[11px] font-mono tracking-widest mb-3" style="color:${color}">發票資訊 · 請向客戶索取後填寫</div></div>
+    <div class="grid grid-cols-2 gap-3 mb-1">
+      <label class="text-[12px]" style="color:var(--ink-soft)">抬頭 <span style="color:#B23A3A">*</span><input id="stInvTitle" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">統一編號 <span style="color:#B23A3A">*</span><input id="stInvTax" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    </div>
+    <label class="text-[12px] block mb-1" style="color:var(--ink-soft)">地址 <span style="color:#B23A3A">*</span><input id="stInvAddr" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <label class="text-[12px] block mb-2" style="color:var(--ink-soft)">含稅金額 <span style="color:#B23A3A">*</span><input id="stInvAmt" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div id="stErr" class="text-[12px] mb-2 hidden" style="color:#B23A3A">請完整填寫所有必填欄位（含發票資訊）才能結案。</div>
+    <div class="flex justify-end gap-2 mt-2"><button id="stCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消（不結案）</button><button id="stSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">確認結案</button></div></div>`);
+  form.querySelector('#stCancel').addEventListener('click', ()=>{ closeModal(); if(onCancel) onCancel(); });
+  form.querySelector('#stSubmit').addEventListener('click', ()=>{
+    const dealAmountFinal = parseFloat(form.querySelector('#stDeal').value);
+    const additionalAmount = parseFloat(form.querySelector('#stAdd').value)||0;
+    const actualCost = parseFloat(form.querySelector('#stCost').value);
+    const invoiceTitle = form.querySelector('#stInvTitle').value.trim();
+    const invoiceTax = form.querySelector('#stInvTax').value.trim();
+    const invoiceAddr = form.querySelector('#stInvAddr').value.trim();
+    const invoiceAmt = parseFloat(form.querySelector('#stInvAmt').value);
+    const valid = dealAmountFinal>0 && actualCost>=0 && !isNaN(actualCost) && invoiceTitle && invoiceTax && invoiceAddr && invoiceAmt>0;
+    if(!valid){ form.querySelector('#stErr').classList.remove('hidden'); return; }
+    p.dealAmount = dealAmountFinal;
+    p.settled = true; p.settledAt = state.todayISO;
+    p.settlement = { additionalAmount, actualCost, invoice:{ title:invoiceTitle, taxId:invoiceTax, address:invoiceAddr, amountWithTax:invoiceAmt } };
+    closeModal(); commit();
+  });
+  return form;
+}
+function projectMiniCalendar(){
+  const [y,mo] = state.projectCalMonth.split('-').map(Number);
+  const first = new Date(y,mo-1,1); const startWeekday = first.getDay(); const daysInMonth = new Date(y,mo,0).getDate();
+  const eventsByDate = {};
+  state.projects.forEach(p=> p.stages.forEach(s=>{ (eventsByDate[s.date]=eventsByDate[s.date]||[]).push({name:`「${p.name}」${s.name}`, color:p.color}); }));
+  const wrap = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
+  const head = el(`<div class="flex items-center justify-between mb-3"></div>`);
+  head.innerHTML = `<div class="text-[13px] font-medium">${state.nicknames.project}的行事曆 · 專案進度總覽</div>`;
+  const nav = el(`<div class="flex items-center gap-2"></div>`);
+  const prev = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹</button>`);
+  const label = el(`<span class="text-[12px] font-mono w-16 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
+  const next = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">›</button>`);
+  prev.addEventListener('click', ()=>{ const d=new Date(y,mo-2,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
+  next.addEventListener('click', ()=>{ const d=new Date(y,mo,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
+  nav.append(prev,label,next); head.appendChild(nav); wrap.appendChild(head);
+  const grid = el(`<div class="grid grid-cols-7 gap-1"></div>`);
+  ["日","一","二","三","四","五","六"].forEach(w=> grid.appendChild(el(`<div class="text-[9px] text-center pb-1" style="color:var(--ink-soft)">${w}</div>`)));
+  for(let i=0;i<startWeekday;i++) grid.appendChild(el(`<div></div>`));
+  const panel = el(`<div class="mt-3 pt-3 border-t" style="border-color:var(--line)" id="pcalPanel"></div>`);
+  function refreshPanel(){
+    const sel = state.projectCalSelected;
+    panel.innerHTML='';
+    if(!sel){ panel.innerHTML = `<div class="text-[12px]" style="color:var(--ink-soft)">點選日期查看當天的專案節點。</div>`; return; }
+    panel.appendChild(el(`<div class="text-[12px] font-medium mb-2">${fmt(sel)} 的專案節點</div>`));
+    const items = eventsByDate[sel]||[];
+    if(!items.length) panel.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有專案節點。</div>`));
+    items.forEach(it=> panel.appendChild(el(`<div class="text-[12px] mb-1 flex items-center gap-1.5" style="color:var(--ink-soft)"><span class="w-1.5 h-1.5 rounded-full" style="background:${it.color}"></span>${it.name}</div>`)));
+  }
+  for(let d=1; d<=daysInMonth; d++){
+    const iso = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const evts = eventsByDate[iso]||[]; const isToday = iso===state.todayISO;
+    const cell = el(`<button class="cal-cell rounded-md flex flex-col items-center justify-center" data-date="${iso}" style="border:1.4px solid ${isToday?'var(--ink)':'var(--line)'};background:transparent;"><span>${d}</span><span class="flex gap-0.5 mt-0.5">${evts.slice(0,3).map(e=>`<span class="w-1 h-1 rounded-full" style="background:${e.color}"></span>`).join('')}</span></button>`);
+    cell.addEventListener('click', ()=>{
+      state.projectCalSelected = iso;
+      grid.querySelectorAll('[data-date]').forEach(c=>{ c.style.borderColor = c.dataset.date===state.todayISO ? 'var(--ink)' : 'var(--line)'; c.style.background='transparent'; });
+      cell.style.borderColor = state.theme.project; cell.style.background = hexToRgba(state.theme.project,0.1);
+      refreshPanel();
+    });
+    grid.appendChild(cell);
+  }
+  wrap.appendChild(grid); wrap.appendChild(panel); refreshPanel();
+  return wrap;
+}
+function renderProjectLog(){
+  const color = state.theme.project;
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(agentPageHeader('project','PROJECT PIPELINE','專案 Project Log'));
+  const topRow = el(`<div class="flex items-center justify-between mb-6 flex-wrap gap-3"></div>`);
+  const addBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border flex items-center gap-2" style="border-color:${color};color:${color};">＋ 建立新專案</button>`);
+  addBtn.addEventListener('click', ()=> openModal(projectCreateModal()));
+  const tabs = el(`<div class="flex items-center gap-1 rounded-lg p-1" style="background:var(--paper-deep);"></div>`);
+  const tabActive = el(`<button class="text-[12px] px-3 py-1.5 rounded-md" style="background:${state.projectListTab==='active'?'#fff':'transparent'};box-shadow:${state.projectListTab==='active'?'0 1px 3px rgba(0,0,0,0.08)':'none'}">進行中專案</button>`);
+  const tabArchive = el(`<button class="text-[12px] px-3 py-1.5 rounded-md" style="background:${state.projectListTab==='archive'?'#fff':'transparent'};box-shadow:${state.projectListTab==='archive'?'0 1px 3px rgba(0,0,0,0.08)':'none'}">已結案存檔</button>`);
+  tabActive.addEventListener('click', ()=>{ state.projectListTab='active'; render(); });
+  tabArchive.addEventListener('click', ()=>{ state.projectListTab='archive'; render(); });
+  tabs.append(tabActive,tabArchive); topRow.append(addBtn,tabs); wrap.appendChild(topRow);
+
+  if(state.projectListTab==='active'){
+    wrap.appendChild(projectMiniCalendar());
+    const grid = el(`<div class="grid grid-cols-3 gap-4"></div>`);
+    const list = state.projects.filter(p=>!p.settled);
+    if(!list.length) grid.appendChild(el(`<div class="text-[13px] col-span-3" style="color:var(--ink-soft)">目前沒有進行中的專案。</div>`));
+    list.forEach(p=> grid.appendChild(projectCard(p)));
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  // 已結案存檔
+  const thisYear = new Date(state.todayISO+"T00:00:00").getFullYear();
+  const archived = state.projects.filter(p=>p.settled && p.settlement)
+    .map(p=>{
+      const revenue = p.dealAmount + (p.settlement.additionalAmount||0);
+      const cost = p.settlement.actualCost||0;
+      const margin = revenue ? ((revenue-cost)/revenue*100) : 0;
+      return {p, revenue, cost, margin, settledAt: p.settledAt||p.constructionDate};
+    })
+    .sort((a,b)=> b.settledAt.localeCompare(a.settledAt));
+  const yearOnes = archived.filter(a=> a.settledAt.slice(0,4)===String(thisYear));
+  const totalRevenue = yearOnes.reduce((s,a)=>s+a.revenue,0);
+  const avgMargin = yearOnes.length ? yearOnes.reduce((s,a)=>s+a.margin,0)/yearOnes.length : 0;
+
+  const perfBar = el(`<div class="card rounded-xl p-5 mb-6 grid grid-cols-3 gap-4"></div>`);
+  const stat=(l,v)=>`<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">${l}</div><div class="text-[20px] font-display font-bold">${v}</div></div>`;
+  perfBar.innerHTML = stat(`${thisYear} 累計總收入`, `NT$ ${Math.round(totalRevenue).toLocaleString()}`) + stat('平均毛利率', `${avgMargin.toFixed(1)}%`) + stat('已結案專案數', `${yearOnes.length} 件`);
+  wrap.appendChild(perfBar);
+
+  const list = el(`<div class="flex flex-col gap-3"></div>`);
+  if(!archived.length) list.appendChild(el(`<div class="text-[13px]" style="color:var(--ink-soft)">目前沒有已結案的專案。</div>`));
+  archived.forEach(({p,revenue,margin,settledAt})=>{
+    const marginColor = margin>=31 ? '#4C8B5C' : '#B23A3A';
+    const ym = settledAt.slice(0,7).replace('-','/');
+    const row = el(`<button class="card rounded-xl p-4 flex items-center justify-between text-left" style="border-left:3px solid ${p.color};">
+      <div class="min-w-0"><div class="font-display font-medium text-[14px] truncate">${p.name}</div><div class="text-[11px]" style="color:var(--ink-soft)">${p.client||'—'} · 結案於 ${ym}</div></div>
+      <div class="flex items-center gap-5 shrink-0">
+        <div class="text-right"><div class="text-[10px] font-mono" style="color:var(--ink-soft)">總收入</div><div class="text-[13px] font-mono font-medium">NT$ ${Math.round(revenue).toLocaleString()}</div></div>
+        <div class="text-right"><div class="text-[10px] font-mono" style="color:var(--ink-soft)">毛利率</div><div class="text-[13px] font-mono font-semibold" style="color:${marginColor}">${margin.toFixed(1)}%</div></div>
+      </div></button>`);
+    row.addEventListener('click', ()=>{ state.detailProjectId=p.id; state.detailTab='main'; render(); });
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function csvDownload(filename, rows){
+  const csv = rows.map(r=> r.map(c=> `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(["\uFEFF"+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+function contractorShareModal(p){
+  const color = state.theme.project;
+  const wrap = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">分享工班通訊錄</div>
+    <button id="csvBtn" class="w-full text-left px-4 py-3 rounded-lg border mb-2 text-[13px]" style="border-color:var(--line)">⬇️ 下載 .csv 檔案</button>
+    <button id="lineBtn" class="w-full text-left px-4 py-3 rounded-lg border text-[13px]" style="border-color:var(--line)">📋 複製 LINE 格式文字</button>
+    <div id="shareMsg" class="text-[12px] mt-3" style="color:var(--good)"></div>
+    <div class="flex justify-end mt-4"><button id="shareClose" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">關閉</button></div></div>`);
+  wrap.querySelector('#csvBtn').addEventListener('click', ()=>{
+    csvDownload(`${p.name}-工班通訊錄.csv`, [["姓名","工種","電話","預計進場時間"], ...p.contractors.map(c=>[c.name,c.trade,c.phone,c.arrival||''])]);
+  });
+  wrap.querySelector('#lineBtn').addEventListener('click', async ()=>{
+    const text = p.contractors.map(c=> `${c.name}／${c.trade}／${c.phone}／${c.arrival||'未定'}`).join('\n');
+    try{ await navigator.clipboard.writeText(text); wrap.querySelector('#shareMsg').textContent = '已複製到剪貼簿！'; }
+    catch(e){ wrap.querySelector('#shareMsg').textContent = '複製失敗，請手動選取文字。'; }
+  });
+  wrap.querySelector('#shareClose').addEventListener('click', closeModal);
+  return wrap;
+}
+function contractorRow(p, c){
+  const hasHistory = state.projects.some(op=> op.id!==p.id && op.contractors.some(c2=>c2.name===c.name && c2.trade===c.trade));
+  const row = el(`<div class="flex items-center justify-between gap-3 py-1.5 border-b last:border-b-0 text-[13px]" style="border-color:var(--line);">
+    <div class="flex items-center gap-2 min-w-0 flex-wrap"><span class="tag shrink-0">${c.trade||'工班'}</span><span class="truncate">${c.name}</span>${hasHistory?`<span class="tag shrink-0" style="border-color:var(--good);color:var(--good)">★ 合作經驗</span>`:''}</div>
+    <div class="flex items-center gap-2 shrink-0"><span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span><span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
+      <button class="text-[13px]" title="編輯">✏️</button><button class="text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button></div></div>`);
+  const [editBtn, delBtn] = row.querySelectorAll('button');
+  editBtn.addEventListener('click', ()=>{
+    promptModal('編輯工班聯絡人', [
+      {key:'name', label:'姓名/公司', value:c.name},
+      {key:'trade', label:'工種', value:c.trade},
+      {key:'phone', label:'電話', value:c.phone},
+      {key:'arrival', label:'預計進場時間', value:c.arrival, type:'date'},
+    ], (v)=>{
+      c.name=v.name||c.name; c.trade=v.trade||c.trade; c.phone=v.phone||c.phone; c.arrival=v.arrival||c.arrival;
+      commit();
+    });
+  });
+  delBtn.addEventListener('click', ()=>{ p.contractors = p.contractors.filter(x=>x.id!==c.id); commit(); });
+  return row;
+}
+
+function refreshStagePanel(p, container){
+  const cur = p.stages[p.viewStageIndex];
+  container.querySelector('#stageTitle').textContent = `「${cur.name}」階段筆記`;
+  const ta = container.querySelector('textarea');
+  ta.value = cur.note; ta.oninput = e=>{ cur.note=e.target.value; }; ta.onchange = ()=> saveState();
+  const clist = container.querySelector('#clist');
+  function renderChecklist(){
+    clist.innerHTML='';
+    if(!cur.checklist.length) clist.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">尚無項目</div>`));
+    cur.checklist.forEach(c=>{
+      const row = el(`<div class="flex items-center gap-2 text-[13px]"></div>`);
+      const cb = checkboxEl(c.done, checked=>{ c.done=checked; span.style.color=checked?'var(--ink-soft)':'var(--ink)'; span.style.textDecoration=checked?'line-through':'none'; saveState(); });
+      const span = el(`<span style="color:${c.done?'var(--ink-soft)':'var(--ink)'};${c.done?'text-decoration:line-through;':''}">${c.label}</span>`);
+      row.append(cb,span); clist.appendChild(row);
+    });
+  }
+  renderChecklist();
+  container.querySelector('#addCheck').onclick = ()=>{
+    promptModal('新增確認項目', [{key:'label', label:'項目內容'}], (v)=>{
+      if(v.label){ cur.checklist.push({label:v.label,done:false}); renderChecklist(); saveState(); }
+    });
+  };
+  container.querySelector('#stagePos').textContent = `${p.viewStageIndex+1} / ${p.stages.length}`;
+}
+function projectTodoCard(p){
+  const color = state.theme.project;
+  const card = el(`<div class="card rounded-xl p-5 mb-6"><div class="text-[13px] font-medium mb-3">專案待辦事項（可指定未來日期，同步顯示於 Today's Scope）</div><div id="projTodoList" class="flex flex-col gap-1 mb-3"></div></div>`);
+  const list = card.querySelector('#projTodoList');
+  function placeholder(){ return el(`<div class="text-[12px] placeholder-row" style="color:var(--ink-soft)">尚未新增待辦事項</div>`); }
+  function buildRow(t){
+    const row = el(`<div class="flex items-center gap-2 group"></div>`);
+    const cb = checkboxEl(t.done, checked=>{ t.done=checked; input.style.color=checked?'var(--ink-soft)':'var(--ink)'; input.style.textDecoration=checked?'line-through':'none'; saveState(); });
+    const dateTag = el(`<span class="text-[10px] font-mono shrink-0" style="color:var(--ink-soft)">${fmt(t.date)}</span>`);
+    const input = el(`<input type="text" value="${String(t.text).replace(/"/g,'&quot;')}" class="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-[color:var(--line)] focus:border-[color:var(--ink)] text-[13px] outline-none py-0.5" style="color:${t.done?'var(--ink-soft)':'var(--ink)'};${t.done?'text-decoration:line-through;':''}"/>`);
+    input.addEventListener('change', e=>{ t.text=e.target.value; saveState(); });
+    const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
+    del.addEventListener('click', ()=>{ state.todos = state.todos.filter(x=>x.id!==t.id); row.remove(); saveState(); if(!list.querySelector('.group')) list.appendChild(placeholder()); });
+    row.append(cb,dateTag,input,del); return row;
+  }
+  const items = state.todos.filter(t=>t.agent==='project' && t.projectId===p.id).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!items.length) list.appendChild(placeholder());
+  items.forEach(t=> list.appendChild(buildRow(t)));
+  const addRow = el(`<div class="flex flex-wrap gap-2 items-center pt-2 border-t" style="border-color:var(--line)">
+    <input id="ptDate" type="date" value="${state.todayISO}" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
+    <input id="ptText" type="text" placeholder="輸入待辦內容…" class="flex-1 text-[13px] border rounded-lg px-3 py-2 min-w-[140px]" style="border-color:var(--line)"/>
+    <button id="ptAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增</button></div>`);
+  const submit = ()=>{
+    const d = addRow.querySelector('#ptDate').value || state.todayISO;
+    const v = addRow.querySelector('#ptText').value.trim();
+    if(!v) return;
+    const t = {id:uid(), text:`「${p.name}」${v}`, done:false, date:d, agent:"project", projectId:p.id};
+    state.todos.push(t);
+    const ph = list.querySelector('.placeholder-row'); if(ph) ph.remove();
+    list.appendChild(buildRow(t));
+    addRow.querySelector('#ptText').value='';
+    saveState();
+  };
+  addRow.querySelector('#ptAdd').addEventListener('click', submit);
+  addRow.querySelector('#ptText').addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); });
+  card.appendChild(addRow);
+  return card;
+}
+function renderProjectDetail(id){
+  const p = state.projects.find(x=>x.id===id);
+  const color = state.theme.project;
+  if(p.viewStageIndex==null) p.viewStageIndex = currentStageIndex(p);
+  const wrap = el(`<div></div>`);
+  const back = el(`<button class="text-[12px] mb-4 flex items-center gap-1" style="color:var(--ink-soft)">← 返回專案列表</button>`);
+  back.addEventListener('click', ()=>{ state.detailProjectId=null; render(); });
+  wrap.appendChild(back);
+
+  const headRow = el(`<div class="flex items-start justify-between gap-4 flex-wrap mb-6"></div>`);
+  headRow.innerHTML = pageHead('PROJECT DETAIL', p.name, p.client, color);
+  const btnRow = el(`<div class="flex items-center gap-2"></div>`);
+  const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">✏️ 編輯專案</button>`);
+  editBtn.addEventListener('click', ()=> openModal(editProjectModal(p)));
+  const addStageBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">＋ 新增客製時程</button>`);
+  addStageBtn.addEventListener('click', ()=> openModal(addStageModal(p)));
+  btnRow.append(editBtn, addStageBtn); headRow.appendChild(btnRow); wrap.appendChild(headRow);
+
+  if(p.settled && p.settlement){
+    const revenue = p.dealAmount + (p.settlement.additionalAmount||0);
+    const cost = p.settlement.actualCost||0; const profit = revenue-cost; const margin = revenue? (profit/revenue*100):0;
+    const perf = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
+    perf.innerHTML = `<div class="text-[13px] font-medium mb-3">經營績效</div>`;
+    const statsGrid = el(`<div class="grid grid-cols-3 gap-4 mb-4"></div>`);
+    const stat=(l,v)=>`<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">${l}</div><div class="text-[18px] font-display font-bold">NT$ ${Math.round(v).toLocaleString()}</div></div>`;
+    statsGrid.innerHTML = stat('總營收',revenue) + stat('利潤',profit) + `<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">毛利率</div><div class="text-[18px] font-display font-bold">${margin.toFixed(1)}%</div></div>`;
+    perf.appendChild(statsGrid);
+    const canvasWrap = el(`<div style="max-width:220px;"><canvas id="perfChart"></canvas></div>`);
+    perf.appendChild(canvasWrap); wrap.appendChild(perf);
+    setTimeout(()=> new Chart(canvasWrap.querySelector('canvas'), {type:'pie', data:{labels:['成本','利潤'], datasets:[{data:[cost,Math.max(profit,0)], backgroundColor:[hexToRgba('#B5654A',0.75), hexToRgba('#7A8B6F',0.8)]}]}, options:{plugins:{legend:{labels:{font:{size:11}}}}}}), 0);
+  }
+
+  const infoBar = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
+  const infoItem = (l,v)=> `<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">${l}</div><div class="text-[14px] font-medium">${v||'—'}</div></div>`;
+  const mainRow = el(`<div class="grid grid-cols-4 gap-4"></div>`);
+  mainRow.innerHTML = infoItem('預算成本', p.budget?`NT$ ${p.budget.toLocaleString()}`:'') + infoItem('談定金額', p.dealAmount?`NT$ ${p.dealAmount.toLocaleString()}`:'') + infoItem('窗口聯絡人', p.contactName) + infoItem('聯絡電話', p.contactPhone);
+  infoBar.appendChild(mainRow);
+
+  if(p.settled && p.settlement && p.settlement.invoice){
+    const inv = p.settlement.invoice;
+    const invRow = el(`<div class="grid grid-cols-4 gap-4 mt-4 pt-4 border-t" style="border-color:var(--line)"></div>`);
+    invRow.innerHTML = `<div class="col-span-4 text-[10px] font-mono tracking-widest -mt-1 mb-0.5" style="color:${state.theme.finance}">發票資訊</div>`
+      + infoItem('抬頭', inv.title) + infoItem('統一編號', inv.taxId) + infoItem('地址', inv.address) + infoItem('含稅金額', inv.amountWithTax?`NT$ ${inv.amountWithTax.toLocaleString()}`:'');
+    infoBar.appendChild(invRow);
+  }
+  wrap.appendChild(infoBar);
+
+  const tabRow = el(`<div class="flex items-center gap-1 rounded-lg p-1 mb-6 w-fit" style="background:var(--paper-deep);"></div>`);
+  const tabMain = el(`<button class="text-[12px] px-4 py-1.5 rounded-md" style="background:${state.detailTab==='main'?'#fff':'transparent'};box-shadow:${state.detailTab==='main'?'0 1px 3px rgba(0,0,0,.08)':'none'}">專案主頁</button>`);
+  const tabCal = el(`<button class="text-[12px] px-4 py-1.5 rounded-md" style="background:${state.detailTab==='calendar'?'#fff':'transparent'};box-shadow:${state.detailTab==='calendar'?'0 1px 3px rgba(0,0,0,.08)':'none'}">專案專屬行事曆</button>`);
+  tabMain.addEventListener('click', ()=>{ state.detailTab='main'; render(); });
+  tabCal.addEventListener('click', ()=>{ state.detailTab='calendar'; render(); });
+  tabRow.append(tabMain,tabCal); wrap.appendChild(tabRow);
+
+  const body = el(`<div></div>`);
+  if(state.detailTab==='calendar'){ body.appendChild(projectDetailCalendar(p)); wrap.appendChild(body); return wrap; }
+
+  // 時程軸
+  const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
+  timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
+  const track = el(`<div class="stage-track overflow-x-auto pb-2"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
+  track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
+  const inner = track.firstChild;
+  p.stages.forEach((s,i)=>{
+    const isPast = new Date(s.date) < new Date(state.todayISO);
+    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
+      <div class="flex items-center justify-between mb-1"><span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span></div>
+      <div class="text-[12px] font-medium mb-2 leading-tight">${s.name}</div>
+      <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
+      <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div></div>`);
+    let cb;
+    function handleStageToggle(checked){
+      s.done = checked;
+      item.style.borderColor = checked?p.color:'var(--line)';
+      item.style.background = i===p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked?hexToRgba(p.color,0.06):'#fff');
+      item.querySelector('.text-\\[10px\\]').textContent = checked?'已完成':(isPast?'已逾期':'未到期');
+      saveState();
+      if(s.name==="結案" && checked && !p.settled){
+        const revert = ()=>{
+          s.done = false;
+          const freshCb = checkboxEl(false, handleStageToggle);
+          cb.replaceWith(freshCb); cb = freshCb;
+          item.style.borderColor = 'var(--line)';
+          item.style.background = i===p.viewStageIndex ? hexToRgba(p.color,0.12) : '#fff';
+          item.querySelector('.text-\\[10px\\]').textContent = isPast?'已逾期':'未到期';
+          saveState();
+        };
+        openModal(settlementModal(p, revert), revert, true);
+      }
+    }
+    cb = checkboxEl(s.done, handleStageToggle);
+    item.querySelector('.flex.items-center.justify-between').appendChild(cb);
+    item.querySelector('input[type=date]').addEventListener('click', e=> e.stopPropagation());
+    item.querySelector('input[type=date]').addEventListener('change', e=>{
+      const newDate = e.target.value; const delta = diffDays(s.date,newDate);
+      for(let j=i;j<p.stages.length;j++){ p.stages[j].date = addDays(p.stages[j].date, delta); }
+      if(i===9) p.constructionDate = p.stages[9].date;
+      commit();
+    });
+    item.addEventListener('click', ()=>{
+      p.viewStageIndex = i;
+      inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
+      refreshStagePanel(p, noteWrap);
+    });
+    inner.appendChild(item);
+  });
+  timelineCard.appendChild(track); wrap.appendChild(timelineCard);
+
+  const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
+  const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
+  const checkBox = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">確認清單</div><div class="flex flex-col gap-2" id="clist"></div><button class="text-[12px] mt-3" id="addCheck" style="color:${color}">＋ 新增項目</button></div>`);
+  noteWrap.append(noteBox, checkBox);
+  noteBox.querySelector('#prevStage').addEventListener('click', ()=>{ if(p.viewStageIndex>0){ p.viewStageIndex--; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
+  noteBox.querySelector('#nextStage').addEventListener('click', ()=>{ if(p.viewStageIndex<p.stages.length-1){ p.viewStageIndex++; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
+  wrap.appendChild(noteWrap);
+  refreshStagePanel(p, noteWrap);
+
+  wrap.appendChild(projectTodoCard(p));
+
+  const contractorCard = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium">專案工班通訊錄</div><button id="shareBtn" class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">➕ 分享/匯出</button></div><div id="clRows" class="mb-3"></div></div>`);
+  contractorCard.querySelector('#shareBtn').addEventListener('click', ()=> openModal(contractorShareModal(p)));
+  const clRows = contractorCard.querySelector('#clRows');
+  if(!p.contractors.length) clRows.appendChild(el(`<div class="text-[12px] mb-2" style="color:var(--ink-soft)">尚未新增工班聯絡人。</div>`));
+  p.contractors.forEach(c=> clRows.appendChild(contractorRow(p,c)));
+  const addRow = el(`<div class="flex flex-wrap gap-2 items-center pt-2 border-t" style="border-color:var(--line)">
+    <input id="cName" type="text" placeholder="師傅/公司名稱" class="text-[12px] border rounded px-2 py-1.5 flex-1 min-w-[100px]" style="border-color:var(--line)"/>
+    <input id="cTrade" type="text" placeholder="工種" class="text-[12px] border rounded px-2 py-1.5 w-24" style="border-color:var(--line)"/>
+    <input id="cPhone" type="text" placeholder="電話" class="text-[12px] border rounded px-2 py-1.5 w-28" style="border-color:var(--line)"/>
+    <input id="cArrival" type="date" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
+    <button id="cAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增</button></div>`);
+  addRow.querySelector('#cAdd').addEventListener('click', ()=>{
+    const name = addRow.querySelector('#cName').value.trim();
+    const trade = addRow.querySelector('#cTrade').value.trim();
+    const phone = addRow.querySelector('#cPhone').value.trim();
+    const arrival = addRow.querySelector('#cArrival').value;
+    if(name){ p.contractors.push({id:uid(),name,trade,phone,arrival}); commit(); }
+  });
+  contractorCard.appendChild(addRow); wrap.appendChild(contractorCard);
+  return wrap;
+}
+function highlightStage(inner,p){ inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===p.viewStageIndex ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); }); }
+function projectDetailCalendar(p){
+  const wrap = el(`<div class="card rounded-xl p-5"></div>`);
+  wrap.innerHTML = `<div class="text-[13px] font-medium mb-3">「${p.name}」專屬行事曆</div>`;
+  const grid = el(`<div class="grid grid-cols-5 gap-2"></div>`);
+  p.stages.forEach((s,i)=>{
+    grid.appendChild(el(`<div class="rounded-lg p-2 text-center" style="border:1.4px solid ${s.done?p.color:'var(--line)'};background:${s.done?hexToRgba(p.color,0.08):'transparent'}">
+      <div class="text-[10px] font-mono" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</div>
+      <div class="text-[11px] font-medium mb-1">${s.name}</div><div class="text-[10px] font-mono" style="color:var(--ink-soft)">${fmt(s.date)}</div></div>`));
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ============================================================ PERSONA ============================================================ */
+function upcoming10Strip(){
+  const color = state.theme.life;
+  const days = [...Array(10)].map((_,i)=>addDays(state.todayISO,i)).filter(d=> state.personaEvents.some(e=>e.date===d));
+  const wrap = el(`<div class="mb-5"></div>`);
+  wrap.appendChild(el(`<div class="text-[11px] font-mono tracking-widest mb-2" style="color:var(--ink-soft)">近 10 天速覽 · UPCOMING</div>`));
+  if(!days.length){ wrap.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">未來 10 天內還沒有安排行程。</div>`)); return wrap; }
+  const row = el(`<div class="flex gap-3 overflow-x-auto pb-1 scrollbar-thin"></div>`);
+  days.forEach(d=>{
+    const evts = state.personaEvents.filter(e=>e.date===d);
+    const card = el(`<button class="rounded-lg p-3 text-left shrink-0 w-40" style="border:1.4px solid ${hexToRgba(color,0.4)};background:${hexToRgba(color,0.05)}">
+      <div class="text-[11px] font-mono mb-1" style="color:${color}">${fmt(d)}</div>
+      ${evts.slice(0,2).map(e=>`<div class="text-[12px] truncate">${e.text||'（未命名）'}</div>`).join('')}${evts.length>2?`<div class="text-[10px] mt-0.5" style="color:var(--ink-soft)">+${evts.length-2} 筆</div>`:''}</button>`);
+    card.addEventListener('click', ()=>{ state.personaSelectedDate=d; refreshPersonaCalendarDay(); });
+    row.appendChild(card);
+  });
+  wrap.appendChild(row); return wrap;
+}
+function personaMonthCalendar(){
+  const [y,mo] = state.personaCalMonth.split('-').map(Number);
+  const first = new Date(y,mo-1,1); const startWeekday = first.getDay(); const daysInMonth = new Date(y,mo,0).getDate();
+  const color = state.theme.life; const counts = {};
+  state.personaEvents.forEach(e=> counts[e.date]=(counts[e.date]||0)+1);
+  const wrap = el(`<div class="card rounded-xl p-5 mb-5"></div>`);
+  const head = el(`<div class="flex items-center justify-between mb-3"></div>`); head.innerHTML = `<div class="text-[13px] font-medium">日常行事曆</div>`;
+  const nav = el(`<div class="flex items-center gap-2"></div>`);
+  const prev = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹</button>`);
+  const label = el(`<span class="text-[12px] font-mono w-16 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
+  const next = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">›</button>`);
+  prev.addEventListener('click', ()=>{ const d=new Date(y,mo-2,1); state.personaCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
+  next.addEventListener('click', ()=>{ const d=new Date(y,mo,1); state.personaCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
+  nav.append(prev,label,next); head.appendChild(nav); wrap.appendChild(head);
+  const grid = el(`<div class="grid grid-cols-7 gap-1" id="personaGrid"></div>`);
+  ["日","一","二","三","四","五","六"].forEach(w=> grid.appendChild(el(`<div class="text-[9px] text-center pb-1" style="color:var(--ink-soft)">${w}</div>`)));
+  for(let i=0;i<startWeekday;i++) grid.appendChild(el(`<div></div>`));
+  for(let d=1; d<=daysInMonth; d++){
+    const iso = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const n = counts[iso]||0; const isToday = iso===state.todayISO; const isSel = iso===state.personaSelectedDate;
+    const cell = el(`<button class="cal-cell rounded-md flex flex-col items-center justify-center" data-date="${iso}" style="border:1.4px solid ${isSel?color:(isToday?'var(--ink)':'var(--line)')};background:${isSel?hexToRgba(color,0.14):(n?hexToRgba(color,0.06):'transparent')};"><span>${d}</span>${n?`<span class="w-1 h-1 rounded-full mt-0.5" style="background:${color}"></span>`:''}</button>`);
+    cell.addEventListener('click', ()=>{
+      state.personaSelectedDate = iso;
+      grid.querySelectorAll('[data-date]').forEach(c=>{ const cIso=c.dataset.date; const cIsToday=cIso===state.todayISO; c.style.borderColor = cIsToday?'var(--ink)':'var(--line)'; c.style.background = (counts[cIso]?hexToRgba(color,0.06):'transparent'); });
+      cell.style.borderColor = color; cell.style.background = hexToRgba(color,0.14);
+      refreshPersonaCalendarDay();
+    });
+    grid.appendChild(cell);
+  }
+  // day panel: click a date to see that day's 行程 (read-only style, mirrors the project calendar)
+  const dayWrap = el(`<div class="mt-4 pt-4 border-t" style="border-color:var(--line)" id="personaDayWrap"></div>`);
+  wrap.appendChild(dayWrap);
+  function refreshDayWrap(){
+    const dateISO = state.personaSelectedDate;
+    dayWrap.innerHTML = `<div class="text-[12px] font-medium mb-2">${fmt(dateISO)} 的行程</div>`;
+    const schedList = el(`<div class="flex flex-col gap-1 mb-2" id="schedList"></div>`);
+    const schedEvents = state.personaEvents.filter(e=>e.date===dateISO && eventKind(e)==='schedule');
+    if(!schedEvents.length) schedList.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天還沒有安排行程。</div>`));
+    schedEvents.forEach(t=>{
+      const row = el(`<div class="flex items-center gap-2 group"></div>`);
+      const txt = el(`<span class="flex-1 text-[13px]" style="color:var(--ink-soft)">・${t.text||'（未命名）'}</span>`);
+      const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
+      del.addEventListener('click', ()=>{ state.personaEvents = state.personaEvents.filter(x=>x.id!==t.id); saveState(); refreshDayWrap(); });
+      row.append(txt,del); schedList.appendChild(row);
+    });
+    dayWrap.appendChild(schedList);
+    const schedAddRow = el(`<div class="flex gap-1.5"><input id="newEvt" type="text" placeholder="新增這天的行程（時間／地點）…" class="flex-1 text-[13px] border rounded-lg px-3 py-2" style="border-color:var(--line)"/><button id="newEvtAdd" class="text-[12px] px-3 rounded-lg" style="background:${color};color:${contrastText(color)}">＋</button></div>`);
+    const submitSched = ()=>{ const v=schedAddRow.querySelector('#newEvt').value.trim(); if(v){ state.personaEvents.push({id:uid(),text:v,done:false,date:dateISO,kind:"schedule"}); refreshDayWrap(); saveState(); } };
+    schedAddRow.querySelector('#newEvtAdd').addEventListener('click', submitSched);
+    schedAddRow.querySelector('#newEvt').addEventListener('keydown', e=>{ if(e.key==='Enter') submitSched(); });
+    dayWrap.appendChild(schedAddRow);
+  }
+  refreshDayWrap();
+  wrap._refreshDayWrap = refreshDayWrap;
+  return wrap;
+}
+function refreshPersonaCalendarDay(){
+  const dw = document.getElementById('personaDayWrap');
+  if(dw && dw.parentElement && dw.parentElement._refreshDayWrap) dw.parentElement._refreshDayWrap();
+}
+function personaTodoCard(){
+  const color = state.theme.life;
+  const card = el(`<div class="card rounded-xl p-5 flex flex-col" id="personaTodoCard" style="height:${HOME_COL_H}px;"><div class="text-[13px] font-medium mb-3">${ROLE_META.life.agendaTitle}（${state.nicknames.life}）· 可指定任意日期</div><div class="flex flex-col gap-1.5 overflow-y-auto scrollbar-thin flex-1" id="personaTodoBody"></div></div>`);
+  const body = card.querySelector('#personaTodoBody');
+  function placeholder(){ return el(`<div class="text-[12px] placeholder-row" style="color:var(--ink-soft)">尚未新增日常待辦事項</div>`); }
+  function buildRow(t){
+    const row = el(`<div class="flex items-center gap-2 group"></div>`);
+    const cb = checkboxEl(t.done, checked=>{ t.done=checked; input.style.color=checked?'var(--ink-soft)':'var(--ink)'; input.style.textDecoration=checked?'line-through':'none'; saveState(); });
+    const dateTag = el(`<span class="text-[10px] font-mono shrink-0" style="color:var(--ink-soft)">${fmt(t.date)}</span>`);
+    const input = el(`<input type="text" value="${String(t.text).replace(/"/g,'&quot;')}" class="flex-1 min-w-0 bg-transparent border-b border-transparent hover:border-[color:var(--line)] focus:border-[color:var(--ink)] text-[13px] outline-none py-0.5" style="color:${t.done?'var(--ink-soft)':'var(--ink)'};${t.done?'text-decoration:line-through;':''}"/>`);
+    input.addEventListener('change', e=>{ t.text=e.target.value; saveState(); });
+    const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
+    del.addEventListener('click', ()=>{ state.personaEvents = state.personaEvents.filter(x=>x.id!==t.id); row.remove(); saveState(); if(!body.querySelector('.group')) body.appendChild(placeholder()); });
+    row.append(cb,dateTag,input,del); return row;
+  }
+  const items = state.personaEvents.filter(e=>eventKind(e)==='todo').sort((a,b)=>a.date.localeCompare(b.date));
+  if(!items.length) body.appendChild(placeholder());
+  items.forEach(t=> body.appendChild(buildRow(t)));
+  const addRow = el(`<div class="flex flex-wrap gap-2 items-center pt-2 mt-2 border-t" style="border-color:var(--line)">
+    <input id="ptDate" type="date" value="${state.todayISO}" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
+    <input id="ptText" type="text" placeholder="輸入待辦內容…" class="flex-1 text-[13px] border rounded-lg px-3 py-2 min-w-[120px]" style="border-color:var(--line)"/>
+    <button id="ptAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增</button></div>`);
+  const submit = ()=>{
+    const d = addRow.querySelector('#ptDate').value || state.todayISO;
+    const v = addRow.querySelector('#ptText').value.trim();
+    if(!v) return;
+    const t = {id:uid(), text:v, done:false, date:d, kind:"todo"};
+    state.personaEvents.push(t);
+    const ph = body.querySelector('.placeholder-row'); if(ph) ph.remove();
+    body.appendChild(buildRow(t));
+    addRow.querySelector('#ptText').value='';
+    saveState();
+  };
+  addRow.querySelector('#ptAdd').addEventListener('click', submit);
+  addRow.querySelector('#ptText').addEventListener('keydown', e=>{ if(e.key==='Enter') submit(); });
+  card.appendChild(addRow);
+  return card;
+}
+function renderPersona(){
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(agentPageHeader('life','PERSONAL CALENDAR','日常 Persona'));
+  wrap.appendChild(upcoming10Strip());
+  const grid = el(`<div class="grid grid-cols-2 gap-5"></div>`);
+  grid.append(personaMonthCalendar(), personaTodoCard());
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ============================================================ RESERVE ============================================================ */
+function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNew, valueForItem){
+  const head = el(`<div class="flex items-center justify-between mt-3 mb-2"><span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span></div>`);
+  const addBtn = el(`<button type="button" class="text-[11px] shrink-0 ml-3" style="color:${sColor}">＋ 新增名目</button>`);
+  head.appendChild(addBtn); wrap.appendChild(head);
+  const rowsWrap = el(`<div></div>`); wrap.appendChild(rowsWrap);
+  state.finance[group].forEach(item=>{
+    const last = valueForItem(item);
+    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5"><span style="color:var(--ink-soft)">${item.label}</span><div class="flex items-center gap-2"><input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[12px]" title="刪除名目">🗑️</button></div></div>`);
+    inputs[group][item.id] = row.querySelector('input');
+    row.querySelector('button').addEventListener('click', ()=>{ state.finance[group] = state.finance[group].filter(x=>x.id!==item.id); delete inputs[group][item.id]; row.remove(); });
+    rowsWrap.appendChild(row);
+  });
+  addBtn.addEventListener('click', ()=>{
+    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5">
+      <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
+      <div class="flex items-center gap-2 shrink-0"><input type="number" value="0" placeholder="金額" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[12px]" title="移除">🗑️</button></div></div>`);
+    const [labelInput, amountInput] = row.querySelectorAll('input');
+    const entry = {label:'', input: amountInput};
+    labelInput.addEventListener('input', ()=>{ entry.label = labelInput.value.trim(); });
+    pendingNew[group].push(entry);
+    row.querySelector('button').addEventListener('click', ()=>{ pendingNew[group]=pendingNew[group].filter(x=>x!==entry); row.remove(); });
+    rowsWrap.appendChild(row);
+    requestAnimationFrame(()=> labelInput.focus());
+  });
+}
+/* Entry point: ask which review this is, then route to the matching modal. */
+function openReviewModal(){
+  const color = state.theme.finance;
+  const open = findOpenPeriod();
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(el(`<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">這是第幾次盤點？</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">第一次盤點在發薪日建立這個週期的預算；第二次盤點回頭檢視實際花費、比對差額。</p>`));
+  const opt1 = el(`<button class="w-full text-left rounded-lg border p-4 mb-3" style="border-color:var(--line)">
+    <div class="text-[14px] font-medium mb-1">① 第一次盤點</div>
+    <div class="text-[12px]" style="color:var(--ink-soft)">發薪日：建立新的盤點週期，填入 A／B／C 各項預算金額</div></button>`);
+  const secondDisabled = !open;
+  const opt2 = el(`<button ${secondDisabled?'disabled':''} class="w-full text-left rounded-lg border p-4" style="border-color:var(--line);${secondDisabled?'opacity:0.45;cursor:not-allowed;':''}">
+    <div class="text-[14px] font-medium mb-1">② 第二次盤點</div>
+    <div class="text-[12px]" style="color:var(--ink-soft)">${secondDisabled?'目前沒有等待第二次盤點的週期，請先完成第一次盤點':`檢視「${fmt(open.firstDate)}」這次盤點的實際花費，比對差額`}</div></button>`);
+  wrap.append(opt1,opt2);
+  opt1.addEventListener('click', ()=>{ closeModal(); openFirstReviewModal(); });
+  if(!secondDisabled) opt2.addEventListener('click', ()=>{ closeModal(); openSecondReviewModal(open); });
+  openModal(wrap);
+}
+
+function openFirstReviewModal(){
+  const color = state.theme.finance;
+  const inputs = {bank:{},expense:{},plan:{}};
+  const pendingNew = {bank:[],expense:[],plan:[]};
+  const wrap = el(`<div></div>`);
+  wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第一次盤點（發薪日）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">建立新的盤點週期：A．可運用現金流（薪資、配息等收入）、B．預留常態性支出、C．計畫性支出。</p>`;
+  wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
+  const dateInput = el(`<input type="date" value="${nextBiweeklyDate(state.todayISO)}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+  wrap.appendChild(dateInput);
+  const prev = latestPeriod();
+  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
+  buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
+  buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
+  const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第一次盤點</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#rvCancel').addEventListener('click', closeModal);
+  footer.querySelector('#rvSubmit').addEventListener('click', ()=>{
+    const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
+    state.finance.periods.push(period);
+    ['bank','expense','plan'].forEach(group=>{
+      state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[period.id] = parseFloat(inp.value)||0; } });
+      pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[period.id]: parseFloat(entry.input.value)||0}, second:{}}); });
+    });
+    closeModal(); commit();
+  });
+  openModal(wrap);
+}
+
+function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inputs, pendingNew){
+  const head = el(`<div class="flex items-center justify-between mt-3 mb-2"><span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span></div>`);
+  const addBtn = el(`<button type="button" class="text-[11px] shrink-0 ml-3" style="color:${sColor}">＋ 新增名目</button>`);
+  head.appendChild(addBtn); wrap.appendChild(head);
+  const colHead = el(`<div class="flex items-center gap-3 text-[10px] mb-1" style="color:var(--ink-soft)"><span class="flex-1">項目</span><span class="w-20 text-right">第一次</span><span class="w-24 text-right">第二次</span></div>`);
+  wrap.appendChild(colHead);
+  const rowsWrap = el(`<div></div>`); wrap.appendChild(rowsWrap);
+  itemsInPeriod(group, period.id).forEach(item=>{
+    const firstVal = item.first[period.id];
+    const secondVal = item.second[period.id];
+    const row = el(`<div class="flex items-center gap-3 text-[12px] mb-1.5">
+      <span class="flex-1 min-w-0 truncate" style="color:var(--ink-soft)">${item.label}</span>
+      <span class="w-20 text-right font-mono" style="color:var(--ink-soft)">${firstVal==null?'—':firstVal.toLocaleString()}</span>
+      <input type="number" value="${secondVal==null?0:secondVal}" class="w-24 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/></div>`);
+    inputs[group][item.id] = row.querySelector('input');
+    rowsWrap.appendChild(row);
+  });
+  addBtn.addEventListener('click', ()=>{
+    const row = el(`<div class="flex items-center gap-3 text-[12px] mb-1.5">
+      <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
+      <span class="w-20 text-right font-mono" style="color:var(--line)">—</span>
+      <input type="number" value="0" placeholder="金額" class="w-24 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/></div>`);
+    const [labelInput, amountInput] = row.querySelectorAll('input');
+    const entry = {label:'', input:amountInput};
+    labelInput.addEventListener('input', ()=>{ entry.label = labelInput.value.trim(); });
+    pendingNew[group].push(entry);
+    rowsWrap.appendChild(row);
+    requestAnimationFrame(()=> labelInput.focus());
+  });
+}
+
+function openSecondReviewModal(period){
+  const color = state.theme.finance;
+  const inputs = {bank:{},expense:{},plan:{}};
+  const pendingNew = {bank:[],expense:[],plan:[]};
+  const wrap = el(`<div style="min-width:340px"></div>`);
+  wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第二次盤點（檢視實際花費）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">針對「${fmt(period.firstDate)}」這次盤點，填入實際花費／實際金額，跟第一次預留的數字比對差額。</p>`;
+  wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">第二次盤點日期</label>`));
+  const dateInput = el(`<input type="date" value="${state.todayISO}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+  wrap.appendChild(dateInput);
+  buildSecondReviewSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',period,inputs,pendingNew);
+  buildSecondReviewSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,period,inputs,pendingNew);
+  buildSecondReviewSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',period,inputs,pendingNew);
+  const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第二次盤點</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#rvCancel').addEventListener('click', closeModal);
+  footer.querySelector('#rvSubmit').addEventListener('click', ()=>{
+    period.secondDate = dateInput.value || state.todayISO;
+    ['bank','expense','plan'].forEach(group=>{
+      state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.second[period.id] = parseFloat(inp.value)||0; } });
+      pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{}, second:{[period.id]: parseFloat(entry.input.value)||0}}); });
+    });
+    closeModal(); commit();
+  });
+  openModal(wrap);
+}
+
+function openEditLastReviewModal(){
+  const p = latestPeriod();
+  if(!p){ alertModal('目前還沒有任何盤點紀錄可以修改。'); return; }
+  if(p.secondDate) openSecondReviewModal(p);
+  else {
+    // re-open the first-review inputs for this exact period, prefilled with what's already saved
+    const color = state.theme.finance;
+    const inputs = {bank:{},expense:{},plan:{}};
+    const pendingNew = {bank:[],expense:[],plan:[]};
+    const wrap = el(`<div></div>`);
+    wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">修改第一次盤點紀錄</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">送出後會直接覆蓋這筆盤點（${fmt(p.firstDate)}）的資料，不會另外新增一筆。</p>`;
+    wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
+    const dateInput = el(`<input type="date" value="${p.firstDate}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+    wrap.appendChild(dateInput);
+    buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=>item.first[p.id]);
+    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,inputs,pendingNew, item=>item.first[p.id]);
+    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',inputs,pendingNew, item=>item.first[p.id]);
+    const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel2" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit2" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存修改</button></div>`);
+    wrap.appendChild(footer);
+    footer.querySelector('#rvCancel2').addEventListener('click', closeModal);
+    footer.querySelector('#rvSubmit2').addEventListener('click', ()=>{
+      p.firstDate = dateInput.value || p.firstDate; p.month = p.firstDate.slice(0,7);
+      ['bank','expense','plan'].forEach(group=>{
+        state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[p.id] = parseFloat(inp.value)||0; } });
+        pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[p.id]: parseFloat(entry.input.value)||0}, second:{}}); });
+      });
+      closeModal(); commit();
+    });
+    openModal(wrap);
+  }
+}
+function planProgressCard(){
+  const color = state.theme.finance; const F = state.finance;
+  const wrap = el(`<div class="card rounded-xl p-5 mb-6"><div class="text-[13px] font-medium mb-1">計畫性支出進度 · 區塊 C</div><p class="text-[12px] mb-3" style="color:var(--ink-soft)">存款、投資、旅遊基金等計畫達成或款項用掉後，按下「計畫完成」歸零並從畫面移除，下個月就能重新開始新的計畫。</p><div id="planRows" class="flex flex-col gap-2"></div></div>`);
+  const rows = wrap.querySelector('#planRows');
+  if(!F.plan.length) rows.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">目前沒有計畫性支出項目，可以在「進入盤點模式」裡新增。</div>`));
+  F.plan.forEach(item=>{
+    let latest = null;
+    for(let i=F.periods.length-1;i>=0;i--){ const v=effectiveValue(item,F.periods[i].id); if(v!=null){ latest=v; break; } }
+    const row = el(`<div class="flex items-center justify-between gap-3 p-3 rounded-lg" style="background:${hexToRgba(color,0.06)};">
+      <div><div class="text-[13px] font-medium">${item.label}</div><div class="text-[11px] font-mono" style="color:var(--ink-soft)">累計 NT$ ${(latest||0).toLocaleString()}</div></div>
+      <button class="text-[12px] px-3 py-1.5 rounded-lg border shrink-0" style="border-color:${color};color:${color}">✅ 計畫完成</button></div>`);
+    row.querySelector('button').addEventListener('click', ()=>{
+      confirmModal(`確定「${item.label}」這筆計畫已經完成或款項已使用了嗎？確定後會從清單中移除。`, ()=>{
+        state.finance.plan = state.finance.plan.filter(x=>x.id!==item.id);
+        commit();
+      }, {okLabel:'確定完成', color});
+    });
+    rows.appendChild(row);
+  });
+  return wrap;
+}
+function openFinanceHistoryModal(){
+  const color = state.theme.finance; const F = state.finance;
+  let cursor = F.periods.length ? F.periods[F.periods.length-1].month : state.todayISO.slice(0,7);
+  const wrap = el(`<div style="min-width:320px"></div>`);
+  wrap.appendChild(el(`<div class="font-display font-bold text-[19px] mb-4" style="color:${color}">盤點歷史紀錄</div>`));
+  const nav = el(`<div class="flex items-center justify-between mb-4"></div>`);
+  const prevBtn = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹ 上個月</button>`);
+  const label = el(`<span class="text-[13px] font-mono"></span>`);
+  const nextBtn = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">下個月 ›</button>`);
+  nav.append(prevBtn,label,nextBtn); wrap.appendChild(nav);
+  const body = el(`<div class="flex flex-col gap-5 max-h-[55vh] overflow-y-auto scrollbar-thin"></div>`); wrap.appendChild(body);
+  function periodBlock(p){
+    const box = el(`<div class="border rounded-lg p-3" style="border-color:var(--line)"></div>`);
+    const head = el(`<div class="flex items-center justify-between mb-2"></div>`);
+    head.innerHTML = `<div class="text-[12px] font-medium">第一次 ${fmt(p.firstDate)}${p.secondDate?` · 第二次 ${fmt(p.secondDate)}`:' · 尚未第二次盤點'}</div>`;
+    const delBtn = el(`<button class="text-[11px] shrink-0" style="color:var(--danger)" title="刪除這筆盤點紀錄">🗑️ 刪除</button>`);
+    delBtn.addEventListener('click', ()=>{
+      confirmModal(`確定要刪除「${fmt(p.firstDate)}」這整筆盤點紀錄嗎？裡面每個項目在這次的第一次／第二次金額都會一併移除，且無法復原。`, ()=>{
+        state.finance.periods = state.finance.periods.filter(x=>x.id!==p.id);
+        ['bank','expense','plan'].forEach(group=>{ state.finance[group].forEach(item=>{ delete item.first[p.id]; delete item.second[p.id]; }); });
+        commit();
+        openFinanceHistoryModal(); // reopen fresh so the list reflects the deletion
+      }, {okLabel:'確定刪除', color:'var(--danger)'});
+    });
+    head.appendChild(delBtn); box.appendChild(head);
+    function sectionRows(title,c,group){
+      const items = itemsInPeriod(group, p.id);
+      if(!items.length) return '';
+      const diffFn = FINANCE_DIFF_FORMULA[group];
+      let rows = `<tr><td colspan="4" class="pt-2 pb-1 text-[10px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
+      items.forEach(item=>{
+        const f = item.first[p.id], s = item.second[p.id];
+        const diff = (f!=null && s!=null) ? diffFn(f,s) : null;
+        rows += `<tr><td class="py-0.5 text-[12px] pr-3" style="color:var(--ink-soft)">${item.label}</td>
+          <td class="py-0.5 text-[12px] font-mono text-right pr-3">${f==null?'—':f.toLocaleString()}</td>
+          <td class="py-0.5 text-[12px] font-mono text-right pr-3">${s==null?'—':s.toLocaleString()}</td>
+          <td class="py-0.5 text-[12px] font-mono text-right" style="color:${diff==null?'var(--ink-soft)':(diff>=0?'var(--good)':'var(--danger)')}">${diff==null?'—':(diff>0?'+':'')+diff.toLocaleString()}</td></tr>`;
+      });
+      return rows;
+    }
+    const tableHtml = `<table class="w-full min-w-[380px]"><thead><tr><th class="text-left pb-1 text-[10px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-1 text-[10px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
+      ${sectionRows('A．可運用現金流','var(--sage)','bank')}
+      ${sectionRows('B．預留常態性支出',color,'expense')}
+      ${sectionRows('C．計畫性支出','var(--gold)','plan')}
+    </tbody></table>`;
+    box.appendChild(el(`<div class="overflow-x-auto scrollbar-thin">${tableHtml}</div>`));
+    return box;
+  }
+  function refresh(){
+    const [y,m] = cursor.split('-');
+    label.textContent = `${y} 年 ${parseInt(m,10)} 月`;
+    const periods = F.periods.filter(p=>p.month===cursor);
+    body.innerHTML='';
+    if(!periods.length){ body.appendChild(el(`<div class="text-[12px] py-8 text-center" style="color:var(--ink-soft)">這個月沒有盤點紀錄。</div>`)); return; }
+    periods.forEach(p=> body.appendChild(periodBlock(p)));
+  }
+  prevBtn.addEventListener('click', ()=>{ const [y,m]=cursor.split('-').map(Number); const d=new Date(y,m-2,1); cursor=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; refresh(); });
+  nextBtn.addEventListener('click', ()=>{ const [y,m]=cursor.split('-').map(Number); const d=new Date(y,m,1); cursor=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; refresh(); });
+  refresh();
+  const footer = el(`<div class="flex justify-end mt-4"><button id="histClose" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">關閉</button></div>`);
+  wrap.appendChild(footer);
+  footer.querySelector('#histClose').addEventListener('click', closeModal);
+  openModal(wrap);
+}
+function financeReviewSettingsCard(){
+  const color = state.theme.finance;
+  const wrap = el(`<div class="card rounded-xl overflow-hidden mb-6"></div>`);
+  const head = el(`<button class="w-full flex items-center justify-between px-5 py-4 text-left">
+    <div class="text-[13px] font-medium">盤點日設定</div>
+    <span id="rvChevron" style="color:var(--ink-soft);display:inline-block;transition:transform .2s ease;transform:rotate(${state.financeSettingsOpen?180:0}deg)">⌄</span></button>`);
+  const body = el(`<div id="rvSettingsBody" style="display:${state.financeSettingsOpen?'block':'none'}"></div>`);
+  const inner = el(`<div class="px-5 pb-5 pt-1 border-t" style="border-color:var(--line)"></div>`);
+  inner.appendChild(el(`<p class="text-[12px] mb-3 mt-3" style="color:var(--ink-soft)">設定每個月的盤點日期區間（例如 4–7 日、18–20 日），系統會依此判斷行事曆上的盤點提醒與下一次盤點日。</p>`));
+  const list = el(`<div class="flex flex-wrap gap-2 mb-3" id="rvWindows"></div>`);
+  function renderList(){
+    list.innerHTML='';
+    if(!state.financeReviewWindows.length) list.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">尚未設定任何區間。</div>`));
+    state.financeReviewWindows.forEach((w,i)=>{
+      const row = el(`<div class="flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-full" style="border:1px solid ${color};color:${color}"><span>每月 ${w[0]}–${w[1]} 日</span><button class="leading-none" style="color:${color}">×</button></div>`);
+      row.querySelector('button').addEventListener('click', ()=>{ state.financeReviewWindows.splice(i,1); renderList(); saveState(); });
+      list.appendChild(row);
+    });
+  }
+  renderList();
+  inner.appendChild(list);
+  const addRow = el(`<div class="flex items-center gap-2 flex-wrap"><span class="text-[12px]" style="color:var(--ink-soft)">每月</span><input id="wStart" type="number" min="1" max="31" placeholder="4" class="w-16 border rounded px-2 py-1 text-[13px] text-center" style="border-color:var(--line)"/><span class="text-[12px]" style="color:var(--ink-soft)">至</span><input id="wEnd" type="number" min="1" max="31" placeholder="7" class="w-16 border rounded px-2 py-1 text-[13px] text-center" style="border-color:var(--line)"/><span class="text-[12px]" style="color:var(--ink-soft)">日</span><button id="wAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增區間</button></div>`);
+  addRow.querySelector('#wAdd').addEventListener('click', ()=>{
+    const a = parseInt(addRow.querySelector('#wStart').value,10); const b = parseInt(addRow.querySelector('#wEnd').value,10);
+    if(!a || !b || a<1 || b>31 || a>b){ alertModal('請輸入正確的日期區間 (1-31)，起日需小於等於迄日。'); return; }
+    state.financeReviewWindows.push([a,b]);
+    renderList(); saveState();
+    addRow.querySelector('#wStart').value=''; addRow.querySelector('#wEnd').value='';
+  });
+  inner.appendChild(addRow);
+  body.appendChild(inner);
+  head.addEventListener('click', ()=>{
+    state.financeSettingsOpen = !state.financeSettingsOpen;
+    body.style.display = state.financeSettingsOpen ? 'block' : 'none';
+    head.querySelector('#rvChevron').style.transform = `rotate(${state.financeSettingsOpen?180:0}deg)`;
+  });
+  wrap.append(head, body);
+  return wrap;
+}
+function renderReserve(){
+  const color = state.theme.finance;
+  const wrap = el(`<div></div>`);
+  wrap.appendChild(agentPageHeader('finance','BI-WEEKLY REVIEW','資產 Reserve'));
+
+  const btnRow = el(`<div class="flex flex-wrap gap-2 mb-6"></div>`);
+  const enterBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium flex items-center gap-2" style="background:${color};color:${contrastText(color)};">＋ 進入盤點模式</button>`);
+  enterBtn.addEventListener('click', openReviewModal);
+  const editLastBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:${color};color:${color};">✏️ 修改上一次盤點紀錄</button>`);
+  editLastBtn.addEventListener('click', openEditLastReviewModal);
+  const histBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:var(--line);color:var(--ink-soft);">🕘 歷史紀錄</button>`);
+  histBtn.addEventListener('click', openFinanceHistoryModal);
+  btnRow.append(enterBtn, editLastBtn, histBtn);
+  wrap.appendChild(btnRow);
+
+  const F = state.finance;
+  const latest = latestPeriod();
+
+  if(!latest){
+    wrap.appendChild(el(`<div class="card rounded-xl p-8 mb-6 text-center"><div class="text-[13px]" style="color:var(--ink-soft)">還沒有任何盤點紀錄，點上面「＋ 進入盤點模式」開始第一次盤點吧。</div></div>`));
+    return wrap;
+  }
+
+  const bankEff = sumEffective('bank', latest.id);
+  const expenseEff = sumEffective('expense', latest.id);
+  const planEff = sumEffective('plan', latest.id);
+  const availEff = bankEff - expenseEff;
+  const remainingCash = bankEff - expenseEff - planEff;
+
+  const table = el(`<div class="card rounded-xl p-5 mb-6 overflow-x-auto scrollbar-thin"></div>`);
+  function sectionRows(title,c,group){
+    const items = itemsInPeriod(group, latest.id);
+    const diffFn = FINANCE_DIFF_FORMULA[group];
+    let rows = `<tr><td colspan="4" class="pt-4 pb-1 text-[11px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
+    let sumF=0, sumS=0, hasSecond=false;
+    items.forEach(item=>{
+      const f = item.first[latest.id], s = item.second[latest.id];
+      sumF += f||0; if(s!=null){ sumS += s; hasSecond=true; }
+      const diff = (f!=null && s!=null) ? diffFn(f,s) : null;
+      rows += `<tr><td class="py-1 text-[12px] pr-4" style="color:var(--ink-soft)">${item.label}</td>
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${f==null?'color:var(--line)':''}">${f==null?'—':f.toLocaleString()}</td>
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${s==null?'color:var(--line)':''}">${s==null?'—':s.toLocaleString()}</td>
+        <td class="py-1 text-[12px] font-mono text-right" style="color:${diff==null?'var(--line)':(diff>=0?'var(--good)':'var(--danger)')}">${diff==null?'—':(diff>0?'+':'')+diff.toLocaleString()}</td></tr>`;
+    });
+    const sumDiff = hasSecond ? diffFn(sumF,sumS) : null;
+    rows += `<tr class="border-t" style="border-color:var(--line)"><td class="py-1.5 text-[12px] font-semibold pr-4">小計</td>
+      <td class="py-1.5 text-[12px] font-mono font-semibold text-right pr-4">${sumF.toLocaleString()}</td>
+      <td class="py-1.5 text-[12px] font-mono font-semibold text-right pr-4">${hasSecond?sumS.toLocaleString():'—'}</td>
+      <td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${sumDiff==null?'var(--ink-soft)':(sumDiff>=0?'var(--good)':'var(--danger)')}">${sumDiff==null?'—':(sumDiff>0?'+':'')+sumDiff.toLocaleString()}</td></tr>`;
+    return rows;
+  }
+  table.innerHTML = `<div class="text-[11px] font-mono mb-2" style="color:var(--ink-soft)">本次盤點 · 第一次 ${fmt(latest.firstDate)}${latest.secondDate?` · 第二次 ${fmt(latest.secondDate)}`:'（尚未第二次盤點）'}</div>
+  <table class="w-full min-w-[460px]"><thead><tr><th class="text-left pb-2 text-[11px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-2 text-[11px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
+    ${sectionRows('A．可運用現金流（薪資、配息等收入）','var(--sage)','bank')}
+    ${sectionRows('B．預留常態性支出（卡費、生活費等已知花費）',color,'expense')}
+    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">可用流動資金 (A−B)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${color}">${availEff.toLocaleString()}</td></tr>
+    ${sectionRows('C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)','plan')}
+    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">本次剩餘可用現金 (A−B−C)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right">${remainingCash.toLocaleString()}</td></tr>
+  </tbody></table>`;
+  wrap.appendChild(table);
+
+  wrap.appendChild(planProgressCard());
+
+  // charts use a wider trailing window of periods than just the latest one, so the trend line
+  // is actually readable, not just a single dot. Each point uses the "effective" figure
+  // (second review if done, else first) for that period.
+  const chartPeriods = F.periods.slice(-8);
+  const chartBank = chartPeriods.map(p=>sumEffective('bank',p.id));
+  const chartExpense = chartPeriods.map(p=>sumEffective('expense',p.id));
+  const chartAvail = chartBank.map((b,i)=>b-chartExpense[i]);
+  const chartLabels = chartPeriods.map(p=>fmt(p.secondDate||p.firstDate));
+
+  const chartsGrid = el(`<div class="grid grid-cols-2 gap-5 mt-2 mb-6"></div>`);
+  const c1 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">現有可運用現金變化曲線</div><canvas id="chart1" height="160"></canvas></div>`);
+  const c2 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">預留常態性支出 vs 可用流動資金</div><canvas id="chart2" height="160"></canvas></div>`);
+  chartsGrid.append(c1,c2); wrap.appendChild(chartsGrid);
+  setTimeout(()=>{
+    new Chart(c1.querySelector('canvas'), {type:'line', data:{labels:chartLabels, datasets:[{label:'現有可運用現金', data:chartBank, borderColor:color, backgroundColor:hexToRgba(color,0.14), tension:.3, fill:true}]}, options:{plugins:{legend:{display:false}}, scales:{y:{ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
+    new Chart(c2.querySelector('canvas'), {type:'bar', data:{labels:chartLabels, datasets:[{label:'預留常態性支出',data:chartExpense,backgroundColor:hexToRgba('#B5654A',0.65)},{label:'可用流動資金',data:chartAvail,backgroundColor:hexToRgba(color,0.7)}]}, options:{plugins:{legend:{labels:{font:{size:10}}}}, scales:{y:{ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
+  },0);
+  wrap.appendChild(financeReviewSettingsCard());
+  return wrap;
+}
+
+/* ============================================================ FELLOWS ============================================================ */
+function renderFellows(){
+  const wrap = el(`<div>${pageHead('AGENT HUB','夥伴 Fellows','自由指定 NOMO Blob 人格、暱稱與主題色，一切即時同步到全站')}</div>`);
+  const grid = el(`<div class="grid grid-cols-3 gap-4"></div>`);
+  ROLE_IDS.forEach(roleId=>{
+    const color = state.theme[roleId]; const nick = state.nicknames[roleId]; const enabled = state.agentsEnabled[roleId];
+    const card = el(`<div class="card rounded-xl p-5" style="opacity:${enabled?1:0.55}"></div>`);
+    const top = el(`<div class="flex items-center justify-between mb-3"></div>`);
+    top.innerHTML = `<div class="text-[11px] font-mono tracking-widest" style="color:var(--ink-soft)">${ROLE_META[roleId].label} · ${ROLE_META[roleId].desc}</div>`;
+    const toggle = el(`<div class="toggle ${enabled?'on':''}"><div class="knob"></div></div>`);
+    toggle.addEventListener('click', ()=>{ state.agentsEnabled[roleId] = !state.agentsEnabled[roleId]; if(!state.agentsEnabled[roleId] && state.route===ROLE_META[roleId].route){ state.route='today'; } commit(); });
+    top.appendChild(toggle); card.appendChild(top);
+    const avatar = el(`<div class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-3 overflow-hidden" style="background:${hexToRgba(color,0.14)};">${roleSVG(roleId,color,58,53)}</div>`);
+    card.appendChild(avatar);
+    const nickInput = el(`<input type="text" value="${nick}" class="w-full text-center font-display font-semibold text-[16px] border-b bg-transparent outline-none mb-4 pb-1" style="border-color:var(--line)"/>`);
+    nickInput.addEventListener('change', e=>{ state.nicknames[roleId] = e.target.value.trim()||nick; commit(); });
+    card.appendChild(nickInput);
+    const animalRow = el(`<div class="mb-4"><div class="text-[10px] font-mono tracking-widest mb-1.5" style="color:var(--ink-soft)">選擇 NOMO Blob 人格</div><div class="grid grid-cols-3 gap-1.5" id="animalGrid"></div></div>`);
+    const aGrid = animalRow.querySelector('#animalGrid');
+    Object.keys(ANIMAL_TEMPLATES).forEach(key=>{
+      const isSel = state.roles[roleId]===key;
+      const b = el(`<button class="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border" style="border-color:${isSel?color:'var(--line)'};background:${isSel?hexToRgba(color,0.12):'transparent'};color:${color}">
+        <span style="display:inline-flex;">${nomoBlobSVG(key,22,20)}</span>
+        <span class="text-[10px]" style="color:var(--ink)">${ANIMAL_LABEL[key]}</span></button>`);
+      b.addEventListener('click', ()=>{ state.roles[roleId]=key; commit(); });
+      aGrid.appendChild(b);
+    });
+    card.appendChild(animalRow);
+    const colorRow = el(`<div><div class="text-[10px] font-mono tracking-widest mb-1.5" style="color:var(--ink-soft)">主題色</div><div class="grid grid-cols-6 gap-1.5" id="swGrid"></div></div>`);
+    const swGrid = colorRow.querySelector('#swGrid');
+    PALETTE.forEach(hex=>{
+      const sw = el(`<div class="swatch ${color.toLowerCase()===hex.toLowerCase()?'sel':''}" style="background:${hex};" title="${PALETTE_NAMES[hex]}"></div>`);
+      sw.addEventListener('click', ()=>{ state.theme[roleId]=hex; commit(); });
+      swGrid.appendChild(sw);
+    });
+    card.appendChild(colorRow);
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ============================================================ CONNECTIONS ============================================================ */
+function renderConnections(){
+  const wrap = el(`<div>${pageHead('INTEGRATION HUB','系統 Connections','管理外部服務的連線狀態')}</div>`);
+  const grid = el(`<div class="grid grid-cols-2 gap-4"></div>`);
+  state.integrations.forEach(it=>{
+    const card = el(`<div class="card rounded-xl p-5 flex items-center justify-between"><div><div class="font-medium text-[14px] mb-1">${it.name}</div><div class="text-[12px]" style="color:var(--ink-soft)">${it.desc}</div></div>
+      <button class="text-[12px] rounded-full px-3 py-1.5" style="background:${it.connected?'#E7EBE2':'var(--paper-deep)'};color:${it.connected?'var(--sage)':'var(--ink-soft)'}">${it.connected?'● 已連接':'○ 未連接'}</button></div>`);
+    card.querySelector('button').addEventListener('click', ()=>{ it.connected=!it.connected; commit(); });
+    grid.appendChild(card);
+  });
+  wrap.appendChild(grid); return wrap;
+}
+
+/* ============================================================ INIT ============================================================ */
+(async function init(){ await loadState(); render(); })();
+</script>
+</body>
+</html>
