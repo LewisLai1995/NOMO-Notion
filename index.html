@@ -389,33 +389,6 @@ const FINANCE_DIFF_FORMULA = { bank:(f,s)=> s-f, expense:(f,s)=> f-s, plan:(f,s)
 // 1. 指定 Firestore 裡面的文件 ID（可自訂名稱）
 
 
-// 2. 替代原本舊有的 saveState
-async function saveState() {
-  if (!window.db || !window.doc) return; 
-  try {
-    const snap = {
-      theme: state.theme,
-      roles: state.roles,
-      nicknames: state.nicknames,
-      agentsEnabled: state.agentsEnabled,
-      projects: state.projects,
-      todos: state.todos,
-      personaEvents: state.personaEvents,
-      finance: state.finance,
-      financeReviewWindows: state.financeReviewWindows,
-      integrations: state.integrations,
-      personaCalMonth: state.personaCalMonth,
-      projectCalMonth: state.projectCalMonth,
-      updatedAt: new Date().toISOString()
-    };
-    // 寫入 Firestore 的 'appData' 集合中
-    await window.setDoc(window.doc(window.db, "appData", USER_DOC_ID), snap, { merge: true });
-    console.log("☁️ 已成功同步至 Firebase 雲端！");
-  } catch (e) {
-    console.error("Firebase 儲存失敗:", e);
-  }
-}
-
 // 雲端載入 (Load from Firestore)
 async function loadState() {
   // 1. 自動等待 Firebase SDK 初始化完成（最多等 5 秒）
