@@ -256,26 +256,36 @@ async function loadState() {
   }
 }
 
-// 2. 雲端儲存 (Save to Firestore)
+// 雲端儲存 (Save to Firestore) - 安全轉譯版
 async function saveState() {
   if (!window.db || !window.doc) return; 
   try {
+    // 複製 state 並處理 financeReviewWindows
+    const stateCopy = JSON.parse(JSON.stringify(state));
+    
+    if (stateCopy.financeReviewWindows && Array.isArray(stateCopy.financeReviewWindows)) {
+      stateCopy.financeReviewWindows = stateCopy.financeReviewWindows.map(w => 
+        Array.isArray(w) ? { start: w[0], end: w[1] } : w
+      );
+    }
+
     const snap = {
-      theme: state.theme,
-      roles: state.roles,
-      nicknames: state.nicknames,
-      agentsEnabled: state.agentsEnabled,
-      projects: state.projects,
-      todos: state.todos,
-      personaEvents: state.personaEvents,
-      finance: state.finance,
-      financeReviewWindows: state.financeReviewWindows ? state.financeReviewWindows.map(w => ({ start: w[0], end: w[1] })) : [],
-      integrations: state.integrations,
-      personaCalMonth: state.personaCalMonth,
-      projectCalMonth: state.projectCalMonth,
+      theme: stateCopy.theme,
+      roles: stateCopy.roles,
+      nicknames: stateCopy.nicknames,
+      agentsEnabled: stateCopy.agentsEnabled,
+      projects: stateCopy.projects,
+      todos: stateCopy.todos,
+      personaEvents: stateCopy.personaEvents,
+      finance: stateCopy.finance,
+      financeReviewWindows: stateCopy.financeReviewWindows,
+      integrations: stateCopy.integrations,
+      personaCalMonth: stateCopy.personaCalMonth,
+      projectCalMonth: stateCopy.projectCalMonth,
       updatedAt: new Date().toISOString()
     };
-    await window.setDoc(window.doc(window.db, "appData", USER_DOC_ID), snap, { merge: true });
+
+    await window.setDoc(window.doc(window.db, "appData", "main_user"), snap, { merge: true });
     console.log("☁️ 已成功同步至 Firebase 雲端！");
   } catch (e) {
     console.error("❌ Firebase 儲存失敗:", e);
