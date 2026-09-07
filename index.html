@@ -46,40 +46,39 @@
     location.reload();
   };
 
- // 監聽登入狀態改變
-// 監聽登入狀態改變
 onAuthStateChanged(auth, async (user) => {
   const loginBtn = document.getElementById("login-btn");
   const userInfo = document.getElementById("user-info");
   const userName = document.getElementById("user-name");
-  
-  // 抓取主畫面容器 (main 元素)
   const mainContainer = document.querySelector("main");
 
   if (user) {
     window.currentUser = user;
-    console.log("👤 目前登入使用者:", user.displayName, `(UID: ${user.uid})`);
-    
-    // UI 切換為已登入狀態
     if (loginBtn) loginBtn.style.display = "none";
     if (userInfo) userInfo.style.display = "flex";
     if (userName) userName.textContent = `${user.displayName}`;
 
-    // 🔓 解鎖主畫面
-    if (mainContainer) mainContainer.classList.remove("app-locked");
+    // 🔓 解鎖並移除遮罩點擊監聽
+    if (mainContainer) {
+      mainContainer.classList.remove("app-locked");
+      mainContainer.onclick = null;
+    }
 
-    // 載入該使用者的資料
     if (typeof loadState === "function") await loadState();
   } else {
     window.currentUser = null;
-    console.log("🔒 未登入狀態");
-
-    // UI 切換為未登入狀態
     if (loginBtn) loginBtn.style.display = "inline-block";
     if (userInfo) userInfo.style.display = "none";
 
-    // 🔒 鎖定主畫面 (加上磨砂遮罩)
-    if (mainContainer) mainContainer.classList.add("app-locked");
+    // 🔒 上鎖，並讓使用者點擊 main 區域任意處即可觸發登入
+    if (mainContainer) {
+      mainContainer.classList.add("app-locked");
+      mainContainer.onclick = () => {
+        if (typeof window.loginWithGoogle === "function") {
+          window.loginWithGoogle();
+        }
+      };
+    }
     if (typeof loadState === "function") await loadState();
   }
 });
@@ -93,14 +92,14 @@ onAuthStateChanged(auth, async (user) => {
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;600;700;900&family=Noto+Sans+TC:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   /* 未登入狀態的遮罩鎖定 */
+/* 未登入狀態的遮罩鎖定 */
 .app-locked {
   position: relative;
-  pointer-events: none; /* 禁止下方所有按鈕與元素點擊 */
   user-select: none;
 }
 
 .app-locked::after {
-  content: "🔒 請先登入以使用 NOMO.notion 個人系統";
+  content: "點擊畫面登入使用 NOMO.notion";
   position: absolute;
   inset: 0;
   background: rgba(246, 243, 236, 0.85); /* 半透明磨砂質感 */
@@ -113,8 +112,8 @@ onAuthStateChanged(auth, async (user) => {
   font-weight: 600;
   color: var(--ink);
   z-index: 30;
-  pointer-events: all;
-  cursor: not-allowed;
+  cursor: pointer; /* 鼠標變成手勢點擊圖示 */
+  pointer-events: all; /* 接收點擊 */
 }
   :root{ --paper:#F6F3EC; --paper-deep:#EFEADF; --ink:#2B2A28; --ink-soft:#5B5850; --line:#DBD4C4; --good:#4C8B5C; --danger:#B23A3A; --clay:#B5654A; --gold:#A97F2E; --sage:#7A8B6F; --indigo:#3B4A5A; }
   *{font-family:'Noto Sans TC',sans-serif;}
