@@ -327,7 +327,7 @@ const DEFAULT_STATE = {
 };
 
 // 2. 初始應用程式狀態 (未登入時預設清空關鍵陣列)
-const state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+state = JSON.parse(JSON.stringify(DEFAULT_STATE));
 state.projects = [];
 state.todos = [];
 state.personaEvents = [];
