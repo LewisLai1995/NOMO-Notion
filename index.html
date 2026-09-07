@@ -2026,7 +2026,7 @@ function renderFellows(){
 
 /* ============================================================ CONNECTIONS ============================================================ */
 function renderConnections(){
-  const wrap = el(`<div>${pageHead('INTEGRATION HUB','系統 Connections','管理外部服務的連線狀態')}</div>`);
+  const wrap = el(`<div>${pageHead('INTEGRATION HUB','系統 Connections．測試中','管理外部服務的連線狀態')}</div>`);
   const grid = el(`<div class="grid grid-cols-2 gap-4"></div>`);
   state.integrations.forEach(it=>{
     const card = el(`<div class="card rounded-xl p-5 flex items-center justify-between"><div><div class="font-medium text-[14px] mb-1">${it.name}</div><div class="text-[12px]" style="color:var(--ink-soft)">${it.desc}</div></div>
