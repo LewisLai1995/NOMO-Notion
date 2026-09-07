@@ -246,101 +246,47 @@ const state = {
   ]
 };
 
-/* persistence — artifact-safe window.storage API (never localStorage) */
-// Firestore 指定儲存的文件 ID
-const USER_DOC_ID = "main_user"; 
 
-// 雲端載入 (Load from Firestore)
-async function loadState() {
-  let retries = 0;
-  while ((!window.db || !window.doc) && retries < 50) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    retries++;
-  }
-
-  if (!window.db || !window.doc) {
-    console.warn("⚠️ Firebase SDK 載入超時，暫時使用預設資料。");
-    if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
-    return;
-  }
-
-  try {
-    const docRef = window.doc(window.db, "appData", "main_user");
-    const docSnap = await window.getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      
-      // 解析字串打包的 jsonPayload
-      if (data.jsonPayload) {
-        const parsedState = JSON.parse(data.jsonPayload);
-        Object.assign(state, parsedState);
-      } else {
-        Object.assign(state, data);
-      }
-      
-      console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
-    } else {
-      console.log("☁️ 連線成功！Firebase 目前無舊資料，將以預設資料初始化。");
-      await saveState();
-    }
-  } catch (e) {
-    console.error("❌ Firebase 讀取失敗:", e);
-  }
-
-  if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
-}
-
-// 雲端儲存 (Save to Firestore) — 全資料字串化版
+// 1. 雲端儲存 (以登入使用者的 UID 隔離資料)
 async function saveState() {
-  if (!window.db || !window.doc) return; 
+  if (!window.db || !window.doc || !window.currentUser) {
+    console.warn("⚠️ 尚未登入或 Firebase 未就緒，取消同步。");
+    return; 
+  }
+
   try {
-    // 將所有資料轉為純文字 JSON 字串，徹底解決 Nested Array 報錯
     const rawDataString = JSON.stringify(state);
     
-    await window.setDoc(window.doc(window.db, "appData", "main_user"), {
+    // 將文件路徑動態改為專屬的 window.currentUser.uid
+    await window.setDoc(window.doc(window.db, "appData", window.currentUser.uid), {
       jsonPayload: rawDataString,
       updatedAt: new Date().toISOString()
     }, { merge: true });
 
-    console.log("☁️ 已成功同步至 Firebase 雲端！");
+    console.log("☁️ 已成功同步至個人雲端！");
   } catch (e) {
     console.error("❌ Firebase 儲存失敗:", e);
   }
 }
 
-// 2. 雲端載入 (Load from Firestore)
+// 2. 雲端載入 (自動讀取個人專屬資料)
 async function loadState() {
-  let retries = 0;
-  while ((!window.db || !window.doc) && retries < 50) {
-    await new Promise(resolve => setTimeout(resolve, 100));
-    retries++;
-  }
-
-  if (!window.db || !window.doc) {
-    console.warn("⚠️ Firebase SDK 載入超時，暫時使用預設資料。");
-    if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
-    return;
-  }
+  if (!window.db || !window.doc || !window.currentUser) return;
 
   try {
-    const docRef = window.doc(window.db, "appData", "main_user");
+    const docRef = window.doc(window.db, "appData", window.currentUser.uid);
     const docSnap = await window.getDoc(docRef);
     
     if (docSnap.exists()) {
       const data = docSnap.data();
-      
-      // 優先讀取字串打包的 jsonPayload，若為舊版資料則直接 Object.assign
       if (data.jsonPayload) {
-        const parsedState = JSON.parse(data.jsonPayload);
-        Object.assign(state, parsedState);
+        Object.assign(state, JSON.parse(data.jsonPayload));
       } else {
         Object.assign(state, data);
       }
-      
-      console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
+      console.log("☁️ 已成功載入個人雲端資料！");
     } else {
-      console.log("☁️ 連線成功！Firebase 目前無舊資料，將以預設資料初始化。");
+      console.log("☁️ 新使用者首次登入，建立個人初始化資料...");
       await saveState();
     }
   } catch (e) {
@@ -348,17 +294,12 @@ async function loadState() {
   }
 
   if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
+  if (typeof render === "function") render();
 }
 
-// 3. 頁面初始化進入點
-async function init() {
-  await loadState();
-  if (typeof render === "function") {
-    render(); // 載入完成後重新繪製畫面
-  }
-}
-
-init();
+// 3. 全域掛載，確保 SDK 與 Auth 可以順利呼叫
+window.saveState = saveState;
+window.loadState = loadState;
 // A session saved by an earlier version of this app could have `finance` in one of two older
 // shapes: a plain object keyed by label, or the later flat-array-of-values-per-date shape.
 // Loading either straight into state silently breaks everything in the Reserve page. Detect
