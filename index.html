@@ -206,34 +206,9 @@ const state = {
   roles:{ project:"architect", life:"sprout", finance:"stacked" },
   nicknames:{ project:"坦坦", life:"露米", finance:"諾米" },
   agentsEnabled:{ project:true, life:true, finance:true },
-  projects:[
-    { id:"p1", name:"森之光 — 台北當代館特展", client:"台北當代藝術館", budget:1200000, dealAmount:1080000, contactName:"游先生", contactPhone:"0912-345-678",
-      constructionDate: addDays(todayISO(),10), viewStageIndex:null, color:"#B5654A", settled:false, settlement:null,
-      contractors:[ {id:"c1",name:"陳師傅",trade:"木作",phone:"0933-111-222",arrival:addDays(todayISO(),8)}, {id:"c2",name:"高師傅",trade:"燈光",phone:"0955-222-333",arrival:addDays(todayISO(),9)} ],
-      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),10),off), done:i<9, note:"", checklist: i===8?[{label:"木作廠商",done:true},{label:"大圖輸出",done:true},{label:"燈光工程",done:false},{label:"電視租賃",done:false}]:[] })) },
-    { id:"p2", name:"時間膠囊 — 新竹科學園區常設展", client:"新竹科學園區管理局", budget:2600000, dealAmount:2450000, contactName:"林小姐", contactPhone:"0922-888-999",
-      constructionDate: addDays(todayISO(),42), viewStageIndex:null, color:"#3B4A5A", settled:false, settlement:null,
-      contractors:[ {id:"c3",name:"周師傅",trade:"結構",phone:"0966-555-666",arrival:addDays(todayISO(),40)} ],
-      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),42),off), done:i<4, note:"", checklist:[] })) },
-    { id:"p3", name:"海岸線記事 — 高雄港區裝置", client:"高雄港務局", budget:860000, dealAmount:820000, contactName:"黃先生", contactPhone:"0977-123-456",
-      constructionDate: addDays(todayISO(),-20), viewStageIndex:null, color:"#C28D38", settled:true, settlement:{additionalAmount:20000, actualCost:690000}, settledAt: addDays(todayISO(),3),
-      contractors:[ {id:"c4",name:"陳師傅",trade:"木作",phone:"0933-111-222",arrival:addDays(todayISO(),-22)} ],
-      stages: STAGE_OFFSETS.map((off,i)=>({ name:STAGES[i], date: addDays(addDays(todayISO(),-20),off), done:true, note:"", checklist:[] })) },
-  ],
-  todos:[
-    {id:1, text:"確認燈光廠商報價", done:false, date: todayISO(), agent:"project"},
-    {id:2, text:"核對第一銀行本週扣款明細", done:false, date: todayISO(), agent:"finance"},
-    {id:3, text:"確認木作廠商合約用印", done:false, date: addDays(todayISO(),1), agent:"project"},
-    {id:4, text:"檢視信用卡費預抓金額是否足夠", done:false, date: addDays(todayISO(),1), agent:"finance"},
-    {id:5, text:"回傳上一版結構圖修改", done:false, date: addDays(todayISO(),-1), agent:"project"},
-  ],
-  personaEvents:[
-    {id:101, text:"回覆策展人平面圖修改意見", done:false, date: todayISO(), kind:"todo"},
-    {id:102, text:"陳語安生日：準備小禮物", done:false, date: addDays(todayISO(),6), kind:"todo"},
-    {id:103, text:"寄送生日卡片給林知遠", done:false, date: addDays(todayISO(),1), kind:"todo"},
-    {id:104, text:"回覆家人聚餐時間", done:false, date: addDays(todayISO(),-1), kind:"todo"},
-    {id:105, text:"晚上 7 點：策展人視訊會議", done:false, date: todayISO(), kind:"schedule"},
-  ],
+  projects:[],
+  todos:[],
+  personaEvents:[],
   personaCalMonth: todayISO().slice(0,7), personaSelectedDate: todayISO(),
   projectCalMonth: todayISO().slice(0,7), projectCalSelected:null, projectListTab:"active",
   weekOffset:0, weekSelectedDate:null, financeSettingsOpen:false,
@@ -244,27 +219,10 @@ const state = {
     // actual vs reserved). Items store their value per period as {periodId: value} maps —
     // not parallel arrays — so an item created mid-cycle simply has no earlier entries,
     // instead of needing null-padding across a shared index.
-    periods: [
-      {id:"pr1", month:addDays(todayISO(),-42).slice(0,7), firstDate:addDays(todayISO(),-42), secondDate:addDays(todayISO(),-28)},
-      {id:"pr2", month:todayISO().slice(0,7), firstDate:addDays(todayISO(),-2), secondDate:null},
-    ],
-    bank:[
-      {id:"b1",label:"將來主戶", first:{pr1:186000,pr2:179000}, second:{pr1:172000}},
-      {id:"b2",label:"卡費口袋", first:{pr1:42000,pr2:40000}, second:{pr1:31200}},
-      {id:"b3",label:"第一銀行", first:{pr1:96000,pr2:102000}, second:{pr1:101000}},
-    ],
-    expense:[
-      {id:"e1",label:"工作午餐", first:{pr1:4200,pr2:4100}, second:{pr1:3900}},
-      {id:"e2",label:"雜支", first:{pr1:2100,pr2:1900}, second:{pr1:1800}},
-      {id:"e3",label:"卡費預抓 A", first:{pr1:18000,pr2:18000}, second:{pr1:17200}},
-      {id:"e4",label:"卡費預抓 B", first:{pr1:6500,pr2:6500}, second:{pr1:6500}},
-      {id:"e5",label:"電話費", first:{pr1:899,pr2:899}, second:{pr1:899}},
-    ],
-    plan:[
-      {id:"c1",label:"備用金", first:{pr1:30000,pr2:32000}, second:{pr1:32000}},
-      {id:"c2",label:"旅遊基金", first:{pr1:15000,pr2:19000}, second:{pr1:17000}},
-      {id:"c3",label:"股市投資", first:{pr1:50000,pr2:58000}, second:{pr1:54000}},
-    ],
+    periods: [],
+    bank:[],
+    expense:[],
+    plan:[],
   },
   integrations:[
     {id:"gcal", name:"Google Calendar", desc:"雙向同步展覽節點與個人行程", connected:true},
@@ -274,6 +232,7 @@ const state = {
   ]
 };
 
+  
 
 // 1. 雲端儲存 (以登入使用者的 UID 隔離資料)
 async function saveState() {
@@ -297,9 +256,100 @@ async function saveState() {
   }
 }
 
-// 2. 雲端載入 (自動讀取個人專屬資料)
+// 1. 全域預設模板資料 (供全新註冊使用)
+const DEFAULT_STATE = {
+  route: "today", detailProjectId: null, detailTab: "main", todayISO: todayISO(),
+  theme: { project: "#B5654A", life: "#7A8B6F", finance: "#A97F2E" },
+  roles: { project: "architect", life: "sprout", finance: "stacked" },
+  nicknames: { project: "坦坦", life: "露米", finance: "諾米" },
+  agentsEnabled: { project: true, life: true, finance: true },
+  projects: [
+    { id: "p1", name: "森之光 — 台北當代館特展", client: "台北當代藝術館", budget: 1200000, dealAmount: 1080000, contactName: "游先生", contactPhone: "0912-345-678",
+      constructionDate: addDays(todayISO(), 10), viewStageIndex: null, color: "#B5654A", settled: false, settlement: null,
+      contractors: [ { id: "c1", name: "陳師傅", trade: "木作", phone: "0933-111-222", arrival: addDays(todayISO(), 8) }, { id: "c2", name: "高師傅", trade: "燈光", phone: "0955-222-333", arrival: addDays(todayISO(), 9) } ],
+      stages: STAGE_OFFSETS.map((off, i) => ({ name: STAGES[i], date: addDays(addDays(todayISO(), 10), off), done: i < 9, note: "", checklist: i === 8 ? [{ label: "木作廠商", done: true }, { label: "大圖輸出", done: true }, { label: "燈光工程", done: false }, { label: "電視租賃", done: false }] : [] })) },
+    { id: "p2", name: "時間膠囊 — 新竹科學園區常設展", client: "新竹科學園區管理局", budget: 2600000, dealAmount: 2450000, contactName: "林小姐", contactPhone: "0922-888-999",
+      constructionDate: addDays(todayISO(), 42), viewStageIndex: null, color: "#3B4A5A", settled: false, settlement: null,
+      contractors: [ { id: "c3", name: "周師傅", trade: "結構", phone: "0966-555-666", arrival: addDays(todayISO(), 40) } ],
+      stages: STAGE_OFFSETS.map((off, i) => ({ name: STAGES[i], date: addDays(addDays(todayISO(), 42), off), done: i < 4, note: "", checklist: [] })) },
+    { id: "p3", name: "海岸線記事 — 高雄港區裝置", client: "高雄港務局", budget: 860000, dealAmount: 820000, contactName: "黃先生", contactPhone: "0977-123-456",
+      constructionDate: addDays(todayISO(), -20), viewStageIndex: null, color: "#C28D38", settled: true, settlement: { additionalAmount: 20000, actualCost: 690000 }, settledAt: addDays(todayISO(), 3),
+      contractors: [ { id: "c4", name: "陳師傅", trade: "木作", phone: "0933-111-222", arrival: addDays(todayISO(), -22) } ],
+      stages: STAGE_OFFSETS.map((off, i) => ({ name: STAGES[i], date: addDays(addDays(todayISO(), -20), off), done: true, note: "", checklist: [] })) },
+  ],
+  todos: [
+    { id: 1, text: "確認燈光廠商報價", done: false, date: todayISO(), agent: "project" },
+    { id: 2, text: "核對第一銀行本週扣款明細", done: false, date: todayISO(), agent: "finance" },
+    { id: 3, text: "確認木作廠商合約用印", done: false, date: addDays(todayISO(), 1), agent: "project" },
+    { id: 4, text: "檢視信用卡費預抓金額是否足夠", done: false, date: addDays(todayISO(), 1), agent: "finance" },
+    { id: 5, text: "回傳上一版結構圖修改", done: false, date: addDays(todayISO(), -1), agent: "project" },
+  ],
+  personaEvents: [
+    { id: 101, text: "回覆策展人平面圖修改意見", done: false, date: todayISO(), kind: "todo" },
+    { id: 102, text: "陳語安生日：準備小禮物", done: false, date: addDays(todayISO(), 6), kind: "todo" },
+    { id: 103, text: "寄送生日卡片給林知遠", done: false, date: addDays(todayISO(), 1), kind: "todo" },
+    { id: 104, text: "回覆家人聚餐時間", done: false, date: addDays(todayISO(), -1), kind: "todo" },
+    { id: 105, text: "晚上 7 點：策展人視訊會議", done: false, date: todayISO(), kind: "schedule" },
+  ],
+  personaCalMonth: todayISO().slice(0, 7), personaSelectedDate: todayISO(),
+  projectCalMonth: todayISO().slice(0, 7), projectCalSelected: null, projectListTab: "active",
+  weekOffset: 0, weekSelectedDate: null, financeSettingsOpen: false,
+  financeReviewWindows: [[4, 7], [18, 20]],
+  finance: {
+    periods: [
+      { id: "pr1", month: addDays(todayISO(), -42).slice(0, 7), firstDate: addDays(todayISO(), -42), secondDate: addDays(todayISO(), -28) },
+      { id: "pr2", month: todayISO().slice(0, 7), firstDate: addDays(todayISO(), -2), secondDate: null },
+    ],
+    bank: [
+      { id: "b1", label: "將來主戶", first: { pr1: 186000, pr2: 179000 }, second: { pr1: 172000 } },
+      { id: "b2", label: "卡費口袋", first: { pr1: 42000, pr2: 40000 }, second: { pr1: 31200 } },
+      { id: "b3", label: "第一銀行", first: { pr1: 96000, pr2: 102000 }, second: { pr1: 101000 } },
+    ],
+    expense: [
+      { id: "e1", label: "工作午餐", first: { pr1: 4200, pr2: 4100 }, second: { pr1: 3900 } },
+      { id: "e2", label: "雜支", first: { pr1: 2100, pr2: 1900 }, second: { pr1: 1800 } },
+      { id: "e3", label: "卡費預抓 A", first: { pr1: 18000, pr2: 18000 }, second: { pr1: 17200 } },
+      { id: "e4", label: "卡費預抓 B", first: { pr1: 6500, pr2: 6500 }, second: { pr1: 6500 } },
+      { id: "e5", label: "電話費", first: { pr1: 899, pr2: 899 }, second: { pr1: 899 } },
+    ],
+    plan: [
+      { id: "c1", label: "備用金", first: { pr1: 30000, pr2: 32000 }, second: { pr1: 32000 } },
+      { id: "c2", label: "旅遊基金", first: { pr1: 15000, pr2: 19000 }, second: { pr1: 17000 } },
+      { id: "c3", label: "股市投資", first: { pr1: 50000, pr2: 58000 }, second: { pr1: 54000 } },
+    ],
+  },
+  integrations: [
+    { id: "gcal", name: "Google Calendar", desc: "雙向同步展覽節點與個人行程", connected: true },
+    { id: "line", name: "LINE 通知", desc: "重要階段與盤點日推播提醒", connected: false },
+    { id: "bank", name: "銀行帳戶匯入", desc: "自動帶入帳戶餘額（唯讀）", connected: false },
+    { id: "drive", name: "雲端硬碟", desc: "同步展覽圖檔與發包文件", connected: true },
+  ]
+};
+
+// 2. 初始應用程式狀態 (未登入時預設清空關鍵陣列)
+const state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+state.projects = [];
+state.todos = [];
+state.personaEvents = [];
+state.finance.periods = [];
+state.finance.bank = [];
+state.finance.expense = [];
+state.finance.plan = [];
+
+// 3. 整合型 loadState 函式
 async function loadState() {
-  if (!window.db || !window.doc || !window.currentUser) return;
+  // 若未登入，強制清空動態資料並刷新 UI
+  if (!window.db || !window.doc || !window.currentUser) {
+    state.projects = [];
+    state.todos = [];
+    state.personaEvents = [];
+    state.finance.periods = [];
+    state.finance.bank = [];
+    state.finance.expense = [];
+    state.finance.plan = [];
+    if (typeof render === "function") render();
+    return;
+  }
 
   try {
     const docRef = window.doc(window.db, "appData", window.currentUser.uid);
@@ -314,7 +364,8 @@ async function loadState() {
       }
       console.log("☁️ 已成功載入個人雲端資料！");
     } else {
-      console.log("☁️ 新使用者首次登入，建立個人初始化資料...");
+      console.log("☁️ 首次登入，注入完整預設模板資料...");
+      Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
       await saveState();
     }
   } catch (e) {
@@ -324,7 +375,6 @@ async function loadState() {
   if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
   if (typeof render === "function") render();
 }
-
 // 3. 全域掛載，確保 SDK 與 Auth 可以順利呼叫
 window.saveState = saveState;
 window.loadState = loadState;
