@@ -151,11 +151,11 @@ onAuthStateChanged(auth, async (user) => {
       <div class="rounded-lg p-3 text-[11px] leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft);">展覽是時間的藝術，行事是時間的紀律。</div>
        <div id="auth-section">
   <!-- 未登入時顯示 -->
-  <button id="login-btn" class="text-[10px] font-mono tracking-widest mb-2" style="color:var(--ink-soft);" onclick="loginWithGoogle()">登入</button>
+  <button id="login-btn" class="text-[10px] font-mono tracking-widest mb-2 mt-3" style="color:var(--ink-soft);" onclick="loginWithGoogle()">登入</button>
 
   <!-- 已登入時顯示（預設隱藏） -->
   <div id="user-info" style="display: none; align-items: center; gap: 10px;">
-    <span id="user-name"></span>
+    <span id="user-name" class="text-[10px] font-mono tracking-widest mb-2 mt-3" style="color:var(--ink-soft);"></span>
     <button onclick="logout()">登出</button>
   </div>
 </div>
