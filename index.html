@@ -2,11 +2,12 @@
 <html lang="zh-Hant">
 <head>
 <!-- 引入 Firebase Web SDK (CDN 網址版) -->
+<!-- 引入 Firebase SDK (含 Auth 模組) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-  // 你的 Web App Firebase 設定
   const firebaseConfig = {
     apiKey: "AIzaSyBYnDlI-vtArtYpbWhtzvrqX3q2GWh7_n8",
     authDomain: "nomo-notion.firebaseapp.com",
@@ -17,16 +18,45 @@
     measurementId: "G-QMB0C7FB3E"
   };
 
-  // 初始化 Firebase & Firestore
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
 
-  // 掛載至 window 全域，讓主程式的 loadState / saveState 可以直接呼叫
+  // 掛載至全域
   window.db = db;
   window.doc = doc;
   window.setDoc = setDoc;
   window.getDoc = getDoc;
   window.onSnapshot = onSnapshot;
+  window.auth = auth;
+  window.currentUser = null;
+
+  // Google 登入與登出函式
+  window.loginWithGoogle = async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      console.error("登入失敗:", e);
+    }
+  };
+
+  window.logout = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  // 監聽登入狀態（重新開啟網頁時會自動保持登入）
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      window.currentUser = user;
+      console.log("👤 目前登入使用者:", user.displayName, `(UID: ${user.uid})`);
+      if (typeof loadState === "function") await loadState();
+    } else {
+      window.currentUser = null;
+      console.log("🔒 未登入狀態");
+    }
+  });
 </script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
