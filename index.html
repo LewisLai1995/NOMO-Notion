@@ -269,7 +269,7 @@ async function saveState() {
       todos: state.todos,
       personaEvents: state.personaEvents,
       finance: state.finance,
-      financeReviewWindows: state.financeReviewWindows,
+      financeReviewWindows: state.financeReviewWindows ? state.financeReviewWindows.map(w => ({ start: w[0], end: w[1] })) : [],
       integrations: state.integrations,
       personaCalMonth: state.personaCalMonth,
       projectCalMonth: state.projectCalMonth,
@@ -378,19 +378,46 @@ async function saveState() {
   }
 }
 
-// 3. 替代原本舊有的 loadState
+// 雲端載入 (Load from Firestore)
 async function loadState() {
-  if (!window.db || !window.doc) return;
+  // 1. 自動等待 Firebase SDK 初始化完成（最多等 5 秒）
+  let retries = 0;
+  while ((!window.db || !window.doc) && retries < 50) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    retries++;
+  }
+
+  if (!window.db || !window.doc) {
+    console.warn("⚠️ Firebase SDK 載入超時，暫時使用預設資料。");
+    if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
+    return;
+  }
+
   try {
-    const docRef = window.doc(window.db, "appData", USER_DOC_ID);
+    const docRef = window.doc(window.db, "appData", "main_user");
     const docSnap = await window.getDoc(docRef);
+    
     if (docSnap.exists()) {
-      Object.assign(state, docSnap.data());
+      const data = docSnap.data();
+      
+      // 2. 將雲端儲存的物件陣列還原回原本的 [[4,7], [18,20]] 格式
+      if (data.financeReviewWindows && Array.isArray(data.financeReviewWindows)) {
+        data.financeReviewWindows = data.financeReviewWindows.map(w => 
+          (w && w.start !== undefined ? [w.start, w.end] : w)
+        );
+      }
+
+      Object.assign(state, data);
       console.log("☁️ 已成功從 Firebase 讀取雲端資料！");
+    } else {
+      console.log("☁️ 連線成功！Firebase 目前無舊資料，將以預設資料初始化。");
+      await saveState();
     }
   } catch (e) {
-    console.error("Firebase 讀取失敗:", e);
+    console.error("❌ Firebase 讀取失敗:", e);
   }
+
+  if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
 }
 
 /* ============================================================ ZEN PEBBLE MASCOT SYSTEM ============================================================ */
