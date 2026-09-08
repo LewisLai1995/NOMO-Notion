@@ -1150,37 +1150,37 @@ function projectMiniCalendar(){
   const eventsByDate = {};
   state.projects.forEach(p=> p.stages.forEach(s=>{ (eventsByDate[s.date]=eventsByDate[s.date]||[]).push({name:`「${p.name}」${s.name}`, color:p.color}); }));
   
-  // ⭕ 寬度限制為 50% (max-w-[500px] 或 w-1/2)，並將 p-5 縮小為 p-3.5
-  const wrap = el(`<div class="card rounded-xl p-3.5 mb-6 max-w-[500px]"></div>`);
-  const head = el(`<div class="flex items-center justify-between mb-2"></div>`);
-  head.innerHTML = `<div class="text-[12px] font-medium">${state.nicknames.project}的行事曆</div>`;
-  const nav = el(`<div class="flex items-center gap-1.5"></div>`);
-  const prev = el(`<button class="text-[11px] px-1.5 py-0.5 rounded border" style="border-color:var(--line)">‹</button>`);
-  const label = el(`<span class="text-[11px] font-mono w-14 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
-  const next = el(`<button class="text-[11px] px-1.5 py-0.5 rounded border" style="border-color:var(--line)">›</button>`);
+  // ⭕ 寬度與上下介面齊平 (w-full)，高度比先前增加 20% (儲存格 height: 34px)
+  const wrap = el(`<div class="card rounded-xl p-5 mb-6 w-full"></div>`);
+  const head = el(`<div class="flex items-center justify-between mb-3"></div>`);
+  head.innerHTML = `<div class="text-[13px] font-medium">${state.nicknames.project}的行事曆 · 專案進度總覽</div>`;
+  const nav = el(`<div class="flex items-center gap-2"></div>`);
+  const prev = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹</button>`);
+  const label = el(`<span class="text-[12px] font-mono w-16 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
+  const next = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">›</button>`);
   prev.addEventListener('click', ()=>{ const d=new Date(y,mo-2,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
   next.addEventListener('click', ()=>{ const d=new Date(y,mo,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
   nav.append(prev,label,next); head.appendChild(nav); wrap.appendChild(head);
   
-  const grid = el(`<div class="grid grid-cols-7 gap-1"></div>`);
-  ["日","一","二","三","四","五","六"].forEach(w=> grid.appendChild(el(`<div class="text-[9px] text-center pb-0.5" style="color:var(--ink-soft)">${w}</div>`)));
+  const grid = el(`<div class="grid grid-cols-7 gap-1.5"></div>`);
+  ["日","一","二","三","四","五","六"].forEach(w=> grid.appendChild(el(`<div class="text-[10px] text-center pb-1" style="color:var(--ink-soft)">${w}</div>`)));
   for(let i=0;i<startWeekday;i++) grid.appendChild(el(`<div></div>`));
-  const panel = el(`<div class="mt-2 pt-2 border-t" style="border-color:var(--line)" id="pcalPanel"></div>`);
+  const panel = el(`<div class="mt-3 pt-3 border-t" style="border-color:var(--line)" id="pcalPanel"></div>`);
   function refreshPanel(){
     const sel = state.projectCalSelected;
     panel.innerHTML='';
-    if(!sel){ panel.innerHTML = `<div class="text-[11px]" style="color:var(--ink-soft)">點選日期查看當天的專案節點。</div>`; return; }
-    panel.appendChild(el(`<div class="text-[11px] font-medium mb-1">${fmt(sel)} 的專案節點</div>`));
+    if(!sel){ panel.innerHTML = `<div class="text-[12px]" style="color:var(--ink-soft)">點選日期查看當天的專案節點。</div>`; return; }
+    panel.appendChild(el(`<div class="text-[12px] font-medium mb-2">${fmt(sel)} 的專案節點</div>`));
     const items = eventsByDate[sel]||[];
-    if(!items.length) panel.appendChild(el(`<div class="text-[11px]" style="color:var(--ink-soft)">這天沒有專案節點。</div>`));
-    items.forEach(it=> panel.appendChild(el(`<div class="text-[11px] mb-0.5 flex items-center gap-1.5" style="color:var(--ink-soft)"><span class="w-1.5 h-1.5 rounded-full" style="background:${it.color}"></span>${it.name}</div>`)));
+    if(!items.length) panel.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有專案節點。</div>`));
+    items.forEach(it=> panel.appendChild(el(`<div class="text-[12px] mb-1 flex items-center gap-1.5" style="color:var(--ink-soft)"><span class="w-1.5 h-1.5 rounded-full" style="background:${it.color}"></span>${it.name}</div>`)));
   }
   for(let d=1; d<=daysInMonth; d++){
     const iso = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const evts = eventsByDate[iso]||[]; const isToday = iso===state.todayISO;
-    const cell = el(`<button class="cal-cell rounded flex flex-col items-center justify-center p-0.5" data-date="${iso}" style="border:1px solid ${isToday?'var(--ink)':'var(--line)'};background:transparent;height:28px;">
-      <span class="text-[10px] leading-none">${d}</span>
-      <span class="flex gap-0.5 mt-0.5">${evts.slice(0,3).map(e=>`<span class="w-1 h-1 rounded-full" style="background:${e.color}"></span>`).join('')}</span>
+    const cell = el(`<button class="cal-cell rounded-md flex flex-col items-center justify-center p-1" data-date="${iso}" style="border:1.4px solid ${isToday?'var(--ink)':'var(--line)'};background:transparent;height:34px;">
+      <span class="text-[11px] leading-none">${d}</span>
+      <span class="flex gap-0.5 mt-1">${evts.slice(0,3).map(e=>`<span class="w-1.5 h-1.5 rounded-full" style="background:${e.color}"></span>`).join('')}</span>
     </button>`);
     cell.addEventListener('click', ()=>{
       state.projectCalSelected = iso;
