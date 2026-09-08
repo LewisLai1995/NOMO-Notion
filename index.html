@@ -1402,13 +1402,27 @@ function renderProjectDetail(id){
   const track = el(`<div class="stage-track overflow-x-auto pb-2"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
   track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
   const inner = track.firstChild;
-  p.stages.forEach((s,i)=>{
+ p.stages.forEach((s,i)=>{
     const isPast = new Date(s.date) < new Date(state.todayISO);
     const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
       <div class="flex items-center justify-between mb-1"><span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span></div>
-      <div class="text-[12px] font-medium mb-2 leading-tight">${s.name}</div>
+      <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
+        <span>${s.name}</span>
+        <span class="text-[10px] opacity-40">✏️</span>
+      </div>
       <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div></div>`);
+
+    // 點擊「階段名稱」觸發改名彈窗
+    item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
+      e.stopPropagation(); // 避免觸發切換卡片
+      promptModal('修改階段名稱', [{ key: 'name', label: '階段名稱', value: s.name }], (v) => {
+        if (v.name && v.name.trim()) {
+          s.name = v.name.trim();
+          commit(); // 儲存並重新渲染
+        }
+      });
+    });
     let cb;
     function handleStageToggle(checked){
       s.done = checked;
