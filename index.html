@@ -1683,7 +1683,7 @@ function personaTodoCard(){
   if(!items.length) body.appendChild(placeholder());
   items.forEach(t=> body.appendChild(buildRow(t)));
   const addRow = el(`<div class="flex flex-wrap gap-2 items-center pt-2 mt-2 border-t" style="border-color:var(--line)">
-    <input id="ptDate" type="date" value="${state.todayISO}" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
+  <input id="ptDate" type="date" value="${todayISO()}" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
     <input id="ptText" type="text" placeholder="輸入待辦內容…" class="flex-1 text-[13px] border rounded-lg px-3 py-2 min-w-[120px]" style="border-color:var(--line)"/>
     <button id="ptAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增</button></div>`);
   const submit = ()=>{
