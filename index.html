@@ -1620,19 +1620,36 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
   const addBtn = el(`<button type="button" class="text-[11px] shrink-0 ml-3" style="color:${sColor}">＋ 新增名目</button>`);
   head.appendChild(addBtn); wrap.appendChild(head);
   const rowsWrap = el(`<div></div>`); wrap.appendChild(rowsWrap);
-  state.finance[group].forEach(item=>{
-  const last = valueForItem(item);
-  const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5"><span style="color:var(--ink-soft)">${item.label}</span><div class="flex items-center gap-2"><input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="刪除名目">×</button></div></div>`);
-  inputs[group][item.id] = row.querySelector('input');
-  row.querySelector('button').addEventListener('click', ()=>{
-    confirmModal(`確定要刪除「${item.label}」這個項目嗎？`, ()=>{
-      state.finance[group] = state.finance[group].filter(x=>x.id!==item.id);
-      delete inputs[group][item.id];
-      row.remove();
-    }, { okLabel: '確定刪除', color: 'var(--danger)' });
+state.finance[group].forEach(item=>{
+    const last = valueForItem(item);
+    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5"><span style="color:var(--ink-soft)">${item.label}</span><div class="flex items-center gap-2"><input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="刪除名目">×</button></div></div>`);
+    inputs[group][item.id] = row.querySelector('input');
+    
+    // 行內變身二次確認刪除邏輯
+    row.querySelector('button').addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      
+      if (btn.dataset.confirming === "true") {
+        state.finance[group] = state.finance[group].filter(x => x.id !== item.id);
+        delete inputs[group][item.id];
+        row.remove();
+      } else {
+        btn.dataset.confirming = "true";
+        btn.textContent = "確定？";
+        btn.className = "text-[11px] font-medium px-2 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
+        
+        setTimeout(() => {
+          if (document.body.contains(btn)) {
+            btn.dataset.confirming = "false";
+            btn.textContent = "×";
+            btn.className = "text-[14px] font-bold px-1 text-[var(--danger)] shrink-0";
+          }
+        }, 3000);
+      }
+    });
+
+    rowsWrap.appendChild(row);
   });
-  rowsWrap.appendChild(row);
-});
   addBtn.addEventListener('click', ()=>{
     const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5">
   <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
