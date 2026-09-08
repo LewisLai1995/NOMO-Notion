@@ -1684,7 +1684,7 @@ function openReviewModal(){
   wrap.append(opt1,opt2);
   opt1.addEventListener('click', ()=>{ closeModal(); openFirstReviewModal(); });
   if(!secondDisabled) opt2.addEventListener('click', ()=>{ closeModal(); openSecondReviewModal(open); });
-  openModal(wrap, null, true);
+  openModal(wrap);
 }
 
 function openFirstReviewModal(){
