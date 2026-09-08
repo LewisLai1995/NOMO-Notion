@@ -1437,17 +1437,21 @@ function renderProjectDetail(id){
   const inner = track.firstChild;
 p.stages.forEach((s,i)=>{
     const isPast = new Date(s.date) < new Date(state.todayISO);
-    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
-      <div class="flex items-center justify-between mb-1">
-        <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
-        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 -mr-1 -mt-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
+    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
+        </div>
+        <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
+          <span>${s.name}</span>
+          <span class="text-[10px] opacity-40">✏️</span>
+        </div>
+        <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       </div>
-      <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
-        <span>${s.name}</span>
-        <span class="text-[10px] opacity-40">✏️</span>
-      </div>
-      <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
-      <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div></div>`);
+      <div class="flex items-center justify-between mt-1">
+        <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div>
+        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 -mb-1 -mr-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
+      </div></div>`);
 
     // 刪除階段：行內「確定？」雙重確認邏輯
     const delBtn = item.querySelector('.del-stage-btn');
