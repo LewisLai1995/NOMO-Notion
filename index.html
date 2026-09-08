@@ -872,10 +872,18 @@ function weekStrip(){
   head.innerHTML = `<div class="text-[11px] font-mono tracking-widest" style="color:var(--ink-soft)">一週總覽 · WEEK AHEAD</div>`;
   const nav = el(`<div class="flex items-center gap-2"></div>`);
   const prev = el(`<button class="text-[12px] px-2 py-0.5 rounded border" style="border-color:var(--line)">‹ 上一週</button>`);
+  const todayBtn = el(`<button class="text-[12px] px-2 py-0.5 rounded border font-medium" style="border-color:var(--ink);background:var(--paper-deep)">今天</button>`);
   const next = el(`<button class="text-[12px] px-2 py-0.5 rounded border" style="border-color:var(--line)">下一週 ›</button>`);
+  
   prev.addEventListener('click', ()=>{ state.weekOffset--; refreshWeekStrip(); });
+  todayBtn.addEventListener('click', ()=>{ 
+    state.weekOffset = 0; 
+    state.weekSelectedDate = state.todayISO; 
+    refreshWeekStrip(); 
+  });
   next.addEventListener('click', ()=>{ state.weekOffset++; refreshWeekStrip(); });
-  nav.append(prev,next); head.appendChild(nav); wrap.appendChild(head);
+  
+  nav.append(prev, todayBtn, next); head.appendChild(nav); wrap.appendChild(head);
   const grid = el(`<div class="grid grid-cols-7 gap-2" id="weekGrid"></div>`);
   wrap.appendChild(grid);
   const detailWrap = el(`<div class="mt-4 pt-4 border-t" style="border-color:var(--line)" id="weekDetail"></div>`);
