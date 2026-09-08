@@ -204,7 +204,11 @@ const STAGES = ["洽談需求","提案","得標","結構設計與調整","結構
 const STAGE_OFFSETS = [-60,-52,-45,-38,-30,-24,-18,-12,-7,0,7,21,28,35,42];
 function pad2(n){ return String(n).padStart(2,'0'); }
 function toISO(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; } // local-time date, never UTC
-const todayISO = ()=> toISO(new Date());
+// ⭕ 確保取得當地時區的正確年月日 (YYYY-MM-DD)
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+};
 const addDays = (iso,n)=>{ const [y,m,d]=iso.split('-').map(Number); const dt=new Date(y,m-1,d); dt.setDate(dt.getDate()+n); return toISO(dt); };
 const fmt = iso => { const d=new Date(iso+"T00:00:00"); return `${d.getMonth()+1}/${d.getDate()}`; };
 const diffDays = (a,b)=> Math.round((new Date(b+"T00:00:00")-new Date(a+"T00:00:00"))/86400000);
