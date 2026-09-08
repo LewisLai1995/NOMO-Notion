@@ -1146,50 +1146,75 @@ function settlementModal(p, onCancel){
 }
 function projectMiniCalendar(){
   const [y,mo] = state.projectCalMonth.split('-').map(Number);
-  const first = new Date(y,mo-1,1); const startWeekday = first.getDay(); const daysInMonth = new Date(y,mo,0).getDate();
-  const eventsByDate = {};
-  state.projects.forEach(p=> p.stages.forEach(s=>{ (eventsByDate[s.date]=eventsByDate[s.date]||[]).push({name:`「${p.name}」${s.name}`, color:p.color}); }));
   
-  // ⭕ 寬度與上下介面齊平 (w-full)，高度比先前增加 20% (儲存格 height: 34px)
+  // ⭕ 2026/09/01 1號精準計算：getMonth() 0-based, getDay() 0=日, 1=一, 2=二
+  const firstDay = new Date(y, mo - 1, 1);
+  const startWeekday = firstDay.getDay(); 
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  
+  const eventsByDate = {};
+  state.projects.forEach(p => p.stages.forEach(s => { 
+    (eventsByDate[s.date] = eventsByDate[s.date] || []).push({name: `「${p.name}」${s.name}`, color: p.color}); 
+  }));
+  
   const wrap = el(`<div class="card rounded-xl p-5 mb-6 w-full"></div>`);
-  const head = el(`<div class="flex items-center justify-between mb-3"></div>`);
+  const head = el(`<div class="flex items-center justify-between mb-4"></div>`);
   head.innerHTML = `<div class="text-[13px] font-medium">${state.nicknames.project}的行事曆 · 專案進度總覽</div>`;
+  
   const nav = el(`<div class="flex items-center gap-2"></div>`);
   const prev = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹</button>`);
   const label = el(`<span class="text-[12px] font-mono w-16 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
   const next = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">›</button>`);
-  prev.addEventListener('click', ()=>{ const d=new Date(y,mo-2,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
-  next.addEventListener('click', ()=>{ const d=new Date(y,mo,1); state.projectCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
-  nav.append(prev,label,next); head.appendChild(nav); wrap.appendChild(head);
   
-  const grid = el(`<div class="grid grid-cols-7 gap-1.5"></div>`);
-  ["日","一","二","三","四","五","六"].forEach(w=> grid.appendChild(el(`<div class="text-[10px] text-center pb-1" style="color:var(--ink-soft)">${w}</div>`)));
-  for(let i=0;i<startWeekday;i++) grid.appendChild(el(`<div></div>`));
-  const panel = el(`<div class="mt-3 pt-3 border-t" style="border-color:var(--line)" id="pcalPanel"></div>`);
+  prev.addEventListener('click', () => { const d = new Date(y, mo - 2, 1); state.projectCalMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; render(); });
+  next.addEventListener('click', () => { const d = new Date(y, mo, 1); state.projectCalMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; render(); });
+  nav.append(prev, label, next); head.appendChild(nav); wrap.appendChild(head);
+  
+  const grid = el(`<div class="grid grid-cols-7 gap-2 text-center"></div>`);
+  ["日","一","二","三","四","五","六"].forEach(w => grid.appendChild(el(`<div class="text-[11px] font-medium py-1" style="color:var(--ink-soft)">${w}</div>`)));
+  
+  // ⭕ 填補 1 號之前的空白，讓 9/1 正確對齊到星期二 (startWeekday = 2)
+  for(let i = 0; i < startWeekday; i++){
+    grid.appendChild(el(`<div></div>`));
+  }
+  
+  const panel = el(`<div class="mt-4 pt-3 border-t" style="border-color:var(--line)" id="pcalPanel"></div>`);
   function refreshPanel(){
     const sel = state.projectCalSelected;
-    panel.innerHTML='';
+    panel.innerHTML = '';
     if(!sel){ panel.innerHTML = `<div class="text-[12px]" style="color:var(--ink-soft)">點選日期查看當天的專案節點。</div>`; return; }
     panel.appendChild(el(`<div class="text-[12px] font-medium mb-2">${fmt(sel)} 的專案節點</div>`));
-    const items = eventsByDate[sel]||[];
+    const items = eventsByDate[sel] || [];
     if(!items.length) panel.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有專案節點。</div>`));
-    items.forEach(it=> panel.appendChild(el(`<div class="text-[12px] mb-1 flex items-center gap-1.5" style="color:var(--ink-soft)"><span class="w-1.5 h-1.5 rounded-full" style="background:${it.color}"></span>${it.name}</div>`)));
+    items.forEach(it => panel.appendChild(el(`<div class="text-[12px] mb-1 flex items-center gap-1.5" style="color:var(--ink-soft)"><span class="w-1.5 h-1.5 rounded-full" style="background:${it.color}"></span>${it.name}</div>`)));
   }
-  for(let d=1; d<=daysInMonth; d++){
+  
+  for(let d = 1; d <= daysInMonth; d++){
     const iso = `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const evts = eventsByDate[iso]||[]; const isToday = iso===state.todayISO;
-    const cell = el(`<button class="cal-cell rounded-md flex flex-col items-center justify-center p-1" data-date="${iso}" style="border:1.4px solid ${isToday?'var(--ink)':'var(--line)'};background:transparent;height:34px;">
-      <span class="text-[11px] leading-none">${d}</span>
-      <span class="flex gap-0.5 mt-1">${evts.slice(0,3).map(e=>`<span class="w-1.5 h-1.5 rounded-full" style="background:${e.color}"></span>`).join('')}</span>
+    const evts = eventsByDate[iso] || []; 
+    const isToday = iso === state.todayISO;
+    const isSel = iso === state.projectCalSelected;
+
+    // ⭕ 自訂簡潔方格（不套用含有比例約束的 cal-cell），預設高度 42px，呈現比例極佳
+    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1.5 flex flex-col items-center justify-between transition-all" style="height:42px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none">${d}</span>
+      <span class="flex gap-1 h-1.5 items-center">${evts.slice(0, 3).map(e => `<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${e.color}"></span>`).join('')}</span>
     </button>`);
-    cell.addEventListener('click', ()=>{
+    
+    cell.addEventListener('click', () => {
       state.projectCalSelected = iso;
-      grid.querySelectorAll('[data-date]').forEach(c=>{ c.style.borderColor = c.dataset.date===state.todayISO ? 'var(--ink)' : 'var(--line)'; c.style.background='transparent'; });
-      cell.style.borderColor = state.theme.project; cell.style.background = hexToRgba(state.theme.project,0.1);
+      grid.querySelectorAll('[data-date]').forEach(c => { 
+        const cIso = c.dataset.date;
+        c.style.borderColor = cIso === state.todayISO ? 'var(--ink)' : 'var(--line)'; 
+        c.style.background = 'transparent'; 
+      });
+      cell.style.borderColor = state.theme.project; 
+      cell.style.background = hexToRgba(state.theme.project, 0.12);
       refreshPanel();
     });
     grid.appendChild(cell);
   }
+  
   wrap.appendChild(grid); wrap.appendChild(panel); refreshPanel();
   return wrap;
 }
