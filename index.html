@@ -1621,16 +1621,22 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
   head.appendChild(addBtn); wrap.appendChild(head);
   const rowsWrap = el(`<div></div>`); wrap.appendChild(rowsWrap);
   state.finance[group].forEach(item=>{
-    const last = valueForItem(item);
-    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5"><span style="color:var(--ink-soft)">${item.label}</span><div class="flex items-center gap-2"><input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[12px]" title="刪除名目">🗑️</button></div></div>`);
-    inputs[group][item.id] = row.querySelector('input');
-    row.querySelector('button').addEventListener('click', ()=>{ state.finance[group] = state.finance[group].filter(x=>x.id!==item.id); delete inputs[group][item.id]; row.remove(); });
-    rowsWrap.appendChild(row);
+  const last = valueForItem(item);
+  const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5"><span style="color:var(--ink-soft)">${item.label}</span><div class="flex items-center gap-2"><input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="刪除名目">×</button></div></div>`);
+  inputs[group][item.id] = row.querySelector('input');
+  row.querySelector('button').addEventListener('click', ()=>{
+    confirmModal(`確定要刪除「${item.label}」這個項目嗎？`, ()=>{
+      state.finance[group] = state.finance[group].filter(x=>x.id!==item.id);
+      delete inputs[group][item.id];
+      row.remove();
+    }, { okLabel: '確定刪除', color: 'var(--danger)' });
   });
+  rowsWrap.appendChild(row);
+});
   addBtn.addEventListener('click', ()=>{
     const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5">
-      <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
-      <div class="flex items-center gap-2 shrink-0"><input type="number" value="0" placeholder="金額" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[12px]" title="移除">🗑️</button></div></div>`);
+  <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
+  <div class="flex items-center gap-2 shrink-0"><input type="number" value="0" placeholder="金額" class="w-28 border rounded px-2 py-1 text-[13px] text-right" style="border-color:var(--line)"/><button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="移除">×</button></div></div>`);
     const [labelInput, amountInput] = row.querySelectorAll('input');
     const entry = {label:'', input: amountInput};
     labelInput.addEventListener('input', ()=>{ entry.label = labelInput.value.trim(); });
@@ -1656,7 +1662,7 @@ function openReviewModal(){
   wrap.append(opt1,opt2);
   opt1.addEventListener('click', ()=>{ closeModal(); openFirstReviewModal(); });
   if(!secondDisabled) opt2.addEventListener('click', ()=>{ closeModal(); openSecondReviewModal(open); });
-  openModal(wrap);
+  openModal(wrap, null, true);
 }
 
 function openFirstReviewModal(){
@@ -1684,7 +1690,7 @@ function openFirstReviewModal(){
     });
     closeModal(); commit();
   });
-  openModal(wrap);
+  openModal(wrap, null, true);
 }
 
 function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inputs, pendingNew){
@@ -1741,7 +1747,7 @@ function openSecondReviewModal(period){
     });
     closeModal(); commit();
   });
-  openModal(wrap);
+ openModal(wrap, null, true)
 }
 
 function openEditLastReviewModal(){
@@ -1772,7 +1778,7 @@ function openEditLastReviewModal(){
       });
       closeModal(); commit();
     });
-    openModal(wrap);
+    openModal(wrap, null, true);
   }
 }
 function planProgressCard(){
@@ -1811,7 +1817,7 @@ function openFinanceHistoryModal(){
     const box = el(`<div class="border rounded-lg p-3" style="border-color:var(--line)"></div>`);
     const head = el(`<div class="flex items-center justify-between mb-2"></div>`);
     head.innerHTML = `<div class="text-[12px] font-medium">第一次 ${fmt(p.firstDate)}${p.secondDate?` · 第二次 ${fmt(p.secondDate)}`:' · 尚未第二次盤點'}</div>`;
-    const delBtn = el(`<button class="text-[11px] shrink-0" style="color:var(--danger)" title="刪除這筆盤點紀錄">🗑️ 刪除</button>`);
+    const delBtn = el(`<button class="text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除這筆盤點紀錄">×</button>`);
     delBtn.addEventListener('click', ()=>{
       confirmModal(`確定要刪除「${fmt(p.firstDate)}」這整筆盤點紀錄嗎？裡面每個項目在這次的第一次／第二次金額都會一併移除，且無法復原。`, ()=>{
         state.finance.periods = state.finance.periods.filter(x=>x.id!==p.id);
