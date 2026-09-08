@@ -1405,18 +1405,76 @@ function renderProjectDetail(id){
   // 時程軸
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
   timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
-  const track = el(`<div class="stage-track overflow-x-auto pb-2"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
+  const track = el(`<div class="stage-track overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
   track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
+
+  // ⭕ 滑鼠拖移（Drag to Scroll）邏輯
+  let isDown = false;
+  let startX = 0;
+  let scrollLeft = 0;
+
+  track.addEventListener('mousedown', (e) => {
+    isDown = true;
+    startX = e.pageX - track.offsetLeft;
+    scrollLeft = track.scrollLeft;
+  });
+
+  track.addEventListener('mouseleave', () => {
+    isDown = false;
+  });
+
+  track.addEventListener('mouseup', () => {
+    isDown = false;
+  });
+
+  track.addEventListener('mousemove', (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - track.offsetLeft;
+    const walk = (x - startX) * 1.5; // 乘以 1.5 可調整拖移敏銳度
+    track.scrollLeft = scrollLeft - walk;
+  });
   const inner = track.firstChild;
- p.stages.forEach((s,i)=>{
+p.stages.forEach((s,i)=>{
     const isPast = new Date(s.date) < new Date(state.todayISO);
     const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
-      <div class="flex items-center justify-between mb-1"><span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span></div>
+      <div class="flex items-center justify-between mb-1">
+        <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
+        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 -mr-1 -mt-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
+      </div>
       <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
         <span>${s.name}</span>
+        <span class="text-[10px] opacity-40">✏️</span>
       </div>
       <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div></div>`);
+
+    // 刪除階段：行內「確定？」雙重確認邏輯
+    const delBtn = item.querySelector('.del-stage-btn');
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 防止點擊觸發卡片切換
+      
+      if (delBtn.dataset.confirming === "true") {
+        p.stages.splice(i, 1); // 移除該時程
+        if (p.viewStageIndex >= p.stages.length) {
+          p.viewStageIndex = Math.max(0, p.stages.length - 1);
+        }
+        commit(); // 儲存並重新渲染畫面
+      } else {
+        delBtn.dataset.confirming = "true";
+        delBtn.textContent = "確定？";
+        delBtn.className = "del-stage-btn text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
+        
+        setTimeout(() => {
+          if (document.body.contains(delBtn)) {
+            delBtn.dataset.confirming = "false";
+            delBtn.textContent = "×";
+            delBtn.className = "del-stage-btn text-[14px] font-bold px-1 -mr-1 -mt-1 shrink-0";
+            delBtn.style.color = "var(--danger)";
+          }
+        }, 3000);
+      }
+    });
 
     // 點擊「階段名稱」觸發改名彈窗
     item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
