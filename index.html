@@ -1454,10 +1454,13 @@ function renderProjectDetail(id){
   const inner = track.firstChild;
 p.stages.forEach((s,i)=>{
     const isPast = new Date(s.date) < new Date(state.todayISO);
+    
+    // ⭕ 乾淨的卡片結構：上方（編號、名稱、日期）、下方（左：狀態 / 右：刪除按鈕）
     const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
       <div>
         <div class="flex items-center justify-between mb-1">
           <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
+          <div class="stage-cb-wrap"></div>
         </div>
         <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
           <span>${s.name}</span>
@@ -1465,22 +1468,57 @@ p.stages.forEach((s,i)=>{
         </div>
         <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       </div>
-      <div class="flex items-center justify-between mt-1">
-        <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div>
-        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 -mb-1 -mr-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
+      <div class="flex items-center justify-between mt-2 pt-1 border-t" style="border-color:rgba(0,0,0,0.05)">
+        <div class="stage-status-text text-[10px] font-medium" style="color:${s.done?'var(--good)':(isPast?'#B23A3A':'var(--ink-soft)')}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div>
+        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
       </div></div>`);
 
-    // 刪除階段：行內「確定？」雙重確認邏輯
+    // 1. 勾選框事件掛載至右上角
+    let cb;
+    function handleStageToggle(checked){
+      s.done = checked;
+      item.style.borderColor = checked ? p.color : 'var(--line)';
+      item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked ? hexToRgba(p.color,0.06) : '#fff');
+      
+      const statusText = item.querySelector('.stage-status-text');
+      if (statusText) {
+        statusText.textContent = checked ? '已完成' : (isPast ? '已逾期' : '未到期');
+        statusText.style.color = checked ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)');
+      }
+
+      saveState();
+      
+      if(s.name === "結案" && checked && !p.settled){
+        const revert = ()=>{
+          s.done = false;
+          const freshCb = checkboxEl(false, handleStageToggle);
+          cb.replaceWith(freshCb); cb = freshCb;
+          item.style.borderColor = 'var(--line)';
+          item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : '#fff';
+          if (statusText) {
+            statusText.textContent = isPast ? '已逾期' : '未到期';
+            statusText.style.color = isPast ? '#B23A3A' : 'var(--ink-soft)';
+          }
+          saveState();
+        };
+        openModal(settlementModal(p, revert), revert, true);
+      }
+    }
+
+    cb = checkboxEl(s.done, handleStageToggle);
+    item.querySelector('.stage-cb-wrap').appendChild(cb);
+
+    // 2. 右下角刪除按鈕行內確認
     const delBtn = item.querySelector('.del-stage-btn');
     delBtn.addEventListener('click', (e) => {
-      e.stopPropagation(); // 防止點擊觸發卡片切換
+      e.stopPropagation();
       
       if (delBtn.dataset.confirming === "true") {
-        p.stages.splice(i, 1); // 移除該時程
+        p.stages.splice(i, 1);
         if (p.viewStageIndex >= p.stages.length) {
           p.viewStageIndex = Math.max(0, p.stages.length - 1);
         }
-        commit(); // 儲存並重新渲染畫面
+        commit();
       } else {
         delBtn.dataset.confirming = "true";
         delBtn.textContent = "確定？";
@@ -1490,65 +1528,41 @@ p.stages.forEach((s,i)=>{
           if (document.body.contains(delBtn)) {
             delBtn.dataset.confirming = "false";
             delBtn.textContent = "×";
-            delBtn.className = "del-stage-btn text-[14px] font-bold px-1 -mb-1 -mr-1 shrink-0";
+            delBtn.className = "del-stage-btn text-[14px] font-bold px-1 shrink-0";
             delBtn.style.color = "var(--danger)";
           }
         }, 3000);
       }
     });
 
-    // 點擊「階段名稱」觸發改名彈窗
+    // 3. 點擊名稱修改標題
     item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
-      e.stopPropagation(); // 避免觸發切換卡片
+      e.stopPropagation();
       promptModal('修改階段名稱', [{ key: 'name', label: '階段名稱', value: s.name }], (v) => {
         if (v.name && v.name.trim()) {
           s.name = v.name.trim();
-          commit(); // 儲存並重新渲染
+          commit();
         }
       });
     });
-    let cb;
-    function handleStageToggle(checked){
-      s.done = checked;
-      item.style.borderColor = checked?p.color:'var(--line)';
-      item.style.background = i===p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked?hexToRgba(p.color,0.06):'#fff');
-      item.querySelector('.text-\\[10px\\]').textContent = checked?'已完成':(isPast?'已逾期':'未到期');
-      saveState();
-      if(s.name==="結案" && checked && !p.settled){
-        const revert = ()=>{
-          s.done = false;
-          const freshCb = checkboxEl(false, handleStageToggle);
-          cb.replaceWith(freshCb); cb = freshCb;
-          item.style.borderColor = 'var(--line)';
-          item.style.background = i===p.viewStageIndex ? hexToRgba(p.color,0.12) : '#fff';
-          item.querySelector('.text-\\[10px\\]').textContent = isPast?'已逾期':'未到期';
-          saveState();
-        };
-        openModal(settlementModal(p, revert), revert, true);
-      }
-    }
-    cb = checkboxEl(s.done, handleStageToggle);
-    item.querySelector('.flex.items-center.justify-between').appendChild(cb);
+
+    // 4. 日期變更與自動排序
     item.querySelector('input[type=date]').addEventListener('click', e=> e.stopPropagation());
-item.querySelector('input[type=date]').addEventListener('change', e=>{
-      const newDate = e.target.value;
-      s.date = newDate; // 更新當前階段日期
-
-      // ⭕ 依照日期由早到晚重新排序所有階段
+    item.querySelector('input[type=date]').addEventListener('change', e=>{
+      s.date = e.target.value;
       p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-
-      // ⭕ 保持當前選取的階段指向正確位置
       p.viewStageIndex = p.stages.findIndex(stage => stage === s);
-
-      // ⭕ 儲存資料並即時重新渲染畫面
       commit();
       render();
     });
+
+    // 5. 卡片點擊選取
     item.addEventListener('click', ()=>{
       p.viewStageIndex = i;
       inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
       refreshStagePanel(p, noteWrap);
     });
+
     inner.appendChild(item);
   });
   timelineCard.appendChild(track); wrap.appendChild(timelineCard);
