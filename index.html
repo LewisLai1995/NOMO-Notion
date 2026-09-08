@@ -1786,20 +1786,29 @@ function planProgressCard(){
   const wrap = el(`<div class="card rounded-xl p-5 mb-6"><div class="text-[13px] font-medium mb-1">計畫性支出進度 · 區塊 C</div><p class="text-[12px] mb-3" style="color:var(--ink-soft)">存款、投資、旅遊基金等計畫達成或款項用掉後，按下「計畫完成」歸零並從畫面移除，下個月就能重新開始新的計畫。</p><div id="planRows" class="flex flex-col gap-2"></div></div>`);
   const rows = wrap.querySelector('#planRows');
   if(!F.plan.length) rows.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">目前沒有計畫性支出項目，可以在「進入盤點模式」裡新增。</div>`));
-  F.plan.forEach(item=>{
-    let latest = null;
-    for(let i=F.periods.length-1;i>=0;i--){ const v=effectiveValue(item,F.periods[i].id); if(v!=null){ latest=v; break; } }
-    const row = el(`<div class="flex items-center justify-between gap-3 p-3 rounded-lg" style="background:${hexToRgba(color,0.06)};">
-      <div><div class="text-[13px] font-medium">${item.label}</div><div class="text-[11px] font-mono" style="color:var(--ink-soft)">累計 NT$ ${(latest||0).toLocaleString()}</div></div>
-      <button class="text-[12px] px-3 py-1.5 rounded-lg border shrink-0" style="border-color:${color};color:${color}">✅ 計畫完成</button></div>`);
-    row.querySelector('button').addEventListener('click', ()=>{
-      confirmModal(`確定「${item.label}」這筆計畫已經完成或款項已使用了嗎？確定後會從清單中移除。`, ()=>{
-        state.finance.plan = state.finance.plan.filter(x=>x.id!==item.id);
-        commit();
-      }, {okLabel:'確定完成', color});
-    });
-    rows.appendChild(row);
+F.plan.forEach(item => {
+  // ⭕ 將這個項目在歷來每一個 Period 的有效值（effectiveValue）全部加總
+  const accumulatedTotal = F.periods.reduce((sum, p) => {
+    const val = effectiveValue(item, p.id);
+    return sum + (val || 0);
+  }, 0);
+
+  const row = el(`<div class="flex items-center justify-between gap-3 p-3 rounded-lg" style="background:${hexToRgba(color,0.06)};">
+    <div>
+      <div class="text-[13px] font-medium">${item.label}</div>
+      <div class="text-[11px] font-mono" style="color:var(--ink-soft)">累計 NT$ ${accumulatedTotal.toLocaleString()}</div>
+    </div>
+    <button class="text-[12px] px-3 py-1.5 rounded-lg border shrink-0" style="border-color:${color};color:${color}">✅ 計畫完成</button>
+  </div>`);
+
+  row.querySelector('button').addEventListener('click', () => {
+    confirmModal(`確定「${item.label}」這筆計畫已經完成或款項已使用了嗎？確定後會從清單中移除。`, () => {
+      state.finance.plan = state.finance.plan.filter(x => x.id !== item.id);
+      commit();
+    }, { okLabel: '確定完成', color });
   });
+  rows.appendChild(row);
+});
   return wrap;
 }
 function openFinanceHistoryModal(){
