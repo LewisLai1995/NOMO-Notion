@@ -795,7 +795,8 @@ function renderNav(){
   nav.querySelectorAll('[data-route]').forEach(b=> b.addEventListener('click', ()=>{ state.route=b.dataset.route; state.detailProjectId=null; if(b.dataset.route==="projectlog") state.projectListTab="active"; render(); }));
 }
 function render(){
-  state.todayISO = todayISO(); // keeps yesterday/today/tomorrow rolling forward automatically
+ state.todayISO = todayISO(); // 確保每次渲染時全域 todayISO 都是當前最新日期
+  state.personaSelectedDate = state.personaSelectedDate || state.todayISO;
   if(!visibleNav().find(n=>n.id===state.route)) state.route = "today";
   renderNav();
   document.getElementById('todayLabel').textContent = state.todayISO.slice(5).replace('-','/');
@@ -1787,8 +1788,9 @@ function openFirstReviewModal(){
   const wrap = el(`<div></div>`);
   wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第一次盤點（發薪日）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">建立新的盤點週期：A．可運用現金流（薪資、配息等收入）、B．預留常態性支出、C．計畫性支出。</p>`;
   wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
- // ⭕ 修改後：預設直接帶入今天日期 (state.todayISO)
-const dateInput = el(`<input type="date" value="${state.todayISO}" ... />`);
+
+// ⭕ 修正後的完整 HTML 標籤
+const dateInput = el(`<input type="date" value="${todayISO()}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
   wrap.appendChild(dateInput);
   const prev = latestPeriod();
   buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
