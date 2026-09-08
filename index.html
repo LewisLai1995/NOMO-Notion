@@ -396,13 +396,19 @@ async function loadState() {
     
   if (docSnap.exists()) {
     const data = docSnap.data();
-    if (data.jsonPayload) {
-      Object.assign(state, JSON.parse(data.jsonPayload));
-    } else {
-      Object.assign(state, data);
-    }
-    state.route = "today"; // ⭕ 重整載入後，強制將畫面鎖定在 Today 主頁
-    console.log("☁️ 已成功載入個人雲端資料！");
+   if (data.jsonPayload) {
+        Object.assign(state, JSON.parse(data.jsonPayload));
+      } else {
+        Object.assign(state, data);
+      }
+      state.route = "today"; // 重整載入後鎖定 Today 主頁
+      
+      // ⭕ 強制將日常 Persona 的月份與選取日期對齊為今天的當地日期
+      state.todayISO = todayISO();
+      state.personaCalMonth = state.todayISO.slice(0, 7);
+      state.personaSelectedDate = state.todayISO;
+      
+      console.log("☁️ 已成功載入個人雲端資料！");
     } else {
       console.log("☁️ 首次登入，注入完整預設模板資料...");
       Object.assign(state, JSON.parse(JSON.stringify(DEFAULT_STATE)));
