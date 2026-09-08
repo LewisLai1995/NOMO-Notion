@@ -1509,11 +1509,19 @@ p.stages.forEach((s,i)=>{
     cb = checkboxEl(s.done, handleStageToggle);
     item.querySelector('.flex.items-center.justify-between').appendChild(cb);
     item.querySelector('input[type=date]').addEventListener('click', e=> e.stopPropagation());
-    item.querySelector('input[type=date]').addEventListener('change', e=>{
-      const newDate = e.target.value; const delta = diffDays(s.date,newDate);
-      for(let j=i;j<p.stages.length;j++){ p.stages[j].date = addDays(p.stages[j].date, delta); }
-      if(i===9) p.constructionDate = p.stages[9].date;
+item.querySelector('input[type=date]').addEventListener('change', e=>{
+      const newDate = e.target.value;
+      s.date = newDate; // 更新當前階段日期
+
+      // ⭕ 依照日期由早到晚重新排序所有階段
+      p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+      // ⭕ 保持當前選取的階段指向正確位置
+      p.viewStageIndex = p.stages.findIndex(stage => stage === s);
+
+      // ⭕ 儲存資料並即時重新渲染畫面
       commit();
+      render();
     });
     item.addEventListener('click', ()=>{
       p.viewStageIndex = i;
