@@ -1775,7 +1775,7 @@ function personaMonthCalendar(){
       schedEvents.forEach(t => {
         const row = el(`<div class="flex items-center gap-2 group"></div>`);
         const txt = el(`<span class="flex-1 text-[13px]" style="color:var(--ink)">・${t.text || '（未命名）'}</span>`);
-        const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">× opacity-100</button>`);
+        const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
         del.addEventListener('click', ()=>{ 
           state.personaEvents = state.personaEvents.filter(x => x.id !== t.id); 
           commit(); 
