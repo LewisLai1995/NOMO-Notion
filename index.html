@@ -241,6 +241,8 @@ function checkboxEl(checked,onToggle){
 /* ============================================================ STATE ============================================================ */
 let state = {
   route:"today", detailProjectId:null, detailTab:"main", todayISO: todayISO(),
+  route:"today", detailProjectId:null, detailTab:"main", todayISO: todayISO(),
+  projectNavOpen: true, // ⭕ 控制左側專案清單開合 (預設展開)
   theme:{ project:"#B5654A", life:"#7A8B6F", finance:"#A97F2E" },
   roles:{ project:"architect", life:"sprout", finance:"stacked" },
   nicknames:{ project:"坦坦", life:"露米", finance:"諾米" },
@@ -798,9 +800,85 @@ function iconPlug(a){return sw(`<path d="M8 3 V8 M14 3 V8" stroke-linecap="round
 function sw(inner,a){return `<svg width="18" height="22" viewBox="0 0 22 22" fill="none" stroke="${a?'var(--paper)':'var(--ink)'}" stroke-width="1.5">${inner}</svg>`;}
 function renderNav(){
   const nav = document.getElementById('nav');
-  nav.innerHTML = visibleNav().map(n=>`<button data-route="${n.id}" class="nav-item ${state.route===n.id?'active':''} flex items-center gap-3 rounded-lg px-3 py-2.5 text-left w-full">
-    <span class="shrink-0">${n.icon(state.route===n.id)}</span><span class="text-[13px] font-medium">${n.label}</span><span class="nav-dot ml-auto w-1.5 h-1.5 rounded-full" style="background:var(--line);"></span></button>`).join('');
-  nav.querySelectorAll('[data-route]').forEach(b=> b.addEventListener('click', ()=>{ state.route=b.dataset.route; state.detailProjectId=null; if(b.dataset.route==="projectlog") state.projectListTab="active"; render(); }));
+  nav.innerHTML = '';
+
+  visibleNav().forEach(n => {
+    // ⭕ 針對「專案 Project Log」項目做特殊處理（加入開合箭頭與子選單）
+    if (n.id === 'projectlog') {
+      const active = state.route === 'projectlog' && !state.detailProjectId;
+      const activeProjects = state.projects.filter(p => !p.settled);
+      
+      const group = el(`<div>
+        <div class="nav-item ${active ? 'active' : ''} flex items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="shrink-0">${n.icon(active)}</span>
+            <span class="text-[13px] font-medium truncate">${n.label}</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="pnav-chevron text-[10px] transition-transform duration-200" style="color:${active ? 'var(--paper)' : 'var(--ink-soft)'}; transform: rotate(${state.projectNavOpen ? '180deg' : '0deg'});">⌄</span>
+            <span class="nav-dot w-1.5 h-1.5 rounded-full" style="background:${active ? 'var(--paper)' : 'var(--line)'};"></span>
+          </div>
+        </div>
+        <div class="pnav-sub flex flex-col gap-0.5 pl-8 mt-1 overflow-hidden transition-all" style="display:${state.projectNavOpen ? 'flex' : 'none'}"></div>
+      </div>`);
+
+      // 點擊「專案」主按鈕：切換至專案列表，並切換展開/收合狀態
+      const mainBtn = group.firstElementChild;
+      mainBtn.addEventListener('click', (e) => {
+        // 如果點到 chevron 箭頭，只切換開合不切換頁面
+        if (e.target.classList.contains('pnav-chevron')) {
+          e.stopPropagation();
+          state.projectNavOpen = !state.projectNavOpen;
+          renderNav();
+          return;
+        }
+        state.route = 'projectlog';
+        state.detailProjectId = null;
+        state.projectListTab = 'active';
+        state.projectNavOpen = true; // 切換過來時自動展開
+        render();
+      });
+
+      // 渲染子選單（進行中的專案）
+      const sub = group.querySelector('.pnav-sub');
+      if (activeProjects.length === 0) {
+        sub.appendChild(el(`<div class="text-[11px] py-1 px-2" style="color:var(--ink-soft)">無進行中專案</div>`));
+      } else {
+        activeProjects.forEach(p => {
+          const isSelected = state.route === 'projectlog' && state.detailProjectId === p.id;
+          const subItem = el(`<button class="text-left text-[12px] py-1.5 px-2 rounded flex items-center gap-2 truncate transition-colors hover:bg-[color:var(--paper-deep)]" style="color:${isSelected ? 'var(--ink)' : 'var(--ink-soft)'}; font-weight:${isSelected ? '600' : '400'}; background:${isSelected ? 'var(--paper-deep)' : 'transparent'};">
+            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${p.color}"></span>
+            <span class="truncate">${p.name}</span>
+          </button>`);
+          
+          subItem.addEventListener('click', () => {
+            state.route = 'projectlog';
+            state.detailProjectId = p.id;
+            state.detailTab = 'main';
+            render();
+          });
+          sub.appendChild(subItem);
+        });
+      }
+
+      nav.appendChild(group);
+    } else {
+      // ⭕ 其他一般選單項目
+      const active = state.route === n.id;
+      const btn = el(`<button data-route="${n.id}" class="nav-item ${active ? 'active' : ''} flex items-center gap-3 rounded-lg px-3 py-2.5 text-left w-full">
+        <span class="shrink-0">${n.icon(active)}</span>
+        <span class="text-[13px] font-medium">${n.label}</span>
+        <span class="nav-dot ml-auto w-1.5 h-1.5 rounded-full" style="background:${active ? 'var(--paper)' : 'var(--line)'};"></span>
+      </button>`);
+
+      btn.addEventListener('click', () => {
+        state.route = n.id;
+        state.detailProjectId = null;
+        render();
+      });
+      nav.appendChild(btn);
+    }
+  });
 }
 function render(){
  state.todayISO = todayISO(); // 確保每次渲染時全域 todayISO 都是當前最新日期
