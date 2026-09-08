@@ -1029,12 +1029,36 @@ function projectListRow(p){
 function projectCard(p){
   const status = projectStatus(p); const sc = statusColor(status); const idx = currentStageIndex(p);
   const d = diffDays(state.todayISO,p.constructionDate);
-  const card = el(`<button class="card rounded-xl p-4 text-left" style="border-left:3px solid ${p.color};">
-    <div class="flex items-center justify-between mb-2"><span class="tag" style="border-color:${sc};color:${sc}">${status}</span><span class="text-[11px] font-mono" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span></div>
-    <div class="font-display font-semibold text-[15px] mb-1">${p.name}</div><div class="text-[11px] mb-3" style="color:var(--ink-soft)">${p.client}</div>
+  const card = el(`<div class="card rounded-xl p-4 text-left relative group cursor-pointer" style="border-left:3px solid ${p.color};">
+    <div class="flex items-center justify-between mb-2">
+      <span class="tag" style="border-color:${sc};color:${sc}">${status}</span>
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] font-mono" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span>
+        <button type="button" class="del-proj-btn text-[14px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除此專案">×</button>
+      </div>
+    </div>
+    <div class="font-display font-semibold text-[15px] mb-1 pr-4">${p.name}</div>
+    <div class="text-[11px] mb-3" style="color:var(--ink-soft)">${p.client}</div>
     <div class="text-[11px] mb-1" style="color:var(--ink-soft)">現階段：${STAGES[idx]}</div>
-    <div class="w-full h-1.5 rounded-full" style="background:var(--paper-deep)"><div class="h-1.5 rounded-full" style="width:${(idx/(STAGES.length-1))*100}%;background:${p.color}"></div></div></button>`);
-  card.addEventListener('click', ()=>{ state.detailProjectId=p.id; state.detailTab="main"; render(); });
+    <div class="w-full h-1.5 rounded-full" style="background:var(--paper-deep)"><div class="h-1.5 rounded-full" style="width:${(idx/(STAGES.length-1))*100}%;background:${p.color}"></div></div>
+  </div>`);
+
+  // 點擊卡片進入專案細節
+  card.addEventListener('click', (e)=>{ 
+    if(e.target.closest('.del-proj-btn')) return; // 若點到刪除按鈕則不跳轉
+    state.detailProjectId=p.id; state.detailTab="main"; render(); 
+  });
+
+  // 刪除按鈕雙重確認邏輯
+  const delBtn = card.querySelector('.del-proj-btn');
+  delBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    confirmModal(`確定要刪除專案「${p.name}」嗎？刪除後所有相關時程與工班資料都將無法復原。`, ()=>{
+      state.projects = state.projects.filter(x => x.id !== p.id);
+      commit();
+    }, { okLabel: '確定刪除', color: 'var(--danger)' });
+  });
+
   return card;
 }
 function projectCreateModal(){
@@ -1401,9 +1425,21 @@ function renderProjectDetail(id){
   const btnRow = el(`<div class="flex items-center gap-2"></div>`);
   const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">✏️ 編輯專案</button>`);
   editBtn.addEventListener('click', ()=> openModal(editProjectModal(p)));
+  
   const addStageBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">＋ 新增客製時程</button>`);
   addStageBtn.addEventListener('click', ()=> openModal(addStageModal(p)));
-  btnRow.append(editBtn, addStageBtn); headRow.appendChild(btnRow); wrap.appendChild(headRow);
+  
+  // ⭕ 新增刪除專案按鈕
+  const delProjBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border text-red-600 border-red-200 hover:bg-red-50 transition-colors">刪除專案</button>`);
+  delProjBtn.addEventListener('click', ()=>{
+    confirmModal(`確定要刪除專案「${p.name}」嗎？刪除後所有資料都將無法復原。`, ()=>{
+      state.projects = state.projects.filter(x => x.id !== p.id);
+      state.detailProjectId = null;
+      commit();
+    }, { okLabel: '確定刪除', color: 'var(--danger)' });
+  });
+
+  btnRow.append(editBtn, addStageBtn, delProjBtn); headRow.appendChild(btnRow); wrap.appendChild(headRow);
 
   if(p.settled && p.settlement){
     const revenue = p.dealAmount + (p.settlement.additionalAmount||0);
