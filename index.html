@@ -1712,7 +1712,8 @@ function openFirstReviewModal(){
   const wrap = el(`<div></div>`);
   wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第一次盤點（發薪日）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">建立新的盤點週期：A．可運用現金流（薪資、配息等收入）、B．預留常態性支出、C．計畫性支出。</p>`;
   wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
-  const dateInput = el(`<input type="date" value="${nextBiweeklyDate(state.todayISO)}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+ // ⭕ 修改後：預設直接帶入今天日期 (state.todayISO)
+const dateInput = el(`<input type="date" value="${state.todayISO}" ... />`);
   wrap.appendChild(dateInput);
   const prev = latestPeriod();
   buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
