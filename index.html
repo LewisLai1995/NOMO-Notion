@@ -1413,7 +1413,6 @@ function renderProjectDetail(id){
       <div class="flex items-center justify-between mb-1"><span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span></div>
       <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
         <span>${s.name}</span>
-        <span class="text-[10px] opacity-40">✏️</span>
       </div>
       <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       <div class="text-[10px]" style="color:${isPast&&!s.done?'#B23A3A':'var(--ink-soft)'}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div></div>`);
