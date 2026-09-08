@@ -411,6 +411,7 @@ async function loadState() {
       state.weekSelectedDate = state.todayISO;
       state.personaCalMonth = state.todayISO.slice(0, 7);
       state.personaSelectedDate = state.todayISO;
+      state.projectNavOpen = true;
       
       console.log("☁️ 已成功載入個人雲端資料！");
     } else {
@@ -808,14 +809,18 @@ function renderNav(){
       const active = state.route === 'projectlog' && !state.detailProjectId;
       const activeProjects = state.projects.filter(p => !p.settled);
       
-      const group = el(`<div>
-        <div class="nav-item ${active ? 'active' : ''} flex items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer">
+     const group = el(`<div>
+        <div class="nav-item ${active ? 'active' : ''} flex items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer group">
           <div class="flex items-center gap-3 min-w-0">
             <span class="shrink-0">${n.icon(active)}</span>
             <span class="text-[13px] font-medium truncate">${n.label}</span>
           </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span class="pnav-chevron text-[10px] transition-transform duration-200" style="color:${active ? 'var(--paper)' : 'var(--ink-soft)'}; transform: rotate(${state.projectNavOpen ? '180deg' : '0deg'});">⌄</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="pnav-chevron flex items-center justify-center w-4 h-4 rounded transition-transform duration-200" style="color:${active ? 'var(--paper)' : 'var(--ink-soft)'}; transform: rotate(${state.projectNavOpen ? '180deg' : '0deg'});">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="pointer-events-none">
+                <path d="M2.5 4.5 L6 8 L9.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <span class="nav-dot w-1.5 h-1.5 rounded-full" style="background:${active ? 'var(--paper)' : 'var(--line)'};"></span>
           </div>
         </div>
