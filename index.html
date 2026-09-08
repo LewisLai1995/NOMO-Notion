@@ -445,7 +445,12 @@ function normalizeFinanceShape(){
   delete f.dates;
 }
 function periodById(id){ return state.finance.periods.find(p=>p.id===id); }
-function latestPeriod(){ const ps=state.finance.periods; return ps.length ? ps[ps.length-1] : null; }
+// ⭕ 改為依據 firstDate 日期排序，永遠取得日期最新的那一次盤點
+function latestPeriod(){
+  const ps = state.finance.periods;
+  if (!ps.length) return null;
+  return [...ps].sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate))[ps.length - 1];
+}
 function findOpenPeriod(){ return [...state.finance.periods].reverse().find(p=>p.firstDate && !p.secondDate) || null; }
 function lastReviewDateLabel(){
   const p = latestPeriod();
@@ -1718,8 +1723,11 @@ function openFirstReviewModal(){
   wrap.appendChild(footer);
   footer.querySelector('#rvCancel').addEventListener('click', closeModal);
   footer.querySelector('#rvSubmit').addEventListener('click', ()=>{
-    const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
-    state.finance.periods.push(period);
+const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
+state.finance.periods.push(period);
+
+// ⭕ 自動依據盤點日期從小到大排序，確保時間順序正確
+state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate));
     ['bank','expense','plan'].forEach(group=>{
       state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[period.id] = parseFloat(inp.value)||0; } });
       pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[period.id]: parseFloat(entry.input.value)||0}, second:{}}); });
