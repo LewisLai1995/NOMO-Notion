@@ -1905,6 +1905,77 @@ function financeReviewSettingsCard(){
   wrap.append(head, body);
   return wrap;
 }
+  function openInitialSetupModal() {
+  const color = state.theme.finance;
+  const inputs = { bank: {}, expense: {}, plan: {} };
+  const pendingNew = { bank: [], expense: [], plan: [] };
+  const wrap = el(`<div></div>`);
+
+  wrap.innerHTML = `
+    <div class="font-display font-bold text-[19px] mb-1" style="color:${color}">建立資產初始基線</div>
+    <p class="text-[12px] mb-4" style="color:var(--ink-soft)">
+      歡迎使用資產系統！請先建立你目前的帳戶餘額、固定支出項目與已累積的計畫金額。完成後即可開始進行例行盤點。
+    </p>
+  `;
+
+  wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">設定基準日期</label>`));
+  const dateInput = el(`<input type="date" value="${state.todayISO}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+  wrap.appendChild(dateInput);
+
+  // 帶入預設的名目編輯器
+  buildFinanceSectionEditor(wrap, 'bank', 'A．可運用現金流（目前各帳戶餘額）', 'var(--sage)', inputs, pendingNew, () => 0);
+  buildFinanceSectionEditor(wrap, 'expense', 'B．預留常態性支出（預抓卡費、固定開銷）', color, inputs, pendingNew, () => 0);
+  buildFinanceSectionEditor(wrap, 'plan', 'C．計畫性支出（目前已累積的存款/投資，如 15 萬）', 'var(--gold)', inputs, pendingNew, () => 0);
+
+  const footer = el(`
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="initCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="initSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">完成初始設定</button>
+    </div>
+  `);
+  wrap.appendChild(footer);
+
+  footer.querySelector('#initCancel').addEventListener('click', closeModal);
+  footer.querySelector('#initSubmit').addEventListener('click', () => {
+    // 建立第 0 個初始週期 (Init Period)
+    const period = {
+      id: 'pr_init_' + uid(),
+      month: (dateInput.value || state.todayISO).slice(0, 7),
+      firstDate: dateInput.value || state.todayISO,
+      secondDate: dateInput.value || state.todayISO // 初始基線將一二對齊
+    };
+
+    state.finance.periods.push(period);
+
+    ['bank', 'expense', 'plan'].forEach(group => {
+      // 處理既有名目
+      state.finance[group].forEach(item => {
+        const inp = inputs[group][item.id];
+        if (inp && inp.value !== '') {
+          const val = parseFloat(inp.value) || 0;
+          item.first[period.id] = val;
+          item.second[period.id] = val;
+        }
+      });
+      // 處理新增名目
+      pendingNew[group].forEach(entry => {
+        if (!entry.label) return;
+        const val = parseFloat(entry.input.value) || 0;
+        state.finance[group].push({
+          id: 'x' + uid(),
+          label: entry.label,
+          first: { [period.id]: val },
+          second: { [period.id]: val }
+        });
+      });
+    });
+
+    closeModal();
+    commit();
+  });
+
+  openModal(wrap, null, true); // 鎖定背景，防止點擊外框關閉
+}
 function renderReserve(){
   const color = state.theme.finance;
   const wrap = el(`<div></div>`);
@@ -1923,10 +1994,23 @@ function renderReserve(){
   const F = state.finance;
   const latest = latestPeriod();
 
-  if(!latest){
-    wrap.appendChild(el(`<div class="card rounded-xl p-8 mb-6 text-center"><div class="text-[13px]" style="color:var(--ink-soft)">還沒有任何盤點紀錄，點上面「＋ 進入盤點模式」開始第一次盤點吧。</div></div>`));
-    return wrap;
-  }
+ if (!latest) {
+  const initCard = el(`
+    <div class="card rounded-xl p-8 mb-6 text-center flex flex-col items-center">
+      <div class="text-[15px] font-medium mb-2">👋 歡迎使用資產盤點系統</div>
+      <div class="text-[13px] mb-5 max-w-[420px]" style="color:var(--ink-soft)">
+        在開始例行雙週盤點前，請先建立你的初始資產基線（例如將手邊已有的預存計畫金額、現有帳戶餘額填入），讓後續盤點能順暢帶入資料。
+      </div>
+      <button id="btnInitSetup" class="rounded-lg px-5 py-2.5 text-[13px] font-medium" style="background:${color};color:${contrastText(color)};">
+        ⚙️ 設定 initial 初始資產與項目
+      </button>
+    </div>
+  `);
+
+  initCard.querySelector('#btnInitSetup').addEventListener('click', openInitialSetupModal);
+  wrap.appendChild(initCard);
+  return wrap;
+}
 
   const bankEff = sumEffective('bank', latest.id);
   const expenseEff = sumEffective('expense', latest.id);
