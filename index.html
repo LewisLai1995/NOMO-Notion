@@ -1437,7 +1437,7 @@ function renderProjectDetail(id){
   const headRow = el(`<div class="flex items-start justify-between gap-4 flex-wrap mb-6"></div>`);
   headRow.innerHTML = pageHead('PROJECT DETAIL', p.name, p.client, color);
   const btnRow = el(`<div class="flex items-center gap-2"></div>`);
-  const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">✏️ 編輯專案</button>`);
+  const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">編輯專案</button>`);
   editBtn.addEventListener('click', ()=> openModal(editProjectModal(p)));
   
   const addStageBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">＋ 新增客製時程</button>`);
@@ -1539,7 +1539,6 @@ p.stages.forEach((s,i)=>{
         </div>
         <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
           <span>${s.name}</span>
-          <span class="text-[10px] opacity-40">✏️</span>
         </div>
         <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       </div>
@@ -2273,7 +2272,7 @@ function renderReserve(){
   const btnRow = el(`<div class="flex flex-wrap gap-2 mb-6"></div>`);
   const enterBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium flex items-center gap-2" style="background:${color};color:${contrastText(color)};">＋ 進入盤點模式</button>`);
   enterBtn.addEventListener('click', openReviewModal);
-  const editLastBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:${color};color:${color};">✏️ 修改上一次盤點紀錄</button>`);
+  const editLastBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:${color};color:${color};">修改上一次盤點紀錄</button>`);
   editLastBtn.addEventListener('click', openEditLastReviewModal);
   const histBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:var(--line);color:var(--ink-soft);">🕘 歷史紀錄</button>`);
   histBtn.addEventListener('click', openFinanceHistoryModal);
