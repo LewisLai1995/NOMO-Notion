@@ -1083,9 +1083,14 @@ function addStageModal(p){
   form.querySelector('#sSubmit').addEventListener('click', ()=>{
     const name = form.querySelector('#sName').value.trim(); if(!name) return;
     const date = form.querySelector('#sDate').value||state.todayISO;
-    p.stages.push({name,date,done:false,note:"",checklist:[]});
-    p.viewStageIndex = p.stages.length-1;
-    closeModal(); commit();
+  // ⭕ 插入 sort 排序，讓新增的時程自動插隊到正確時間位置
+p.stages.push({name, date, done: false, note: "", checklist: []});
+p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+
+// 更新 viewStageIndex 指向剛新增的那筆
+p.viewStageIndex = p.stages.findIndex(s => s.name === name && s.date === date);
+closeModal();
+commit();
   });
   return form;
 }
