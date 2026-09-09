@@ -1591,7 +1591,7 @@ function renderProjectDetail(id){
   const track = el(`<div class="stage-track overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
   track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
 
-  // ⭕ 滑鼠拖移（Drag to Scroll）邏輯
+  // 滑鼠拖移（Drag to Scroll）邏輯
   let isDown = false;
   let startX = 0;
   let scrollLeft = 0;
@@ -1602,23 +1602,21 @@ function renderProjectDetail(id){
     scrollLeft = track.scrollLeft;
   });
 
-  track.addEventListener('mouseleave', () => {
-    isDown = false;
-  });
-
-  track.addEventListener('mouseup', () => {
-    isDown = false;
-  });
+  track.addEventListener('mouseleave', () => { isDown = false; });
+  track.addEventListener('mouseup', () => { isDown = false; });
 
   track.addEventListener('mousemove', (e) => {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - track.offsetLeft;
-    const walk = (x - startX) * 1.5; // 乘以 1.5 可調整拖移敏銳度
+    const walk = (x - startX) * 1.5;
     track.scrollLeft = scrollLeft - walk;
   });
+
   const inner = track.firstChild;
-const renderSingleStageCard = (s, i) => {
+
+  // 單一階段卡片渲染函式
+  const renderSingleStageCard = (s, i) => {
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
     const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px]" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
@@ -1745,9 +1743,8 @@ const renderSingleStageCard = (s, i) => {
   // 第一次初始化渲染
   rebuildStageTrack();
 
-    inner.appendChild(item);
-  });
-  timelineCard.appendChild(track); wrap.appendChild(timelineCard);
+  timelineCard.appendChild(track); 
+  wrap.appendChild(timelineCard);
 
   const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
   const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
