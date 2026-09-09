@@ -142,7 +142,7 @@ onAuthStateChanged(auth, async (user) => {
   @keyframes pebbleRoll{0%{transform:translate(0,0) rotate(0deg);}25%{transform:translate(calc(var(--jump-dx) * 0.3),0) rotate(-15deg);}50%{transform:translate(calc(var(--jump-dx) * 0.55),0) rotate(10deg);}75%{transform:translate(calc(var(--jump-dx) * 0.85),0) rotate(-6deg);}100%{transform:translate(var(--jump-dx),0) rotate(0deg);}}
   @keyframes pebbleWiggle{0%,100%{transform:rotate(0deg);}25%{transform:rotate(-8deg);}75%{transform:rotate(8deg);}}
   .city-skyline{position:absolute;left:0;right:0;bottom:0;height:150px;pointer-events:none;}
-  .scene-box{position:relative;overflow:hidden;}
+  .scene-box{position:relative;overflow:visible;}
   .speech-bubble{filter: drop-shadow(0 6px 18px rgba(43,42,40,0.18));}
   .speech-bubble:after{content:'';position:absolute;bottom:-8px;left:var(--arrow-x,50%);margin-left:-7px;width:14px;height:14px;background:#fff;border-right:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(45deg);}
   .fade-in{animation:fadeIn .3s ease both;}
@@ -691,11 +691,19 @@ function renderMascotScene(sceneEl){
       const charCenterX = (btnRect.left - sceneRect.left) + btnRect.width/2;
       const charTop = (btnRect.top - sceneRect.top);
       const margin = 8;
+     // ⭕ 使用場景區域寬度約束，確保泡泡完整留在畫面內，箭頭精準指向吉祥物中心
+      const sceneWidth = sceneEl.clientWidth;
       let bubbleLeft = charCenterX - bw/2;
-      bubbleLeft = Math.max(margin, Math.min(bubbleLeft, sceneEl.clientWidth - bw - margin));
+      
+      // 強制推回邊界內 (右側留 12px 邊距)
+      bubbleLeft = Math.max(margin, Math.min(bubbleLeft, sceneWidth - bw - 12));
+      
       bubble.style.left = bubbleLeft + 'px';
       bubble.style.bottom = (sceneEl.clientHeight - charTop + 14) + 'px';
-      bubble.style.setProperty('--arrow-x', (charCenterX - bubbleLeft) + 'px');
+      
+      // 計算箭頭對齊吉祥物中心的相對位置
+      const arrowX = Math.max(16, Math.min(charCenterX - bubbleLeft, bw - 16));
+      bubble.style.setProperty('--arrow-x', arrowX + 'px');
 
       const qp = bubble.querySelector('#qaProjectAdd');
       if(qp) qp.addEventListener('click', e=>{ e.stopPropagation(); const pid=bubble.querySelector('#qaProjectSelect').value; const txt=bubble.querySelector('#qaProjectText').value.trim(); const proj=state.projects.find(p=>p.id===pid); if(txt&&proj){ state.todos.push({id:uid(),text:`「${proj.name}」${txt}`,done:false,date:state.todayISO,agent:"project"}); openMascot=null; commit(); } });
