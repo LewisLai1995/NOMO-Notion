@@ -1519,6 +1519,7 @@ function renderProjectDetail(id){
   const p = state.projects.find(x=>x.id===id);
   const color = state.theme.project;
   if(p.viewStageIndex==null) p.viewStageIndex = currentStageIndex(p);
+  
   const wrap = el(`<div></div>`);
   const back = el(`<button class="text-[12px] mb-4 flex items-center gap-1" style="color:var(--ink-soft)">← 返回專案列表</button>`);
   back.addEventListener('click', ()=>{ state.detailProjectId=null; render(); });
@@ -1526,6 +1527,7 @@ function renderProjectDetail(id){
 
   const headRow = el(`<div class="flex items-start justify-between gap-4 flex-wrap mb-6"></div>`);
   headRow.innerHTML = pageHead('PROJECT DETAIL', p.name, p.client, color);
+  
   const btnRow = el(`<div class="flex items-center gap-2"></div>`);
   const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">編輯專案</button>`);
   editBtn.addEventListener('click', ()=> openModal(editProjectModal(p)));
@@ -1533,7 +1535,6 @@ function renderProjectDetail(id){
   const addStageBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">＋ 新增客製時程</button>`);
   addStageBtn.addEventListener('click', ()=> openModal(addStageModal(p)));
   
-  // ⭕ 新增刪除專案按鈕
   const delProjBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border text-red-600 border-red-200 hover:bg-red-50 transition-colors">刪除專案</button>`);
   delProjBtn.addEventListener('click', ()=>{
     confirmModal(`確定要刪除專案「${p.name}」嗎？刪除後所有資料都將無法復原。`, ()=>{
@@ -1543,7 +1544,9 @@ function renderProjectDetail(id){
     }, { okLabel: '確定刪除', color: 'var(--danger)' });
   });
 
-  btnRow.append(editBtn, addStageBtn, delProjBtn); headRow.appendChild(btnRow); wrap.appendChild(headRow);
+  btnRow.append(editBtn, addStageBtn, delProjBtn); 
+  headRow.appendChild(btnRow); 
+  wrap.appendChild(headRow);
 
   if(p.settled && p.settlement){
     const revenue = p.dealAmount + (p.settlement.additionalAmount||0);
@@ -1581,23 +1584,18 @@ function renderProjectDetail(id){
   tabCal.addEventListener('click', ()=>{ state.detailTab='calendar'; render(); });
   tabRow.append(tabMain,tabCal); wrap.appendChild(tabRow);
 
- const body = el(`<div></div>`);
+  const body = el(`<div></div>`);
   if(state.detailTab==='calendar'){ body.appendChild(projectDetailCalendar(p)); wrap.appendChild(body); return wrap; }
 
-  // ⭕ 預先宣告筆記容器，解決 renderSingleStageCard 內部的作用域引用問題
+  // 1. 預先建立筆記容器結構
   const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
 
-  // 時程軸卡片
+  // 2. 時程軸卡片容器
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
   timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
   const track = el(`<div class="stage-track overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
   
-  track.addEventListener('wheel', e => { 
-    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ 
-      e.preventDefault(); 
-      track.scrollLeft += e.deltaY; 
-    } 
-  }, {passive:false});
+  track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
 
   let isDown = false;
   let startX = 0;
@@ -1622,6 +1620,7 @@ function renderProjectDetail(id){
 
   const inner = track.firstChild;
 
+  // 3. 單一卡片繪製邏輯
   const renderSingleStageCard = (s, i) => {
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
@@ -1731,6 +1730,7 @@ function renderProjectDetail(id){
     inner.appendChild(item);
   };
 
+  // 4. 重繪軌道函式
   const rebuildStageTrack = () => {
     inner.innerHTML = '';
     p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
@@ -1742,7 +1742,7 @@ function renderProjectDetail(id){
   timelineCard.appendChild(track); 
   wrap.appendChild(timelineCard);
 
-  // 筆記與確認清單面板
+  // 5. 筆記與確認清單
   const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
   const checkBox = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">確認清單</div><div class="flex flex-col gap-2" id="clist"></div><button class="text-[12px] mt-3" id="addCheck" style="color:${color}">＋ 新增項目</button></div>`);
   noteWrap.append(noteBox, checkBox);
@@ -1752,158 +1752,23 @@ function renderProjectDetail(id){
   
   wrap.appendChild(noteWrap);
   refreshStagePanel(p, noteWrap);
-    };
-
-    inner.appendChild(item);
-  
-
-  // 局部重繪卡片軌道的獨立函式
-  const rebuildStageTrack = () => {
-    inner.innerHTML = '';
-    p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
-    refreshStagePanel(p, noteWrap);
-  };
-
-  // 第一次初始化渲染
-  rebuildStageTrack();
-
-  const inner = track.firstChild;
-
-  // ⭕ 抽離單一卡片渲染邏輯
-  const renderSingleStageCard = (s, i) => {
-    const isPast = new Date(s.date) < new Date(state.todayISO);
-    
-    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px]" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
-      <div>
-        <div class="flex items-center justify-between mb-1">
-          <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
-          <div class="stage-cb-wrap"></div>
-        </div>
-        <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
-          <span>${s.name}</span>
-          <span class="text-[10px] opacity-40">✏️</span>
-        </div>
-        <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
-      </div>
-      <div class="flex items-center justify-between mt-2 pt-1 border-t" style="border-color:rgba(0,0,0,0.05)">
-        <div class="stage-status-text text-[10px] font-medium" style="color:${s.done?'var(--good)':(isPast?'#B23A3A':'var(--ink-soft)')}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div>
-        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
-      </div></div>`);
-
-    let cb;
-    function handleStageToggle(checked){
-      s.done = checked;
-      item.style.borderColor = checked ? p.color : 'var(--line)';
-      item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked ? hexToRgba(p.color,0.06) : '#fff');
-      
-      const statusText = item.querySelector('.stage-status-text');
-      if (statusText) {
-        statusText.textContent = checked ? '已完成' : (isPast ? '已逾期' : '未到期');
-        statusText.style.color = checked ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)');
-      }
-
-      saveState();
-      
-      if(s.name === "結案" && checked && !p.settled){
-        const revert = ()=>{
-          s.done = false;
-          const freshCb = checkboxEl(false, handleStageToggle);
-          cb.replaceWith(freshCb); cb = freshCb;
-          item.style.borderColor = 'var(--line)';
-          item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : '#fff';
-          if (statusText) {
-            statusText.textContent = isPast ? '已逾期' : '未到期';
-            statusText.style.color = isPast ? '#B23A3A' : 'var(--ink-soft)';
-          }
-          saveState();
-        };
-        openModal(settlementModal(p, revert), revert, true);
-      }
-    }
-
-    cb = checkboxEl(s.done, handleStageToggle);
-    item.querySelector('.stage-cb-wrap').appendChild(cb);
-
-    const delBtn = item.querySelector('.del-stage-btn');
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (delBtn.dataset.confirming === "true") {
-        p.stages.splice(i, 1);
-        if (p.viewStageIndex >= p.stages.length) {
-          p.viewStageIndex = Math.max(0, p.stages.length - 1);
-        }
-        saveState();
-        rebuildStageTrack();
-      } else {
-        delBtn.dataset.confirming = "true";
-        delBtn.textContent = "確定？";
-        delBtn.className = "del-stage-btn text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
-        setTimeout(() => {
-          if (document.body.contains(delBtn)) {
-            delBtn.dataset.confirming = "false";
-            delBtn.textContent = "×";
-            delBtn.className = "del-stage-btn text-[14px] font-bold px-1 shrink-0";
-            delBtn.style.color = "var(--danger)";
-          }
-        }, 3000);
-      }
-    });
-
-    item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      promptModal('修改階段名稱', [{ key: 'name', label: '階段名稱', value: s.name }], (v) => {
-        if (v.name && v.name.trim()) {
-          s.name = v.name.trim();
-          saveState();
-          rebuildStageTrack();
-        }
-      });
-    });
-
-    const dateInp = item.querySelector('input[type=date]');
-    dateInp.addEventListener('click', e => e.stopPropagation());
-    dateInp.addEventListener('change', e => {
-      s.date = e.target.value;
-      p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-      p.viewStageIndex = p.stages.findIndex(stage => stage === s);
-      saveState();
-      rebuildStageTrack();
-    });
-
-    item.addEventListener('click', ()=>{
-      p.viewStageIndex = i;
-      inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
-      refreshStagePanel(p, noteWrap);
-    });
-
-    inner.appendChild(item);
-  };
-
-  const rebuildStageTrack = () => {
-    inner.innerHTML = '';
-    p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
-    refreshStagePanel(p, noteWrap);
-  };
-
-  rebuildStageTrack();
-
-  timelineCard.appendChild(track); 
-  wrap.appendChild(timelineCard);
-  refreshStagePanel(p, noteWrap);
 
   wrap.appendChild(projectTodoCard(p));
 
+  // 6. 工班通訊錄
   const contractorCard = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium">專案工班通訊錄</div><button id="shareBtn" class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">➕ 分享/匯出</button></div><div id="clRows" class="mb-3"></div></div>`);
   contractorCard.querySelector('#shareBtn').addEventListener('click', ()=> openModal(contractorShareModal(p)));
   const clRows = contractorCard.querySelector('#clRows');
   if(!p.contractors.length) clRows.appendChild(el(`<div class="text-[12px] mb-2" style="color:var(--ink-soft)">尚未新增工班聯絡人。</div>`));
   p.contractors.forEach(c=> clRows.appendChild(contractorRow(p,c)));
+  
   const addRow = el(`<div class="flex flex-wrap gap-2 items-center pt-2 border-t" style="border-color:var(--line)">
     <input id="cName" type="text" placeholder="師傅/公司名稱" class="text-[12px] border rounded px-2 py-1.5 flex-1 min-w-[100px]" style="border-color:var(--line)"/>
     <input id="cTrade" type="text" placeholder="工種" class="text-[12px] border rounded px-2 py-1.5 w-24" style="border-color:var(--line)"/>
     <input id="cPhone" type="text" placeholder="電話" class="text-[12px] border rounded px-2 py-1.5 w-28" style="border-color:var(--line)"/>
     <input id="cArrival" type="date" class="text-[12px] border rounded px-2 py-1.5" style="border-color:var(--line)"/>
     <button id="cAdd" class="text-[12px] px-3 py-1.5 rounded" style="background:${color};color:${contrastText(color)}">＋ 新增</button></div>`);
+  
   addRow.querySelector('#cAdd').addEventListener('click', ()=>{
     const name = addRow.querySelector('#cName').value.trim();
     const trade = addRow.querySelector('#cTrade').value.trim();
@@ -1911,7 +1776,10 @@ function renderProjectDetail(id){
     const arrival = addRow.querySelector('#cArrival').value;
     if(name){ p.contractors.push({id:uid(),name,trade,phone,arrival}); commit(); }
   });
-  contractorCard.appendChild(addRow); wrap.appendChild(contractorCard);
+  
+  contractorCard.appendChild(addRow); 
+  wrap.appendChild(contractorCard);
+  
   return wrap;
 }
 function highlightStage(inner,p){ inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===p.viewStageIndex ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); }); }
