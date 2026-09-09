@@ -1587,9 +1587,6 @@ function renderProjectDetail(id){
   // ⭕ 預先宣告筆記容器，解決 renderSingleStageCard 內部的作用域引用問題
   const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
 
-  // ⭕ 預先宣告筆記容器，解決作用域引用的問題
-  const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
-
   // 時程軸卡片
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
   timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
