@@ -1587,14 +1587,21 @@ function renderProjectDetail(id){
   // ⭕ 預先宣告筆記容器，解決 renderSingleStageCard 內部的作用域引用問題
   const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
 
-  // 時程軸
-  const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
+  // ⭕ 預先宣告筆記容器，解決作用域引用的問題
+  const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
+
+  // 時程軸卡片
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
   timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
   const track = el(`<div class="stage-track overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
-  track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
+  
+  track.addEventListener('wheel', e => { 
+    if(Math.abs(e.deltaY) > Math.abs(e.deltaX)){ 
+      e.preventDefault(); 
+      track.scrollLeft += e.deltaY; 
+    } 
+  }, {passive:false});
 
-  // 滑鼠拖移（Drag to Scroll）邏輯
   let isDown = false;
   let startX = 0;
   let scrollLeft = 0;
@@ -1618,7 +1625,6 @@ function renderProjectDetail(id){
 
   const inner = track.firstChild;
 
-  // 單一階段卡片渲染函式
   const renderSingleStageCard = (s, i) => {
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
@@ -1639,7 +1645,6 @@ function renderProjectDetail(id){
         <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
       </div></div>`);
 
-    // 1. 勾選框事件
     let cb;
     function handleStageToggle(checked){
       s.done = checked;
@@ -1674,7 +1679,6 @@ function renderProjectDetail(id){
     cb = checkboxEl(s.done, handleStageToggle);
     item.querySelector('.stage-cb-wrap').appendChild(cb);
 
-    // 2. 刪除按鈕
     const delBtn = item.querySelector('.del-stage-btn');
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1700,7 +1704,6 @@ function renderProjectDetail(id){
       }
     });
 
-    // 3. 修改名稱
     item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       promptModal('修改階段名稱', [{ key: 'name', label: '階段名稱', value: s.name }], (v) => {
@@ -1712,25 +1715,46 @@ function renderProjectDetail(id){
       });
     });
 
-    // 4. 日期變更與自動排序（無感局部重繪）
     const dateInp = item.querySelector('input[type=date]');
     dateInp.addEventListener('click', e => e.stopPropagation());
     dateInp.addEventListener('change', e => {
       s.date = e.target.value;
-      
-      // 自動依日期排序
       p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
       p.viewStageIndex = p.stages.findIndex(stage => stage === s);
-      
       saveState();
-      rebuildStageTrack(); // 僅局部重繪卡片列表
+      rebuildStageTrack();
     });
 
-    // 5. 卡片點擊選取
     item.addEventListener('click', ()=>{
       p.viewStageIndex = i;
       inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
       refreshStagePanel(p, noteWrap);
+    });
+
+    inner.appendChild(item);
+  };
+
+  const rebuildStageTrack = () => {
+    inner.innerHTML = '';
+    p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
+    refreshStagePanel(p, noteWrap);
+  };
+
+  rebuildStageTrack();
+
+  timelineCard.appendChild(track); 
+  wrap.appendChild(timelineCard);
+
+  // 筆記與確認清單面板
+  const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
+  const checkBox = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">確認清單</div><div class="flex flex-col gap-2" id="clist"></div><button class="text-[12px] mt-3" id="addCheck" style="color:${color}">＋ 新增項目</button></div>`);
+  noteWrap.append(noteBox, checkBox);
+  
+  noteBox.querySelector('#prevStage').addEventListener('click', ()=>{ if(p.viewStageIndex>0){ p.viewStageIndex--; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
+  noteBox.querySelector('#nextStage').addEventListener('click', ()=>{ if(p.viewStageIndex<p.stages.length-1){ p.viewStageIndex++; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
+  
+  wrap.appendChild(noteWrap);
+  refreshStagePanel(p, noteWrap);
     });
 
     inner.appendChild(item);
