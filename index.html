@@ -1618,11 +1618,10 @@ function renderProjectDetail(id){
     track.scrollLeft = scrollLeft - walk;
   });
   const inner = track.firstChild;
-p.stages.forEach((s,i)=>{
+const renderSingleStageCard = (s, i) => {
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
-    // ⭕ 乾淨的卡片結構：上方（編號、名稱、日期）、下方（左：狀態 / 右：刪除按鈕）
-    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
+    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px]" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
       <div>
         <div class="flex items-center justify-between mb-1">
           <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
@@ -1630,6 +1629,7 @@ p.stages.forEach((s,i)=>{
         </div>
         <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
           <span>${s.name}</span>
+          <span class="text-[10px] opacity-40">✏️</span>
         </div>
         <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
       </div>
@@ -1638,7 +1638,7 @@ p.stages.forEach((s,i)=>{
         <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
       </div></div>`);
 
-    // 1. 勾選框事件掛載至右上角
+    // 1. 勾選框事件
     let cb;
     function handleStageToggle(checked){
       s.done = checked;
@@ -1673,22 +1673,21 @@ p.stages.forEach((s,i)=>{
     cb = checkboxEl(s.done, handleStageToggle);
     item.querySelector('.stage-cb-wrap').appendChild(cb);
 
-    // 2. 右下角刪除按鈕行內確認
+    // 2. 刪除按鈕
     const delBtn = item.querySelector('.del-stage-btn');
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      
       if (delBtn.dataset.confirming === "true") {
         p.stages.splice(i, 1);
         if (p.viewStageIndex >= p.stages.length) {
           p.viewStageIndex = Math.max(0, p.stages.length - 1);
         }
-        commit();
+        saveState();
+        rebuildStageTrack();
       } else {
         delBtn.dataset.confirming = "true";
         delBtn.textContent = "確定？";
         delBtn.className = "del-stage-btn text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
-        
         setTimeout(() => {
           if (document.body.contains(delBtn)) {
             delBtn.dataset.confirming = "false";
@@ -1700,38 +1699,30 @@ p.stages.forEach((s,i)=>{
       }
     });
 
-    // 3. 點擊名稱修改標題
+    // 3. 修改名稱
     item.querySelector('.stage-name-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       promptModal('修改階段名稱', [{ key: 'name', label: '階段名稱', value: s.name }], (v) => {
         if (v.name && v.name.trim()) {
           s.name = v.name.trim();
-          commit();
+          saveState();
+          rebuildStageTrack();
         }
       });
     });
 
-// 4. 日期變更：原畫面即時更新（不重整全頁）
+    // 4. 日期變更與自動排序（無感局部重繪）
     const dateInp = item.querySelector('input[type=date]');
     dateInp.addEventListener('click', e => e.stopPropagation());
     dateInp.addEventListener('change', e => {
       s.date = e.target.value;
       
-      // 重新判斷是否逾期
-      const newlyIsPast = new Date(s.date) < new Date(state.todayISO);
-      const statusText = item.querySelector('.stage-status-text');
-      if (statusText) {
-        statusText.textContent = s.done ? '已完成' : (newlyIsPast ? '已逾期' : '未到期');
-        statusText.style.color = s.done ? 'var(--good)' : (newlyIsPast ? '#B23A3A' : 'var(--ink-soft)');
-      }
-
-      // 背景保存資料，不觸發畫面流轉或重置捲軸
-      saveState();
+      // 自動依日期排序
+      p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+      p.viewStageIndex = p.stages.findIndex(stage => stage === s);
       
-      // 若剛好是目前選中的階段，即時更新下方的階段筆記面板標題與數據
-      if (i === p.viewStageIndex) {
-        refreshStagePanel(p, noteWrap);
-      }
+      saveState();
+      rebuildStageTrack(); // 僅局部重繪卡片列表
     });
 
     // 5. 卡片點擊選取
@@ -1740,6 +1731,19 @@ p.stages.forEach((s,i)=>{
       inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
       refreshStagePanel(p, noteWrap);
     });
+
+    inner.appendChild(item);
+  };
+
+  // 局部重繪卡片軌道的獨立函式
+  const rebuildStageTrack = () => {
+    inner.innerHTML = '';
+    p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
+    refreshStagePanel(p, noteWrap);
+  };
+
+  // 第一次初始化渲染
+  rebuildStageTrack();
 
     inner.appendChild(item);
   });
