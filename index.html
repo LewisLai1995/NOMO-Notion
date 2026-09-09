@@ -1711,14 +1711,27 @@ p.stages.forEach((s,i)=>{
       });
     });
 
-    // 4. 日期變更與自動排序
-    item.querySelector('input[type=date]').addEventListener('click', e=> e.stopPropagation());
-    item.querySelector('input[type=date]').addEventListener('change', e=>{
+// 4. 日期變更：原畫面即時更新（不重整全頁）
+    const dateInp = item.querySelector('input[type=date]');
+    dateInp.addEventListener('click', e => e.stopPropagation());
+    dateInp.addEventListener('change', e => {
       s.date = e.target.value;
-      p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
-      p.viewStageIndex = p.stages.findIndex(stage => stage === s);
-      commit();
-      render();
+      
+      // 重新判斷是否逾期
+      const newlyIsPast = new Date(s.date) < new Date(state.todayISO);
+      const statusText = item.querySelector('.stage-status-text');
+      if (statusText) {
+        statusText.textContent = s.done ? '已完成' : (newlyIsPast ? '已逾期' : '未到期');
+        statusText.style.color = s.done ? 'var(--good)' : (newlyIsPast ? '#B23A3A' : 'var(--ink-soft)');
+      }
+
+      // 背景保存資料，不觸發畫面流轉或重置捲軸
+      saveState();
+      
+      // 若剛好是目前選中的階段，即時更新下方的階段筆記面板標題與數據
+      if (i === p.viewStageIndex) {
+        refreshStagePanel(p, noteWrap);
+      }
     });
 
     // 5. 卡片點擊選取
