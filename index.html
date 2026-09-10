@@ -295,6 +295,31 @@ async function saveState() {
     console.error("❌ Firebase 儲存失敗:", e);
   }
 }
+  function clearDefaultTemplateData() {
+  confirmModal(
+    "確定要刪除所有預設的模板資料（包含預設專案、待辦與行程）嗎？<br><span class='text-[12px] text-gray-500'>此操作無法復原，清空後你即可開始建立專屬的全新內容。</span>",
+    () => {
+      // 1. 過濾掉預設範例專案 (p1, p2, p3)
+      state.projects = state.projects.filter(p => !['p1', 'p2', 'p3'].includes(p.id));
+      
+      // 2. 清空預設待辦事項 (ID 1~5)
+      state.todos = state.todos.filter(t => typeof t.id === 'string');
+      
+      // 3. 清空預設 Persona 行程 (ID 101~105)
+      state.personaEvents = state.personaEvents.filter(e => typeof e.id === 'string');
+      
+      // 4. 重置資產盤點至初始狀態
+      state.finance.periods = [];
+      state.finance.bank = [];
+      state.finance.expense = [];
+      state.finance.plan = [];
+
+      // 儲存並重新渲染畫面
+      commit();
+    },
+    { okLabel: "確定清空", color: "var(--danger)" }
+  );
+}
 
 // 1. 全域預設模板資料 (供全新註冊使用)
 const DEFAULT_STATE = {
@@ -1090,17 +1115,28 @@ function overdueCard(){
   return card;
 }
 function renderToday(){
-  // ⭕ 重整或切換回 Today 時，預設回到當週與今天
   state.weekOffset = 0;
   state.weekSelectedDate = state.todayISO;
 
   const wrap = el(`<div></div>`);
+
+  // ⭕ 檢測使用者資料中是否還含有預設範例專案 (p1, p2)
+  const hasTemplateData = state.projects.some(p => ['p1', 'p2'].includes(p.id));
+
   const headerRow = el(`<div class="flex items-start justify-between gap-6 mb-6 flex-wrap"></div>`);
-  const left = el(`<div class="max-w-[360px] shrink-0"></div>`);
+  const left = el(`<div class="max-w-[380px] shrink-0"></div>`);
+  
   left.innerHTML = `<div class="text-[11px] font-mono tracking-[0.2em] mb-1.5" style="color:var(--ink-soft)">MORNING BRIEF</div>
     <h1 class="font-display font-bold text-[30px] leading-tight">Today’s Scope</h1>
     <p class="text-[13px] mt-1.5" style="color:var(--ink-soft)">${new Date(state.todayISO+"T00:00:00").toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'})}</p>
-    <p class="text-[12px] mt-3" style="color:var(--ink-soft)">夥伴們正在城市裡巡邏，點一下看看他們想說什麼，也可以直接快速新增事項。</p>`;
+    <p class="text-[12px] mt-3 mb-2" style="color:var(--ink-soft)">夥伴們正在城市裡巡邏，點一下看看他們想說什麼，也可以直接快速新增事項。</p>
+    ${hasTemplateData ? `<button id="btnClearTemplate" class="mt-2 text-[11px] px-2.5 py-1 rounded-md border text-red-600 border-red-200 hover:bg-red-50 transition-colors flex items-center gap-1 font-medium">🗑️ 一鍵清除預設模板資料</button>` : ''}`;
+
+  // 綁定一鍵清除事件
+  const btnClear = left.querySelector('#btnClearTemplate');
+  if (btnClear) {
+    btnClear.addEventListener('click', clearDefaultTemplateData);
+  }
   const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px]">${citySkylineSVG()}</div>`);
   headerRow.append(left,scene); wrap.appendChild(headerRow);
   wrap.appendChild(weekStrip());
