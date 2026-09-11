@@ -1752,7 +1752,7 @@ function renderProjectDetail(id){
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
     const isSelected = i === p.viewStageIndex;
-    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px] transition-colors" style="border-color:${isSelected ? '#B07736' : (s.done ? p.color : 'var(--line)')};background:${isSelected ? '#B07736' : (s.done ? hexToRgba(p.color,0.06) : '#fff')};color:${isSelected ? '#ffffff' : 'inherit'};">
+    const item = el(`<div class="w-[150px] shrink-0 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between transition-colors" style="border-color:${isSelected ? '#B07736' : (s.done ? p.color : 'var(--line)')};background:${isSelected ? '#B07736' : (s.done ? hexToRgba(p.color,0.06) : '#fff')};color:${isSelected ? '#ffffff' : 'inherit'};">
       <div>
         <div class="flex items-center justify-between mb-1">
           <span class="stage-pill" style="color:${isSelected ? 'rgba(255,255,255,0.8)' : 'var(--ink-soft)'}">${String(i+1).padStart(2,'0')}</span>
