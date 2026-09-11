@@ -2355,10 +2355,13 @@ function renderProjectDetail(id){
         statusTextNode.style.color = isSelected ? '#ffffff' : statusClr;
       }
 
-      // 4. 若為結案階段勾選完成，觸發結算彈窗
+      // ⭕ 4. 若為結案階段勾選完成，觸發結算彈窗 (取消時收回勾選框與狀態)
       if (s.name === "結案" && checked && !p.settled) {
         const revert = () => {
           s.done = false;
+          // 收回 Checkbox 按鈕的勾選狀態與綠底 `.done` Class
+          if (cb) cb.classList.remove('done');
+          // 重新觸發狀態歸位與樣式渲染
           handleStageToggle(false);
         };
         openModal(settlementModal(p, revert), revert, true);
