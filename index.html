@@ -2502,7 +2502,7 @@ function projectDetailCalendar(p){
       <div class="text-[11px]" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>
     </div>
     <button id="exportExcelBtn" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 shrink-0 transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--line);color:var(--ink)">
-      📊 匯出 Excel
+      匯出
     </button>
   </div>`);
 
@@ -2543,7 +2543,7 @@ function projectDetailCalendar(p){
       .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
       .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
       .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
-      .bar-done { background-color: #DAC9A6; }
+      .bar-done { background-color: #BDC0BA; }
       .bar-progress { background-color: #CA7A2C; }
       .bar-overdue { background-color: #AB3B3A; }
       .bar-upcoming { background-color: #D9CD90; }
@@ -2671,7 +2671,8 @@ function projectDetailCalendar(p){
 
   // 表頭（左欄硬白底 z-30）
   const headerRow = el(`<div class="flex items-center border-b pb-2 mb-1 text-[10px] font-mono" style="border-color:var(--line);color:var(--ink-soft)">
-    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 z-30 pr-2 border-r" style="background-color:#ffffff !important;color:var(--ink);border-color:var(--line)">階段項目</div>
+    <!-- ⭕ 強化版左側固定標頭：完全遮擋頂部與日期 -->
+    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 z-30 pr-2 border-r -my-1 py-1 flex items-center" style="background-color:#ffffff !important;color:var(--ink);border-color:var(--line)">階段項目</div>
     <div class="flex-1 grid" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
   </div>`);
 
@@ -2719,7 +2720,8 @@ function projectDetailCalendar(p){
 
     // 項目列（左欄硬白底 z-30 + 右側長條 z-1）
     const row = el(`<div class="flex items-center py-2 border-b text-[12px] relative" style="border-color:var(--line)">
-      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 z-30 border-r" style="background-color:#ffffff !important;border-color:var(--line)">
+      <!-- ⭕ 強化版資料列左側欄：垂直高度 100% 填滿，形成不透光純白遮罩牆 -->
+      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 z-30 border-r -my-2 py-2 self-stretch" style="background-color:#ffffff !important;border-color:var(--line)">
         <div class="truncate font-medium flex items-center gap-1.5" title="${s.name}">
           <span class="stage-pill text-[9px] text-gray-400">${String(i+1).padStart(2,'0')}</span>
           <span class="truncate">${s.name}</span>
