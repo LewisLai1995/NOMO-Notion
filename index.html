@@ -2311,29 +2311,55 @@ function renderProjectDetail(id){
     let cb;
     function handleStageToggle(checked){
       s.done = checked;
-      item.style.borderColor = checked ? p.color : 'var(--line)';
-      item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked ? hexToRgba(p.color,0.06) : '#fff');
-      
-      const statusText = item.querySelector('.stage-status-text');
-      if (statusText) {
-        statusText.textContent = checked ? '已完成' : (isPast ? '已逾期' : '未到期');
-        statusText.style.color = checked ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)');
+      saveState();
+
+      // ⭕ 1. 重新判定即時狀態 (精準區分 已完成 / 已逾期 / 進行中 / 未到期)
+      const today = state.todayISO;
+      const startDate = s.date;
+      const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
+
+      const isDone = s.done;
+      const isPast = !isDone && endDate && (s.type === 'range' ? today > endDate : today >= startDate);
+      const isInProgress = !isDone && !isPast && s.type === 'range' && startDate && endDate && today >= startDate && today <= endDate;
+
+      let statusTxt = '未到期';
+      let statusClr = 'var(--ink-soft)';
+
+      if (isDone) {
+        statusTxt = '已完成';
+        statusClr = 'var(--good)';
+      } else if (isPast) {
+        statusTxt = '已逾期';
+        statusClr = '#B23A3A'; // 沉穩朱紅
+      } else if (isInProgress) {
+        statusTxt = '進行中';
+        statusClr = '#CA7A2C'; // 琥珀橘
       }
 
-      saveState();
-      
-      if(s.name === "結案" && checked && !p.settled){
-        const revert = ()=>{
+      // ⭕ 2. 維持選取（反白）狀態下的背景與文字顏色，不讓琥珀底色遺失
+      const isSelected = i === p.viewStageIndex;
+      if (isSelected) {
+        item.style.borderColor = '#B07736';
+        item.style.background = '#B07736';
+        item.style.color = '#ffffff';
+      } else {
+        item.style.borderColor = checked ? p.color : 'var(--line)';
+        item.style.background = checked ? hexToRgba(p.color, 0.06) : '#ffffff';
+        item.style.color = 'inherit';
+      }
+
+      // ⭕ 3. 即時更新狀態文字與顏色 (未選取時套用狀態色，選取時維持白色)
+      const statusTextNode = item.querySelector('.stage-status-text');
+      if (statusTextNode) {
+        statusTextNode.textContent = statusTxt;
+        statusTextNode.style.color = isSelected ? '#ffffff' : statusClr;
+      }
+
+      // 4. 若為結案階段勾選完成，觸發結算彈窗
+      if (s.name === "結案" && checked && !p.settled) {
+        const revert = () => {
           s.done = false;
-          const freshCb = checkboxEl(false, handleStageToggle);
-          cb.replaceWith(freshCb); cb = freshCb;
-          item.style.borderColor = 'var(--line)';
-          item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : '#fff';
-          if (statusText) {
-            statusText.textContent = isPast ? '已逾期' : '未到期';
-            statusText.style.color = isPast ? '#B23A3A' : 'var(--ink-soft)';
-          }
-          saveState();
+          handleStageToggle(false);
         };
         openModal(settlementModal(p, revert), revert, true);
       }
