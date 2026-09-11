@@ -1234,24 +1234,56 @@ function projectCreateModal(){
 }
 function editProjectModal(p){
   const color = state.theme.project;
-  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">編輯專案</div><div class="flex flex-col gap-3">
-    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱<input id="eName" type="text" value="${p.name}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-    <div class="grid grid-cols-2 gap-3">
-      <label class="text-[12px]" style="color:var(--ink-soft)">預算成本<input id="eBudget" type="number" value="${p.budget}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="eDeal" type="number" value="${p.dealAmount}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
-    <div class="grid grid-cols-2 gap-3">
-      <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名<input id="eContact" type="text" value="${p.contactName||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="ePhone" type="text" value="${p.contactPhone||''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div></div>
-    <div class="flex justify-end gap-2 mt-5"><button id="eCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="eSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存</button></div></div>`);
+  const form = el(`<div>
+    <div class="font-display font-bold text-[19px] mb-4" style="color:${color}">編輯專案</div>
+    <div class="flex flex-col gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱
+        <input id="eName" type="text" value="${p.name}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+      
+      <!-- ⭕ 新增編輯客戶欄位 -->
+      <label class="text-[12px]" style="color:var(--ink-soft)">客戶名稱
+        <input id="eClient" type="text" value="${p.client || ''}" placeholder="請輸入客戶名稱" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="text-[12px]" style="color:var(--ink-soft)">預算成本
+          <input id="eBudget" type="number" value="${p.budget}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">談定金額
+          <input id="eDeal" type="number" value="${p.dealAmount}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名
+          <input id="eContact" type="text" value="${p.contactName || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話
+          <input id="ePhone" type="text" value="${p.contactPhone || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="eCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="eSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存</button>
+    </div>
+  </div>`);
+
   form.querySelector('#eCancel').addEventListener('click', closeModal);
-  form.querySelector('#eSubmit').addEventListener('click', ()=>{
-    p.name = form.querySelector('#eName').value.trim()||p.name;
-    p.budget = parseFloat(form.querySelector('#eBudget').value)||0;
-    p.dealAmount = parseFloat(form.querySelector('#eDeal').value)||0;
+  form.querySelector('#eSubmit').addEventListener('click', () => {
+    p.name = form.querySelector('#eName').value.trim() || p.name;
+    p.client = form.querySelector('#eClient').value.trim(); // ⭕ 儲存客戶名稱修改
+    p.budget = parseFloat(form.querySelector('#eBudget').value) || 0;
+    p.dealAmount = parseFloat(form.querySelector('#eDeal').value) || 0;
     p.contactName = form.querySelector('#eContact').value.trim();
     p.contactPhone = form.querySelector('#ePhone').value.trim();
-    closeModal(); commit();
+    
+    closeModal();
+    commit(); // 觸發全頁即時渲染與 Firebase 背景存檔
   });
+
   return form;
 }
 function addStageModal(p){
