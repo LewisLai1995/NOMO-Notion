@@ -1554,7 +1554,9 @@ function projectTodoCard(p){
 function renderProjectDetail(id){
   const p = state.projects.find(x=>x.id===id);
   const color = state.theme.project;
-  if(p.viewStageIndex==null) p.viewStageIndex = currentStageIndex(p);
+// ⭕ 自動尋找第一個未完成階段 (若全完成則選最後一個)
+  const firstUnfinishedIdx = p.stages.findIndex(s => !s.done);
+  p.viewStageIndex = firstUnfinishedIdx !== -1 ? firstUnfinishedIdx : p.stages.length - 1;
   
   const wrap = el(`<div></div>`);
   const back = el(`<button class="text-[12px] mb-4 flex items-center gap-1" style="color:var(--ink-soft)">← 返回專案列表</button>`);
