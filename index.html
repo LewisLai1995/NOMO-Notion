@@ -1783,7 +1783,7 @@ function renderProjectDetail(id){
       requestAnimationFrame(() => {
         const activeCard = inner.children[p.viewStageIndex];
         if (activeCard) {
-          activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
+          activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
         }
       });
     }
