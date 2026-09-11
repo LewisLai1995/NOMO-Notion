@@ -1227,7 +1227,7 @@ function projectCreateModal(){
     const contactPhone = form.querySelector('#fPhone').value.trim();
     const cDate = form.querySelector('#fDate').value||addDays(state.todayISO,30);
     state.projects.push({ id:"p"+uid(), name, client, budget, dealAmount, contactName, contactPhone, constructionDate:cDate, viewStageIndex:null, color:randomColor, settled:false, settlement:null, contractors:[],
-      stages: STAGE_OFFSETS.map((off,i)=>({name:STAGES[i],date:addDays(cDate,off),done:false,note:"",checklist:[]})) });
+      stages: [] });
     closeModal(); commit();
   });
   return form;
@@ -1256,22 +1256,56 @@ function editProjectModal(p){
 }
 function addStageModal(p){
   const color = state.theme.project;
-  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">新增客製時程</div>
-    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">階段名稱<input id="sName" type="text" placeholder="例如：業主二次確認" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-    <label class="text-[12px] block mb-4" style="color:var(--ink-soft)">日期<input id="sDate" type="date" value="${state.todayISO}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-    <div class="flex justify-end gap-2"><button id="sCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="sSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">新增</button></div></div>`);
+  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">新增專案時程</div>
+    <div class="flex gap-4 mb-4 pb-3 border-b" style="border-color:var(--line)">
+      <label class="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium"><input type="radio" name="stgType" value="point" checked class="accent-[color:var(--ink)]"/>單日節點</label>
+      <label class="flex items-center gap-1.5 text-[13px] cursor-pointer font-medium"><input type="radio" name="stgType" value="range" class="accent-[color:var(--ink)]"/>跨日區間</label>
+    </div>
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">階段/事件名稱<input id="sName" type="text" placeholder="例如：平面圖定稿 或 現場進場施工" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <label class="text-[12px] block" style="color:var(--ink-soft)"><span id="sDateLabel">日期</span><input id="sDate" type="date" value="${state.todayISO}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+      <label id="sEndDateWrap" class="text-[12px] block hidden" style="color:var(--ink-soft)">結束日期<input id="sEndDate" type="date" value="${state.todayISO}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    </div>
+    <div class="flex justify-end gap-2"><button id="sCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="sSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">新增時程</button></div></div>`);
+
+  // 切換 單日 / 跨日 的 UI 反應
+  const radios = form.querySelectorAll('input[name="stgType"]');
+  const endDateWrap = form.querySelector('#sEndDateWrap');
+  const dateLabel = form.querySelector('#sDateLabel');
+
+  radios.forEach(r => r.addEventListener('change', (e) => {
+    if (e.target.value === 'range') {
+      endDateWrap.classList.remove('hidden');
+      dateLabel.textContent = '開始日期';
+    } else {
+      endDateWrap.classList.add('hidden');
+      dateLabel.textContent = '日期';
+    }
+  }));
+
   form.querySelector('#sCancel').addEventListener('click', closeModal);
   form.querySelector('#sSubmit').addEventListener('click', ()=>{
     const name = form.querySelector('#sName').value.trim(); if(!name) return;
-    const date = form.querySelector('#sDate').value||state.todayISO;
-  // ⭕ 插入 sort 排序，讓新增的時程自動插隊到正確時間位置
-p.stages.push({name, date, done: false, note: "", checklist: []});
-p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+    const type = form.querySelector('input[name="stgType"]:checked').value;
+    const date = form.querySelector('#sDate').value || state.todayISO;
+    const endDate = type === 'range' ? (form.querySelector('#sEndDate').value || date) : null;
 
-// 更新 viewStageIndex 指向剛新增的那筆
-p.viewStageIndex = p.stages.findIndex(s => s.name === name && s.date === date);
-closeModal();
-commit();
+    // 寫入 stages 物件
+    p.stages.push({
+      name, 
+      type, // 'point' 或 'range'
+      date, 
+      endDate, 
+      done: false, 
+      note: "", 
+      checklist: []
+    });
+
+    p.stages.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+    p.viewStageIndex = p.stages.findIndex(s => s.name === name && s.date === date);
+    
+    closeModal();
+    commit();
   });
   return form;
 }
@@ -1490,7 +1524,18 @@ function contractorRow(p, c){
 }
 
 function refreshStagePanel(p, container){
-  const cur = p.stages[p.viewStageIndex];
+  // ⭕ 若尚無任何時程卡片，顯示空狀態提示
+  if (!p.stages || p.stages.length === 0) {
+    container.querySelector('#stageTitle').textContent = `尚未建立階段筆記`;
+    const ta = container.querySelector('textarea');
+    if (ta) { ta.value = ''; ta.placeholder = '請先點擊上方「＋ 新增客製時程」建立第一個階段卡片...'; }
+    const clist = container.querySelector('#clist');
+    if (clist) clist.innerHTML = `<div class="text-[12px]" style="color:var(--ink-soft)">尚無卡片項目</div>`;
+    container.querySelector('#stagePos').textContent = `0 / 0`;
+    return;
+  }
+
+  const cur = p.stages[p.viewStageIndex] || p.stages[0];
   container.querySelector('#stageTitle').textContent = `「${cur.name}」階段筆記`;
   const ta = container.querySelector('textarea');
   ta.value = cur.note; ta.oninput = e=>{ cur.note=e.target.value; }; ta.onchange = ()=> saveState();
@@ -1554,9 +1599,15 @@ function projectTodoCard(p){
 function renderProjectDetail(id){
   const p = state.projects.find(x=>x.id===id);
   const color = state.theme.project;
-// ⭕ 自動尋找第一個未完成階段 (若全完成則選最後一個)
-  const firstUnfinishedIdx = p.stages.findIndex(s => !s.done);
-  p.viewStageIndex = firstUnfinishedIdx !== -1 ? firstUnfinishedIdx : p.stages.length - 1;
+// ⭕ 針對空陣列進行防護：若無階段則設為 0
+  if (!p.stages || p.stages.length === 0) {
+    p.viewStageIndex = 0;
+  } else {
+    const firstUnfinishedIdx = p.stages.findIndex(s => !s.done);
+    p.viewStageIndex = firstUnfinishedIdx !== -1 ? firstUnfinishedIdx : p.stages.length - 1;
+  }
+
+  
   
   const wrap = el(`<div></div>`);
   const back = el(`<button class="text-[12px] mb-4 flex items-center gap-1" style="color:var(--ink-soft)">← 返回專案列表</button>`);
@@ -1834,13 +1885,39 @@ function renderProjectDetail(id){
 function highlightStage(inner,p){ inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===p.viewStageIndex ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); }); }
 function projectDetailCalendar(p){
   const wrap = el(`<div class="card rounded-xl p-5"></div>`);
-  wrap.innerHTML = `<div class="text-[13px] font-medium mb-3">「${p.name}」專屬行事曆</div>`;
-  const grid = el(`<div class="grid grid-cols-5 gap-2"></div>`);
-  p.stages.forEach((s,i)=>{
-    grid.appendChild(el(`<div class="rounded-lg p-2 text-center" style="border:1.4px solid ${s.done?p.color:'var(--line)'};background:${s.done?hexToRgba(p.color,0.08):'transparent'}">
-      <div class="text-[10px] font-mono" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</div>
-      <div class="text-[11px] font-medium mb-1">${s.name}</div><div class="text-[10px] font-mono" style="color:var(--ink-soft)">${fmt(s.date)}</div></div>`));
+  wrap.innerHTML = `<div class="text-[13px] font-medium mb-4">「${p.name}」專屬行事曆總覽</div>`;
+  
+  if (!p.stages || p.stages.length === 0) {
+    wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-4 text-center">尚未建立任何時程項目</div>`));
+    return wrap;
+  }
+
+  const grid = el(`<div class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>`);
+
+  p.stages.forEach((s, i) => {
+    const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
+    const dateText = isRange ? `${fmt(s.date)} ~ ${fmt(s.endDate)}` : fmt(s.date);
+    
+    const card = el(`<div class="rounded-lg p-3 border flex items-center justify-between transition-all" style="border-color:${s.done ? p.color : 'var(--line)'};background:${s.done ? hexToRgba(p.color, 0.08) : '#fff'}">
+      <div class="flex items-center gap-3">
+        <span class="stage-pill shrink-0" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
+        <div>
+          <div class="text-[13px] font-medium flex items-center gap-1.5">
+            <span>${isRange ? '📅' : '📍'}</span>
+            <span>${s.name}</span>
+          </div>
+          <div class="text-[11px] font-mono mt-0.5" style="color:var(--ink-soft)">
+            ${isRange ? `<span class="tag py-0 px-1.5 text-[9px] mr-1" style="border-color:${p.color};color:${p.color}">跨日區間</span>` : ''}
+            ${dateText}
+          </div>
+        </div>
+      </div>
+      <span class="text-[11px] font-medium shrink-0" style="color:${s.done ? 'var(--good)' : 'var(--ink-soft)'}">${s.done ? '已完成' : '進行中'}</span>
+    </div>`);
+
+    grid.appendChild(card);
   });
+
   wrap.appendChild(grid);
   return wrap;
 }
