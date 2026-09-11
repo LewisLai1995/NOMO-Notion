@@ -2508,7 +2508,7 @@ function projectDetailCalendar(p){
 
   wrap.appendChild(topRow);
 
-  // ⭕ Excel 匯出邏輯
+  // ⭕ 強效指定微軟正黑體 Excel 匯出邏輯
   topRow.querySelector('#exportExcelBtn').addEventListener('click', () => {
     if (!p.stages || !p.stages.length) {
       alertModal('目前沒有時程資料可匯出。');
@@ -2531,39 +2531,41 @@ function projectDetailCalendar(p){
       dateList.push(addDays(minDate, i));
     }
 
+    // ⭕ 每個儲存格獨立套用微軟正黑體 (Microsoft JhengHei) 樣式
+    const jhFont = "font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif !important;";
+
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head><meta charset="utf-8"/>
     <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>時程時間軸</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
     <style>
-      * { font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif !important; mso-font-charset: 136; }
-      table { border-collapse: collapse; font-size: 11pt; }
-      th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; }
-      .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; }
-      .th-date { background-color: #EFEADF; font-size: 9pt; }
-      .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
-      .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
-      .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
+      table { border-collapse: collapse; font-size: 11pt; ${jhFont} }
+      th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; ${jhFont} }
+      .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; ${jhFont} }
+      .th-date { background-color: #EFEADF; font-size: 9pt; ${jhFont} }
+      .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; ${jhFont} }
+      .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; ${jhFont} }
+      .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; ${jhFont} }
       .bar-done { background-color: #BDC0BA; }
       .bar-progress { background-color: #CA7A2C; }
       .bar-overdue { background-color: #AB3B3A; }
       .bar-upcoming { background-color: #D9CD90; }
     </style></head><body>`;
 
-    html += `<h2>【${p.name}】專案時程甘特圖 Timeline</h2>`;
+    html += `<h2 style="${jhFont}">【${p.name}】專案時程甘特圖 Timeline</h2>`;
     html += `<table><thead><tr>
-      <th class="th-header" style="width:180px;">階段名稱</th>
-      <th class="th-header" style="width:80px;">類型</th>
-      <th class="th-header" style="width:90px;">開始日期</th>
-      <th class="th-header" style="width:90px;">結束日期</th>
-      <th class="th-header" style="width:60px;">天數</th>
-      <th class="th-header" style="width:80px;">狀態</th>`;
+      <th class="th-header" style="width:180px; ${jhFont}">階段名稱</th>
+      <th class="th-header" style="width:80px; ${jhFont}">類型</th>
+      <th class="th-header" style="width:90px; ${jhFont}">開始日期</th>
+      <th class="th-header" style="width:90px; ${jhFont}">結束日期</th>
+      <th class="th-header" style="width:60px; ${jhFont}">天數</th>
+      <th class="th-header" style="width:80px; ${jhFont}">狀態</th>`;
 
     dateList.forEach(d => {
       const dt = new Date(d + "T00:00:00");
       const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
       const isToday = d === state.todayISO;
       const dayClass = isToday ? 'th-today' : (isWeekend ? 'th-weekend' : 'th-date');
-      html += `<th class="${dayClass}" style="width:35px;">${fmt(d)}</th>`;
+      html += `<th class="${dayClass}" style="width:35px; ${jhFont}">${fmt(d)}</th>`;
     });
     html += `</tr></thead><tbody>`;
 
@@ -2588,19 +2590,19 @@ function projectDetailCalendar(p){
       }
 
       html += `<tr>
-        <td class="cell-name">${s.name}</td>
-        <td>${isRange ? '跨日區間' : '單日節點'}</td>
-        <td>${startDate}</td>
-        <td>${endDate}</td>
-        <td>${duration}天</td>
-        <td>${statusText}</td>`;
+        <td class="cell-name" style="${jhFont}">${s.name}</td>
+        <td style="${jhFont}">${isRange ? '跨日區間' : '單日節點'}</td>
+        <td style="${jhFont}">${startDate}</td>
+        <td style="${jhFont}">${endDate}</td>
+        <td style="${jhFont}">${duration}天</td>
+        <td style="${jhFont}">${statusText}</td>`;
 
       dateList.forEach(d => {
         const isInRange = d >= startDate && d <= endDate;
         if (isInRange) {
-          html += `<td class="${barCss}"></td>`;
+          html += `<td class="${barCss}" style="${jhFont}"></td>`;
         } else {
-          html += `<td></td>`;
+          html += `<td style="${jhFont}"></td>`;
         }
       });
 
@@ -2708,7 +2710,7 @@ function projectDetailCalendar(p){
     let statusText = '未到期';
 
     if (isDone) {
-      statusBg = '#DAC9A6';
+      statusBg = '#BDC0BA';
       statusText = '已完成';
     } else if (isInProgress) {
       statusBg = '#CA7A2C';
