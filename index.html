@@ -2543,10 +2543,10 @@ function projectDetailCalendar(p){
       .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
       .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
       .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
-      .bar-done { background-color: #4C8B5C; color: #ffffff; font-weight: bold; }
-      .bar-progress { background-color: #2563EB; color: #ffffff; font-weight: bold; }
-      .bar-overdue { background-color: #B23A3A; color: #ffffff; font-weight: bold; }
-      .bar-upcoming { background-color: #B5654A; color: #ffffff; font-weight: bold; }
+      .bar-done { background-color: #DAC9A6; color: #ffffff; font-weight: bold; }
+      .bar-progress { background-color: #CA7A2C; color: #ffffff; font-weight: bold; }
+      .bar-overdue { background-color: #AB3B3A; color: #ffffff; font-weight: bold; }
+      .bar-upcoming { background-color: #D9CD90; color: #2B2A28; font-weight: bold; }
     </style></head><body>`;
 
     html += `<h2>【${p.name}】專案時程甘特圖 Timeline</h2>`;
@@ -2569,6 +2569,7 @@ function projectDetailCalendar(p){
     html += `</tr></thead><tbody>`;
 
     // 3. 繪製各階段圖條
+    // 3. 繪製各階段圖條
     p.stages.forEach(s => {
       const startDate = s.date || '';
       const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
@@ -2579,12 +2580,15 @@ function projectDetailCalendar(p){
       let statusText = '未到期';
       let barCss = 'bar-upcoming';
 
+      // ⭕ 複製這段貼在下面這裡：
       if (s.done) {
         statusText = '已完成'; barCss = 'bar-done';
       } else if (startDate && endDate && today >= startDate && today <= endDate) {
         statusText = '進行中'; barCss = 'bar-progress';
       } else if (endDate && today > endDate) {
         statusText = '已逾期'; barCss = 'bar-overdue';
+      } else {
+        statusText = '未到期'; barCss = 'bar-upcoming';
       }
 
       html += `<tr>
@@ -2706,16 +2710,25 @@ function projectDetailCalendar(p){
     const startOffset = Math.max(0, diffDays(minDate, startDate));
     const duration = Math.max(1, diffDays(startDate, endDate) + 1);
 
+    // ⭕ 狀態判定與指定新色系
     const today = state.todayISO;
     const isDone = s.done;
     const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
     const isPast = !isDone && endDate && today > endDate;
 
-    let statusBg = p.color;
+    let statusBg = '#D9CD90'; // 未到期 (淡金黃)
     let statusText = '未到期';
-    if (isDone) { statusBg = 'var(--good)'; statusText = '已完成'; }
-    else if (isInProgress) { statusBg = '#2563EB'; statusText = '進行中'; }
-    else if (isPast) { statusBg = '#B23A3A'; statusText = '已逾期'; }
+
+    if (isDone) { 
+      statusBg = '#DAC9A6'; // 已完成 (奶茶/溫潤沙金)
+      statusText = '已完成'; 
+    } else if (isInProgress) { 
+      statusBg = '#CA7A2C'; // 進行中 (飽和琥珀橘)
+      statusText = '進行中'; 
+    } else if (isPast) { 
+      statusBg = '#AB3B3A'; // 已逾期 (沉穩朱紅)
+      statusText = '已逾期'; 
+    }
 
     // ⭕ 貫穿到底部的橫線 (border-b)
     const row = el(`<div class="flex items-center py-2 border-b text-[12px] relative" style="border-color:var(--line)">
