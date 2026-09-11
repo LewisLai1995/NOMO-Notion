@@ -1665,21 +1665,22 @@ function renderProjectDetail(id){
   const renderSingleStageCard = (s, i) => {
     const isPast = new Date(s.date) < new Date(state.todayISO);
     
-    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px]" style="border-color:${s.done?p.color:'var(--line)'};background:${i===p.viewStageIndex?hexToRgba(p.color,0.12):(s.done?hexToRgba(p.color,0.06):'#fff')}">
+    const isSelected = i === p.viewStageIndex;
+    const item = el(`<div class="flex-1 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between min-w-[140px] transition-colors" style="border-color:${isSelected ? '#B07736' : (s.done ? p.color : 'var(--line)')};background:${isSelected ? '#B07736' : (s.done ? hexToRgba(p.color,0.06) : '#fff')};color:${isSelected ? '#ffffff' : 'inherit'};">
       <div>
         <div class="flex items-center justify-between mb-1">
-          <span class="stage-pill" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
+          <span class="stage-pill" style="color:${isSelected ? 'rgba(255,255,255,0.8)' : 'var(--ink-soft)'}">${String(i+1).padStart(2,'0')}</span>
           <div class="stage-cb-wrap"></div>
         </div>
         <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
           <span>${s.name}</span>
-          <span class="text-[10px] opacity-40">✏️</span>
+          <span class="text-[10px] ${isSelected ? 'opacity-80' : 'opacity-40'}">✏️</span>
         </div>
-        <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:var(--line);background:transparent"/>
+        <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:${isSelected ? 'rgba(255,255,255,0.4)' : 'var(--line)'};background:transparent;color:${isSelected ? '#ffffff' : 'inherit'}"/>
       </div>
-      <div class="flex items-center justify-between mt-2 pt-1 border-t" style="border-color:rgba(0,0,0,0.05)">
-        <div class="stage-status-text text-[10px] font-medium" style="color:${s.done?'var(--good)':(isPast?'#B23A3A':'var(--ink-soft)')}">${s.done?'已完成':(isPast?'已逾期':'未到期')}</div>
-        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除此階段">×</button>
+      <div class="flex items-center justify-between mt-2 pt-1 border-t" style="border-color:${isSelected ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)'}">
+        <div class="stage-status-text text-[10px] font-medium" style="color:${isSelected ? '#ffffff' : (s.done ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)'))}">${s.done ? '已完成' : (isPast ? '已逾期' : '未到期')}</div>
+        <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:${isSelected ? 'rgba(255,255,255,0.8)' : 'var(--danger)'}" title="刪除此階段">×</button>
       </div></div>`);
 
     let cb;
@@ -1764,8 +1765,8 @@ function renderProjectDetail(id){
 
     item.addEventListener('click', ()=>{
       p.viewStageIndex = i;
-      inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===i ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); });
-      refreshStagePanel(p, noteWrap);
+      // ⭕ 重新觸發軌道重繪，確保背景色與反白樣式完整切換
+      rebuildStageTrack();
     });
 
     inner.appendChild(item);
