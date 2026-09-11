@@ -1607,8 +1607,6 @@ function renderProjectDetail(id){
     p.viewStageIndex = firstUnfinishedIdx !== -1 ? firstUnfinishedIdx : p.stages.length - 1;
   }
 
-  
-  
   const wrap = el(`<div></div>`);
   const back = el(`<button class="text-[12px] mb-4 flex items-center gap-1" style="color:var(--ink-soft)">← 返回專案列表</button>`);
   back.addEventListener('click', ()=>{ state.detailProjectId=null; render(); });
@@ -1630,7 +1628,7 @@ function renderProjectDetail(id){
     }, { okLabel: '確定刪除', color: 'var(--danger)' });
   });
 
-  btnRow.append(editBtn, addStageBtn, delProjBtn); 
+  btnRow.append(editBtn, delProjBtn); 
   headRow.appendChild(btnRow); 
   wrap.appendChild(headRow);
 
