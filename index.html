@@ -2502,48 +2502,124 @@ function projectDetailCalendar(p){
       <div class="text-[11px]" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>
     </div>
     <button id="exportExcelBtn" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 shrink-0 transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--line);color:var(--ink)">
-      📊 匯出 Excel
+      匯出
     </button>
   </div>`);
 
   wrap.appendChild(topRow);
 
   // ⭕ 右上角 Excel 匯出邏輯
+  // ⭕ 升級版：匯出帶有色塊甘特圖與視覺化樣式的 Excel (.xls)
   topRow.querySelector('#exportExcelBtn').addEventListener('click', () => {
     if (!p.stages || !p.stages.length) {
       alertModal('目前沒有時程資料可匯出。');
       return;
     }
 
-    const rows = [
-      ["專案名稱", "階段名稱", "類型", "開始日期", "結束日期", "工期天數", "目前狀態", "筆記內容"]
-    ];
-
+    // 1. 計算日期涵蓋範圍
+    const allDates = [];
     p.stages.forEach(s => {
-      const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
+      if (s.date) allDates.push(s.date);
+      if (s.endDate) allDates.push(s.endDate);
+    });
+    allDates.sort();
+
+    const minDate = addDays(allDates[0], -2);
+    const maxDate = addDays(allDates[allDates.length - 1], 2);
+    const totalDays = Math.max(7, diffDays(minDate, maxDate) + 1);
+
+    const dateList = [];
+    for (let i = 0; i < totalDays; i++) {
+      dateList.push(addDays(minDate, i));
+    }
+
+    // 2. 建立 Excel HTML 內容與 Inline CSS 樣式
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"/><style>
+      table { border-collapse: collapse; font-family: Microsoft JhengHei, sans-serif; font-size: 11pt; }
+      th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; }
+      .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; }
+      .th-date { background-color: #EFEADF; font-size: 9pt; }
+      .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
+      .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
+      .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
+      .bar-done { background-color: #4C8B5C; color: #ffffff; font-weight: bold; }
+      .bar-progress { background-color: #2563EB; color: #ffffff; font-weight: bold; }
+      .bar-overdue { background-color: #B23A3A; color: #ffffff; font-weight: bold; }
+      .bar-upcoming { background-color: #B5654A; color: #ffffff; font-weight: bold; }
+    </style></head><body>`;
+
+    html += `<h2>【${p.name}】專案時程甘特圖 Timeline</h2>`;
+    html += `<table><thead><tr>
+      <th class="th-header" style="width:180px;">階段名稱</th>
+      <th class="th-header" style="width:80px;">類型</th>
+      <th class="th-header" style="width:90px;">開始日期</th>
+      <th class="th-header" style="width:90px;">結束日期</th>
+      <th class="th-header" style="width:60px;">天數</th>
+      <th class="th-header" style="width:80px;">狀態</th>`;
+
+    // 渲染日期抬頭與週末色塊
+    dateList.forEach(d => {
+      const dt = new Date(d + "T00:00:00");
+      const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
+      const isToday = d === state.todayISO;
+      const dayClass = isToday ? 'th-today' : (isWeekend ? 'th-weekend' : 'th-date');
+      html += `<th class="${dayClass}" style="width:35px;">${fmt(d)}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    // 3. 繪製各階段圖條
+    p.stages.forEach(s => {
       const startDate = s.date || '';
+      const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
       const endDate = isRange ? s.endDate : s.date;
       const duration = isRange ? (diffDays(startDate, endDate) + 1) : 1;
 
       const today = state.todayISO;
       let statusText = '未到期';
-      if (s.done) statusText = '已完成';
-      else if (startDate && endDate && today >= startDate && today <= endDate) statusText = '進行中';
-      else if (endDate && today > endDate) statusText = '已逾期';
+      let barCss = 'bar-upcoming';
 
-      rows.push([
-        p.name,
-        s.name,
-        isRange ? '跨日區間' : '單日節點',
-        startDate,
-        endDate,
-        `${duration}天`,
-        statusText,
-        (s.note || '').replace(/\n/g, ' ')
-      ]);
+      if (s.done) {
+        statusText = '已完成'; barCss = 'bar-done';
+      } else if (startDate && endDate && today >= startDate && today <= endDate) {
+        statusText = '進行中'; barCss = 'bar-progress';
+      } else if (endDate && today > endDate) {
+        statusText = '已逾期'; barCss = 'bar-overdue';
+      }
+
+      html += `<tr>
+        <td class="cell-name">${s.name}</td>
+        <td>${isRange ? '跨日區間' : '單日節點'}</td>
+        <td>${startDate}</td>
+        <td>${endDate}</td>
+        <td>${duration}天</td>
+        <td>${statusText}</td>`;
+
+      // 渲染 Gantt 圖條填色
+      dateList.forEach(d => {
+        const isInRange = d >= startDate && d <= endDate;
+        if (isInRange) {
+          html += `<td class="${barCss}">${isRange ? '█' : '📍'}</td>`;
+        } else {
+          html += `<td></td>`;
+        }
+      });
+
+      html += `</tr>`;
     });
 
-    csvDownload(`${p.name}-專案時程時間軸.csv`, rows);
+    html += `</tbody></table></body></html>`;
+
+    // 下載 .xls 格式檔案
+    const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${p.name}-視覺化甘特圖.xls`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   });
   
   if (!p.stages || p.stages.length === 0) {
