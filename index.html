@@ -1987,8 +1987,30 @@ function renderProjectDetail(id){
 
   // 3. 單一卡片繪製邏輯
   const renderSingleStageCard = (s, i) => {
-    const isPast = new Date(s.date) < new Date(state.todayISO);
-    
+    // ⭕ 狀態計算邏輯：精準區分 未到期 / 進行中 / 已逾期
+    const today = state.todayISO;
+    const startDate = s.date;
+    const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
+
+    const isDone = s.done;
+    const isUpcoming = !isDone && startDate && today < startDate;
+    const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
+    const isPast = !isDone && endDate && today > endDate;
+
+    let statusText = '未到期';
+    let statusColor = 'var(--ink-soft)';
+
+    if (isDone) {
+      statusText = '已完成';
+      statusColor = 'var(--good)';
+    } else if (isInProgress) {
+      statusText = s.type === 'range' ? '進行中' : '今日到期';
+      statusColor = '#2563EB'; // 藍色高亮（已選取時會自動反白）
+    } else if (isPast) {
+      statusText = '已逾期';
+      statusColor = '#B23A3A'; // 紅色警示
+    }
+
     const isSelected = i === p.viewStageIndex;
     const item = el(`<div class="w-[150px] shrink-0 rounded-lg p-3 border relative cursor-pointer flex flex-col justify-between transition-colors" style="border-color:${isSelected ? '#B07736' : (s.done ? p.color : 'var(--line)')};background:${isSelected ? '#B07736' : (s.done ? hexToRgba(p.color,0.06) : '#fff')};color:${isSelected ? '#ffffff' : 'inherit'};">
       <div>
@@ -2016,7 +2038,7 @@ function renderProjectDetail(id){
         `}
       </div>
       <div class="flex items-center justify-between mt-2 pt-1 border-t" style="border-color:${isSelected ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)'}">
-        <div class="stage-status-text text-[10px] font-medium" style="color:${isSelected ? '#ffffff' : (s.done ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)'))}">${s.done ? '已完成' : (isPast ? '已逾期' : '未到期')}</div>
+        <div class="stage-status-text text-[10px] font-medium" style="color:${isSelected ? '#ffffff' : statusColor}">${statusText}</div>
         <button type="button" class="del-stage-btn text-[14px] font-bold px-1 shrink-0" style="color:${isSelected ? 'rgba(255,255,255,0.8)' : 'var(--danger)'}" title="刪除此階段">×</button>
       </div></div>`);
 
@@ -2024,12 +2046,17 @@ function renderProjectDetail(id){
     function handleStageToggle(checked){
       s.done = checked;
       item.style.borderColor = checked ? p.color : 'var(--line)';
-      item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked ? hexToRgba(p.color,0.06) : '#fff');
+      item.style.background = i === p.viewStageIndex ? '#B07736' : (checked ? hexToRgba(p.color,0.06) : '#fff');
       
-      const statusText = item.querySelector('.stage-status-text');
-      if (statusText) {
-        statusText.textContent = checked ? '已完成' : (isPast ? '已逾期' : '未到期');
-        statusText.style.color = checked ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)');
+      const statusTextEl = item.querySelector('.stage-status-text');
+      if (statusTextEl) {
+        if (checked) {
+          statusTextEl.textContent = '已完成';
+          statusTextEl.style.color = i === p.viewStageIndex ? '#ffffff' : 'var(--good)';
+        } else {
+          statusTextEl.textContent = statusText;
+          statusTextEl.style.color = i === p.viewStageIndex ? '#ffffff' : statusColor;
+        }
       }
 
       saveState();
@@ -2220,6 +2247,29 @@ function projectDetailCalendar(p){
     const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
     const dateText = isRange ? `${fmt(s.date)} ~ ${fmt(s.endDate)}` : fmt(s.date);
     
+    // ⭕ 狀態計算
+    const today = state.todayISO;
+    const startDate = s.date;
+    const endDate = isRange ? s.endDate : s.date;
+
+    const isDone = s.done;
+    const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
+    const isPast = !isDone && endDate && today > endDate;
+
+    let statusText = '未到期';
+    let statusColor = 'var(--ink-soft)';
+
+    if (isDone) {
+      statusText = '已完成';
+      statusColor = 'var(--good)';
+    } else if (isInProgress) {
+      statusText = isRange ? '進行中' : '今日到期';
+      statusColor = '#2563EB';
+    } else if (isPast) {
+      statusText = '已逾期';
+      statusColor = '#B23A3A';
+    }
+
     const card = el(`<div class="rounded-lg p-3 border flex items-center justify-between transition-all" style="border-color:${s.done ? p.color : 'var(--line)'};background:${s.done ? hexToRgba(p.color, 0.08) : '#fff'}">
       <div class="flex items-center gap-3">
         <span class="stage-pill shrink-0" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
@@ -2234,7 +2284,7 @@ function projectDetailCalendar(p){
           </div>
         </div>
       </div>
-      <span class="text-[11px] font-medium shrink-0" style="color:${s.done ? 'var(--good)' : 'var(--ink-soft)'}">${s.done ? '已完成' : '進行中'}</span>
+      <span class="text-[11px] font-medium shrink-0" style="color:${statusColor}">${statusText}</span>
     </div>`);
 
     grid.appendChild(card);
