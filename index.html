@@ -2253,14 +2253,15 @@ function renderProjectDetail(id){
   // 3. 單一卡片繪製邏輯
   const renderSingleStageCard = (s, i) => {
     // ⭕ 狀態計算邏輯：精準區分 未到期 / 進行中 / 已逾期
+    // ⭕ 修正版狀態計算邏輯
     const today = state.todayISO;
     const startDate = s.date;
     const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
 
     const isDone = s.done;
-    const isUpcoming = !isDone && startDate && today < startDate;
-    const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
-    const isPast = !isDone && endDate && today > endDate;
+    // 跨日區間：過了結束日算逾期；單日節點：只要大於等於當天且未完成即算逾期（或依你的需求改成 today >= endDate）
+    const isPast = !isDone && endDate && (s.type === 'range' ? today > endDate : today >= startDate);
+    const isInProgress = !isDone && !isPast && s.type === 'range' && startDate && endDate && today >= startDate && today <= endDate;
 
     let statusText = '未到期';
     let statusColor = 'var(--ink-soft)';
@@ -2268,12 +2269,12 @@ function renderProjectDetail(id){
     if (isDone) {
       statusText = '已完成';
       statusColor = 'var(--good)';
-    } else if (isInProgress) {
-      statusText = s.type === 'range' ? '進行中' : '今日到期';
-      statusColor = '#2563EB'; // 藍色高亮（已選取時會自動反白）
     } else if (isPast) {
       statusText = '已逾期';
-      statusColor = '#B23A3A'; // 紅色警示
+      statusColor = '#AB3B3A'; // 沉穩朱紅
+    } else if (isInProgress) {
+      statusText = '進行中';
+      statusColor = '#CA7A2C'; // 琥珀橘
     }
 
     const isSelected = i === p.viewStageIndex;
