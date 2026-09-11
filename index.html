@@ -2675,14 +2675,18 @@ function projectDetailCalendar(p){
       grid.appendChild(el(`<div class="${bgClass}"></div>`));
     });
 
-    // 軸線上圖條 (Bar / Point)
+
+    // ⭕ 軸線上圖條 (Bar / Point) 精準置中定位
     const isPoint = s.type !== 'range' || duration === 1;
-    let barStyle = `left: calc(${(startOffset / totalDays) * 100}% + 4px); background: ${statusBg};`;
+    let barStyle = `background: ${statusBg};`;
     
     if (isPoint) {
-      barStyle += ` width: 20px; height: 20px; border-radius: 999px; margin-left: -2px;`;
+      // 📍 單日圓形節點：定位到該日期格子的正中央 ( (startOffset + 0.5) / totalDays )，並套用 transform -50% 水平置中
+      const centerPercent = ((startOffset + 0.5) / totalDays) * 100;
+      barStyle += ` left: ${centerPercent}%; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 999px;`;
     } else {
-      barStyle += ` width: calc(${(duration / totalDays) * 100}% - 8px); height: 20px; border-radius: 999px;`;
+      // 📅 跨日長條圖：保持原本填滿欄位的區間長度
+      barStyle += ` left: calc(${(startOffset / totalDays) * 100}% + 4px); width: calc(${(duration / totalDays) * 100}% - 8px); height: 20px; border-radius: 999px;`;
     }
 
   const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-10" 
