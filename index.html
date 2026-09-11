@@ -2533,17 +2533,31 @@ function projectDetailCalendar(p){
       dateList.push(addDays(minDate, i));
     }
 
-    // 2. 建立 Excel HTML 內容與 Inline CSS 樣式
+    // 2. 建立 Excel HTML 內容與 Inline CSS 樣式 (指定微軟正黑體)
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta charset="utf-8"/><style>
-      table { border-collapse: collapse; font-family: Microsoft JhengHei, sans-serif; font-size: 11pt; }
+    <head><meta charset="utf-8"/>
+    <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>時程時間軸</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+    <style>
+      * { font-family: 'Microsoft JhengHei', '微軟正黑體', sans-serif !important; mso-font-charset: 136; }
+      table { border-collapse: collapse; font-size: 11pt; }
       th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; }
       .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; }
       .th-date { background-color: #EFEADF; font-size: 9pt; }
       .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
       .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
       .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
-      .bar-done { background-color: #DAC9A6; color: #ffffff; font-weight: bold; }
+      .bar-done { background-color: #DAC9A6; }
+      .bar-progress { background-color: #CA7A2C; }
+      .bar-overdue { background-color: #AB3B3A; }
+      .bar-upcoming { background-color: #D9CD90; }
+    </style></head><body>`;
+      th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; }
+      .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; }
+      .th-date { background-color: #EFEADF; font-size: 9pt; }
+      .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
+      .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
+      .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
+      .bar-done { background-color: #BDC0BA; color: #ffffff; font-weight: bold; }
       .bar-progress { background-color: #CA7A2C; color: #ffffff; font-weight: bold; }
       .bar-overdue { background-color: #AB3B3A; color: #ffffff; font-weight: bold; }
       .bar-upcoming { background-color: #D9CD90; color: #2B2A28; font-weight: bold; }
@@ -2599,11 +2613,11 @@ function projectDetailCalendar(p){
         <td>${duration}天</td>
         <td>${statusText}</td>`;
 
-      // 渲染 Gantt 圖條填色
+      // ⭕ 渲染 Gantt 圖條填色 (純背景色填滿，不放入任何圖示或文字)
       dateList.forEach(d => {
         const isInRange = d >= startDate && d <= endDate;
         if (isInRange) {
-          html += `<td class="${barCss}">${isRange ? '█' : '📍'}</td>`;
+          html += `<td class="${barCss}"></td>`;
         } else {
           html += `<td></td>`;
         }
