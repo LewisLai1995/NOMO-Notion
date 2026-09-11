@@ -1621,9 +1621,6 @@ function renderProjectDetail(id){
   const editBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">編輯專案</button>`);
   editBtn.addEventListener('click', ()=> openModal(editProjectModal(p)));
   
-  const addStageBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border" style="border-color:var(--line)">＋ 新增客製時程</button>`);
-  addStageBtn.addEventListener('click', ()=> openModal(addStageModal(p)));
-  
   const delProjBtn = el(`<button class="text-[12px] px-3 py-2 rounded-lg border text-red-600 border-red-200 hover:bg-red-50 transition-colors">刪除專案</button>`);
   delProjBtn.addEventListener('click', ()=>{
     confirmModal(`確定要刪除專案「${p.name}」嗎？刪除後所有資料都將無法復原。`, ()=>{
@@ -1684,7 +1681,15 @@ function renderProjectDetail(id){
 
   // 2. 時程軸卡片容器
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
-  timelineCard.appendChild(el(`<div class="text-[13px] font-medium mb-4">階段時程軸（滑鼠移到此區、滾動滾輪可左右瀏覽；打勾即為手動標記完成）</div>`));
+  
+  // ⭕ 將時程軸標題與新增按鈕放入同一個 Flex 標頭區塊中
+  const trackHeader = el(`<div class="flex items-center justify-between gap-3 mb-4">
+    <div class="text-[13px] font-medium">階段時程軸</div>
+    <button id="cardAddStageBtn" class="text-[12px] px-3 py-1.5 rounded-lg border shrink-0 font-medium transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:${color};color:${color};">＋</button>
+  </div>`);
+
+  trackHeader.querySelector('#cardAddStageBtn').addEventListener('click', () => openModal(addStageModal(p)));
+  timelineCard.appendChild(trackHeader);
   const track = el(`<div class="stage-track overflow-x-auto pb-2 cursor-grab active:cursor-grabbing select-none"><div class="flex gap-3" style="min-width:1400px;"></div></div>`);
   
   track.addEventListener('wheel', e=>{ if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){ e.preventDefault(); track.scrollLeft += e.deltaY; } }, {passive:false});
@@ -1856,7 +1861,7 @@ function renderProjectDetail(id){
   wrap.appendChild(projectTodoCard(p));
 
   // 6. 工班通訊錄
-  const contractorCard = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium">專案工班通訊錄</div><button id="shareBtn" class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">➕ 分享/匯出</button></div><div id="clRows" class="mb-3"></div></div>`);
+  const contractorCard = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium">專案工班通訊錄</div><button id="shareBtn" class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">匯出</button></div><div id="clRows" class="mb-3"></div></div>`);
   contractorCard.querySelector('#shareBtn').addEventListener('click', ()=> openModal(contractorShareModal(p)));
   const clRows = contractorCard.querySelector('#clRows');
   if(!p.contractors.length) clRows.appendChild(el(`<div class="text-[12px] mb-2" style="color:var(--ink-soft)">尚未新增工班聯絡人。</div>`));
