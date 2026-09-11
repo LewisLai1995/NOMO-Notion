@@ -1203,50 +1203,107 @@ function projectCard(p){
 }
 function projectCreateModal(){
   const randomColor = PALETTE[Math.floor(Math.random()*PALETTE.length)];
+  
+  // 輔助函式：計算給定日期之後的第一個週五
+  const getNextFriday = (isoDate) => {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    // 先推算至隔天
+    date.setDate(date.getDate() + 1);
+    // 0 = 週日, 1 = 週一, ..., 5 = 週五, 6 = 週六
+    while (date.getDay() !== 5) {
+      date.setDate(date.getDate() + 1);
+    }
+    return toISO(date);
+  };
+
+  const defaultStartDate = addDays(state.todayISO, 30);
+  const defaultEndDate = addDays(state.todayISO, 35);
+
   const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${state.theme.project}">建立新專案</div><div class="flex flex-col gap-3">
-    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱 <span style="color:#B23A3A">*</span><input id="fName" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/><span id="fNameErr" class="text-[11px] hidden" style="color:#B23A3A">請輸入專案名稱</span></label>
+    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱 <span style="color:#B23A3A">*</span><input id="fName" type="text" placeholder="例如：森之光 — 台北當代館特展" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/><span id="fNameErr" class="text-[11px] hidden" style="color:#B23A3A">請輸入專案名稱</span></label>
     <label class="text-[12px]" style="color:var(--ink-soft)">客戶<input id="fClient" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    
     <div class="grid grid-cols-2 gap-3">
       <label class="text-[12px]" style="color:var(--ink-soft)">預算成本<input id="fBudget" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="fDeal" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
+      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="fDeal" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    </div>
+
     <div class="grid grid-cols-2 gap-3">
       <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名<input id="fContact" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="fPhone" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
-    <label class="text-[12px]" style="color:var(--ink-soft)">預計進場施工日期（用於自動排 15 階段時程）<input id="fDate" type="date" value="${addDays(state.todayISO,30)}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label></div>
-    <div class="flex justify-end gap-2 mt-5"><button id="fCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="fSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${state.theme.project};color:${contrastText(state.theme.project)}">建立專案</button></div></div>`);
-  const nameInput = form.querySelector('#fName'); const nameErr = form.querySelector('#fNameErr');
+      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="fPhone" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+    </div>
+
+    <!-- ⭕ 展覽日期區間設定 -->
+    <div class="border-t pt-3 mt-1" style="border-color:var(--line)">
+      <div class="text-[12px] font-medium mb-2" style="color:var(--ink)">展覽日期區間（自動生成展期與結案卡片）</div>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="text-[12px]" style="color:var(--ink-soft)">展覽開始日
+          <input id="fExStart" type="date" value="${defaultStartDate}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">展覽結束日
+          <input id="fExEnd" type="date" value="${defaultEndDate}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex justify-end gap-2 mt-5">
+    <button id="fCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+    <button id="fSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${state.theme.project};color:${contrastText(state.theme.project)}">建立專案</button>
+  </div></div>`);
+
+  const nameInput = form.querySelector('#fName');
+  const nameErr = form.querySelector('#fNameErr');
   nameInput.addEventListener('input', ()=>{ if(nameInput.value.trim()){ nameErr.classList.add('hidden'); nameInput.style.borderColor='var(--line)'; } });
+
   form.querySelector('#fCancel').addEventListener('click', closeModal);
   form.querySelector('#fSubmit').addEventListener('click', ()=>{
     const name = nameInput.value.trim();
     if(!name){ nameErr.classList.remove('hidden'); nameInput.style.borderColor='#B23A3A'; nameInput.focus(); return; }
+
     const client = form.querySelector('#fClient').value.trim();
     const budget = parseFloat(form.querySelector('#fBudget').value)||0;
     const dealAmount = parseFloat(form.querySelector('#fDeal').value)||0;
     const contactName = form.querySelector('#fContact').value.trim();
     const contactPhone = form.querySelector('#fPhone').value.trim();
-    const cDate = form.querySelector('#fDate').value||addDays(state.todayISO,30);
-    // ⭕ 自動計算預設結案日期 (預設為預計進場施工日 + 60 天)
-    const defaultSettledDate = addDays(cDate, 60);
+
+    let exStart = form.querySelector('#fExStart').value || defaultStartDate;
+    let exEnd = form.querySelector('#fExEnd').value || defaultEndDate;
+
+    // 邏輯防護：若結束日早於開始日，自動將結束日推齊為開始日
+    if (exEnd < exStart) exEnd = exStart;
+
+    // ⭕ 自動計算展覽結束後的第一個週五
+    const fridaySettlementDate = getNextFriday(exEnd);
 
     state.projects.push({ 
       id: "p" + uid(), 
       name, client, budget, dealAmount, contactName, contactPhone, 
-      constructionDate: cDate, 
+      constructionDate: exStart, 
       viewStageIndex: 0, 
       color: randomColor, 
       settled: false, 
       settlement: null, 
       contractors: [],
-      // ⭕ 建立專案時自動預置「結案」單日卡片
+      // ⭕ 自動預置「展覽展期」與「結案」兩張關鍵卡片
       stages: [
+        {
+          name: "展覽展期",
+          type: "range",
+          date: exStart,
+          endDate: exEnd,
+          done: false,
+          note: "現場展出營運期，包含每日展場巡視與現場維護。",
+          checklist: []
+        },
         {
           name: "結案",
           type: "point",
-          date: defaultSettledDate,
+          date: fridaySettlementDate,
           endDate: null,
           done: false,
-          note: "包含發票開立、尾款追蹤與最終實際成本/毛利結算。",
+          note: "展後結算與款項歸檔，包含發票開立、尾款追蹤與實際成本/毛利核對。",
           checklist: [
             { label: "確認發票開立抬頭與統編", done: false },
             { label: "確認客戶尾款已撥款入帳", done: false },
@@ -1255,8 +1312,11 @@ function projectCreateModal(){
         }
       ] 
     });
-    closeModal(); commit();
+
+    closeModal(); 
+    commit();
   });
+
   return form;
 }
 function editProjectModal(p){
