@@ -1515,21 +1515,84 @@ function csvDownload(filename, rows){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
+  function vcfDownload(filename, contractors, projectName) {
+  let vcfText = "";
+  contractors.forEach(c => {
+    // 整理姓名（可將工種加入名字旁，方便手機通訊錄辨識）
+    const fullName = `${c.name}${c.trade ? ` (${c.trade})` : ''}`;
+    // 清理電話號碼中的空格與破折號
+    const cleanPhone = (c.phone || '').replace(/[- \s]/g, '');
+    const note = `專案：${projectName}${c.arrival ? `｜預計進場：${c.arrival}` : ''}`;
+
+    vcfText += `BEGIN:VCARD\n`;
+    vcfText += `VERSION:3.0\n`;
+    vcfText += `FN:${fullName}\n`;
+    vcfText += `TEL;TYPE=CELL:${cleanPhone}\n`;
+    vcfText += `NOTE:${note}\n`;
+    vcfText += `END:VCARD\n`;
+  });
+
+  const blob = new Blob([vcfText], { type: 'text/vcard;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 function contractorShareModal(p){
   const color = state.theme.project;
   const wrap = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${color}">分享工班通訊錄</div>
-    <button id="csvBtn" class="w-full text-left px-4 py-3 rounded-lg border mb-2 text-[13px]" style="border-color:var(--line)">⬇️ 下載 .csv 檔案</button>
-    <button id="lineBtn" class="w-full text-left px-4 py-3 rounded-lg border text-[13px]" style="border-color:var(--line)">📋 複製 LINE 格式文字</button>
+    <button id="lineBtn" class="w-full text-left px-4 py-3 rounded-lg border mb-2 text-[13px] font-medium" style="border-color:${color};color:${color}">📋 複製 LINE 訊息格式（一鍵發送）</button>
+    <button id="vcfBtn" class="w-full text-left px-4 py-3 rounded-lg border mb-2 text-[13px]" style="border-color:var(--line)">📱 下載手機通訊錄檔 (.vcf)</button>
+    <button id="csvBtn" class="w-full text-left px-4 py-3 rounded-lg border text-[13px]" style="border-color:var(--line)">📊 下載 Excel 試算表 (.csv)</button>
     <div id="shareMsg" class="text-[12px] mt-3" style="color:var(--good)"></div>
     <div class="flex justify-end mt-4"><button id="shareClose" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">關閉</button></div></div>`);
-  wrap.querySelector('#csvBtn').addEventListener('click', ()=>{
-    csvDownload(`${p.name}-工班通訊錄.csv`, [["姓名","工種","電話","預計進場時間"], ...p.contractors.map(c=>[c.name,c.trade,c.phone,c.arrival||''])]);
+
+  // 1. 複製專屬 LINE 文字格式
+  wrap.querySelector('#lineBtn').addEventListener('click', async () => {
+    if (!p.contractors || p.contractors.length === 0) {
+      wrap.querySelector('#shareMsg').textContent = '目前沒有工班資料可複製。';
+      return;
+    }
+
+    // ⭕ 排版格式：姓名 工種 進場時間 \n 電話
+    const textLines = p.contractors.map(c => {
+      const name = c.name || '未命名';
+      const trade = c.trade || '工班';
+      const arrival = c.arrival ? fmt(c.arrival) : '未定';
+      const phone = c.phone || '無電話';
+
+      return `${name} ${trade} ${arrival}\n${phone}`;
+    });
+
+    const fullMessage = `【${p.name}】工班通訊錄：\n\n` + textLines.join('\n\n');
+
+    try {
+      await navigator.clipboard.writeText(fullMessage);
+      wrap.querySelector('#shareMsg').textContent = '✨ 已複製 LINE 訊息格式！直接貼到 LINE 即可發送。';
+    } catch (e) {
+      wrap.querySelector('#shareMsg').textContent = '❌ 複製失敗，請手動複製。';
+    }
   });
-  wrap.querySelector('#lineBtn').addEventListener('click', async ()=>{
-    const text = p.contractors.map(c=> `${c.name}／${c.trade}／${c.phone}／${c.arrival||'未定'}`).join('\n');
-    try{ await navigator.clipboard.writeText(text); wrap.querySelector('#shareMsg').textContent = '已複製到剪貼簿！'; }
-    catch(e){ wrap.querySelector('#shareMsg').textContent = '複製失敗，請手動選取文字。'; }
+
+  // 2. 下載 vcf 手機通訊錄
+  wrap.querySelector('#vcfBtn').addEventListener('click', () => {
+    if (!p.contractors || p.contractors.length === 0) {
+      wrap.querySelector('#shareMsg').textContent = '目前沒有工班資料可匯出。';
+      return;
+    }
+    vcfDownload(`${p.name}-工班通訊錄.vcf`, p.contractors, p.name);
+    wrap.querySelector('#shareMsg').textContent = '已下載 .vcf 檔案！發送到手機點擊即可一次匯入。';
   });
+
+  // 3. 下載 CSV
+  wrap.querySelector('#csvBtn').addEventListener('click', () => {
+    csvDownload(`${p.name}-工班通訊錄.csv`, [["姓名", "工種", "電話", "預計進場時間"], ...p.contractors.map(c => [c.name, c.trade, c.phone, c.arrival || ''])]);
+  });
+
   wrap.querySelector('#shareClose').addEventListener('click', closeModal);
   return wrap;
 }
