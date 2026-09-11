@@ -1515,12 +1515,17 @@ function csvDownload(filename, rows){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 }
-  function vcfDownload(filename, contractors, projectName) {
+ function vcfDownload(filename, contractors, projectName) {
   let vcfText = "";
-  contractors.forEach(c => {
-    // 整理姓名（可將工種加入名字旁，方便手機通訊錄辨識）
+  // ⭕ 過濾：只匯出「未曾合作過」的師傅
+  const newContractors = contractors.filter(c => !c.isCooperated);
+
+  if (newContractors.length === 0) {
+    return false; // 代表沒有新師傅需要匯出
+  }
+
+  newContractors.forEach(c => {
     const fullName = `${c.name}${c.trade ? ` (${c.trade})` : ''}`;
-    // 清理電話號碼中的空格與破折號
     const cleanPhone = (c.phone || '').replace(/[- \s]/g, '');
     const note = `專案：${projectName}${c.arrival ? `｜預計進場：${c.arrival}` : ''}`;
 
@@ -1541,6 +1546,7 @@ function csvDownload(filename, rows){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  return true;
 }
 function contractorShareModal(p){
   const color = state.theme.project;
@@ -1578,14 +1584,18 @@ function contractorShareModal(p){
     }
   });
 
-  // 2. 下載 vcf 手機通訊錄
+  // 2. 下載 vcf 手機通訊錄（自動過濾曾合作過的師傅）
   wrap.querySelector('#vcfBtn').addEventListener('click', () => {
     if (!p.contractors || p.contractors.length === 0) {
       wrap.querySelector('#shareMsg').textContent = '目前沒有工班資料可匯出。';
       return;
     }
-    vcfDownload(`${p.name}-工班通訊錄.vcf`, p.contractors, p.name);
-    wrap.querySelector('#shareMsg').textContent = '已下載 .vcf 檔案！發送到手機點擊即可一次匯入。';
+    const success = vcfDownload(`${p.name}-新工班通訊錄.vcf`, p.contractors, p.name);
+    if (success) {
+      wrap.querySelector('#shareMsg').textContent = '✨ 已匯出新工班 .vcf！已自動過濾標記為「曾合作過」的師傅。';
+    } else {
+      wrap.querySelector('#shareMsg').textContent = 'ℹ️ 所有工班皆已標記為「曾合作過」，無新聯絡人需匯出至手機。';
+    }
   });
 
   // 3. 下載 CSV
@@ -1597,12 +1607,30 @@ function contractorShareModal(p){
   return wrap;
 }
 function contractorRow(p, c){
-  const hasHistory = state.projects.some(op=> op.id!==p.id && op.contractors.some(c2=>c2.name===c.name && c2.trade===c.trade));
   const row = el(`<div class="flex items-center justify-between gap-3 py-1.5 border-b last:border-b-0 text-[13px]" style="border-color:var(--line);">
-    <div class="flex items-center gap-2 min-w-0 flex-wrap"><span class="tag shrink-0">${c.trade||'工班'}</span><span class="truncate">${c.name}</span>${hasHistory?`<span class="tag shrink-0" style="border-color:var(--good);color:var(--good)">★ 合作經驗</span>`:''}</div>
-    <div class="flex items-center gap-2 shrink-0"><span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span><span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
-      <button class="text-[13px]" title="編輯">✏️</button><button class="text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button></div></div>`);
-  const [editBtn, delBtn] = row.querySelectorAll('button');
+    <div class="flex items-center gap-2 min-w-0 flex-wrap">
+      <span class="tag shrink-0">${c.trade||'工班'}</span>
+      <span class="truncate">${c.name}</span>
+      <!-- ⭕ 可點擊切換的「曾合作過」標籤 -->
+      <button type="button" class="coop-btn tag shrink-0 cursor-pointer transition-colors ${c.isCooperated ? 'bg-green-50 text-green-700 border-green-300' : 'text-gray-400 border-gray-200 hover:border-gray-400'}" title="點擊切換是否曾合作過">
+        ${c.isCooperated ? '★ 曾合作過' : '＋ 標記已合作'}
+      </button>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span>
+      <span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
+      <button class="text-[13px]" title="編輯">✏️</button>
+      <button class="text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button>
+    </div></div>`);
+
+  // 切換「曾合作過」狀態
+  const coopBtn = row.querySelector('.coop-btn');
+  coopBtn.addEventListener('click', () => {
+    c.isCooperated = !c.isCooperated;
+    commit();
+  });
+
+  const [editBtn, delBtn] = row.querySelectorAll('button:not(.coop-btn)');
   editBtn.addEventListener('click', ()=>{
     promptModal('編輯工班聯絡人', [
       {key:'name', label:'姓名/公司', value:c.name},
