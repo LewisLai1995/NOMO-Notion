@@ -1770,15 +1770,26 @@ function renderProjectDetail(id){
 
     inner.appendChild(item);
   };
-
-  // 4. 重繪軌道與面板函式
-  const rebuildStageTrack = () => {
+  
+  // 4. 重繪軌道與面板函式（含自動靠右定位捲動）
+  const rebuildStageTrack = (autoScroll = false) => {
     inner.innerHTML = '';
     p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
     refreshStagePanel(p, noteWrap);
+
+    // ⭕ 自動將選中的「第一個未完成卡片」水平捲動對齊至最右邊
+    if (autoScroll) {
+      requestAnimationFrame(() => {
+        const activeCard = inner.children[p.viewStageIndex];
+        if (activeCard) {
+          activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
+        }
+      });
+    }
   };
 
-  rebuildStageTrack();
+  // ⭕ 進入頁面時帶入 true 觸發自動對齊最右邊
+  rebuildStageTrack(true);
 
   timelineCard.appendChild(track); 
   wrap.appendChild(timelineCard);
