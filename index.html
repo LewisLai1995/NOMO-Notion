@@ -2494,15 +2494,64 @@ function renderProjectDetail(id){
 function highlightStage(inner,p){ inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===p.viewStageIndex ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); }); }
 function projectDetailCalendar(p){
   const wrap = el(`<div class="card rounded-xl p-5 overflow-hidden"></div>`);
-  wrap.innerHTML = `<div class="text-[13px] font-medium mb-1">「${p.name}」專屬時間軸 Timeline</div>
-    <div class="text-[11px] mb-4" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>`;
+  
+  // 標頭與右上角 Excel 匯出按鈕
+  const topRow = el(`<div class="flex items-center justify-between mb-3">
+    <div>
+      <div class="text-[13px] font-medium mb-0.5">「${p.name}」專屬時間軸 Timeline</div>
+      <div class="text-[11px]" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>
+    </div>
+    <button id="exportExcelBtn" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 shrink-0 transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--line);color:var(--ink)">
+      📊 匯出 Excel
+    </button>
+  </div>`);
+
+  wrap.appendChild(topRow);
+
+  // ⭕ 右上角 Excel 匯出邏輯
+  topRow.querySelector('#exportExcelBtn').addEventListener('click', () => {
+    if (!p.stages || !p.stages.length) {
+      alertModal('目前沒有時程資料可匯出。');
+      return;
+    }
+
+    const rows = [
+      ["專案名稱", "階段名稱", "類型", "開始日期", "結束日期", "工期天數", "目前狀態", "筆記內容"]
+    ];
+
+    p.stages.forEach(s => {
+      const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
+      const startDate = s.date || '';
+      const endDate = isRange ? s.endDate : s.date;
+      const duration = isRange ? (diffDays(startDate, endDate) + 1) : 1;
+
+      const today = state.todayISO;
+      let statusText = '未到期';
+      if (s.done) statusText = '已完成';
+      else if (startDate && endDate && today >= startDate && today <= endDate) statusText = '進行中';
+      else if (endDate && today > endDate) statusText = '已逾期';
+
+      rows.push([
+        p.name,
+        s.name,
+        isRange ? '跨日區間' : '單日節點',
+        startDate,
+        endDate,
+        `${duration}天`,
+        statusText,
+        (s.note || '').replace(/\n/g, ' ')
+      ]);
+    });
+
+    csvDownload(`${p.name}-專案時程時間軸.csv`, rows);
+  });
   
   if (!p.stages || p.stages.length === 0) {
     wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-6 text-center">尚未建立任何時程項目，請點擊「＋」開始建立。</div>`));
     return wrap;
   }
 
-  // 1. 計算所有時程的最早與最晚日期，建立時間軸涵蓋範圍
+  // 1. 計算最早與最晚日期
   const allDates = [];
   p.stages.forEach(s => {
     if (s.date) allDates.push(s.date);
@@ -2512,7 +2561,6 @@ function projectDetailCalendar(p){
   if (!allDates.length) return wrap;
 
   allDates.sort();
-  // 軸線前後各多擴展 2 天
   const minDate = addDays(allDates[0], -2);
   const maxDate = addDays(allDates[allDates.length - 1], 2);
   const totalDays = Math.max(7, diffDays(minDate, maxDate) + 1);
@@ -2522,20 +2570,47 @@ function projectDetailCalendar(p){
     dateList.push(addDays(minDate, i));
   }
 
-  // 2. 建立 Timeline 表頭與網格容器
-  const trackWrap = el(`<div class="overflow-x-auto scrollbar-thin"></div>`);
-  const table = el(`<div class="w-full" style="min-w:${192 + totalDays * 36}px"></div>`);
+  // 2. 建立 Timeline 容器 (支援滾輪左右滑動)
+  const trackWrap = el(`<div class="timeline-track overflow-x-auto scrollbar-thin cursor-grab active:cursor-grabbing select-none pb-2"></div>`);
+  
+  // ⭕ 支援滑鼠滾輪上下滾動轉為左右滑動
+  trackWrap.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      trackWrap.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+
+  // ⭕ 支援滑鼠拖曳左右滑動
+  let isDown = false, startX = 0, scrollLeft = 0;
+  trackWrap.addEventListener('mousedown', e => {
+    isDown = true;
+    startX = e.pageX - trackWrap.offsetLeft;
+    scrollLeft = trackWrap.scrollLeft;
+  });
+  trackWrap.addEventListener('mouseleave', () => isDown = false);
+  trackWrap.addEventListener('mouseup', () => isDown = false);
+  trackWrap.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - trackWrap.offsetLeft;
+    trackWrap.scrollLeft = scrollLeft - (x - startX) * 1.5;
+  });
+
+  // ⭕ 關鍵改動：使用 inline-block min-w-full，確保內部 width 100% 根據最長內容自動延伸到底，貫穿橫線！
+  const table = el(`<div class="inline-block min-w-full" style="width: ${192 + totalDays * 36}px"></div>`);
 
   // 表頭日期列
   const headerRow = el(`<div class="flex items-center border-b pb-2 mb-1 text-[10px] font-mono" style="border-color:var(--line);color:var(--ink-soft)">
-    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 bg-white z-10 pr-2" style="color:var(--ink)">階段項目</div>
+    <!-- ⭕ 左側固定標頭 (sticky left-0) -->
+    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 bg-white z-20 pr-2 border-r" style="color:var(--ink);border-color:var(--line)">階段項目</div>
     <div class="flex-1 grid" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
   </div>`);
 
   const headerGrid = headerRow.querySelector('.grid');
   dateList.forEach(d => {
     const dt = new Date(d + "T00:00:00");
-    const dayOfWeek = dt.getDay(); // 0 = 週日, 6 = 週六
+    const dayOfWeek = dt.getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     const isToday = d === state.todayISO;
     const dayNum = d.slice(8);
@@ -2547,7 +2622,7 @@ function projectDetailCalendar(p){
   });
   table.appendChild(headerRow);
 
-  // 3. 渲染各階段的 Timeline 軌道
+  // 3. 渲染各階段軌道
   p.stages.forEach((s, i) => {
     const startDate = s.date;
     const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
@@ -2555,7 +2630,6 @@ function projectDetailCalendar(p){
     const startOffset = Math.max(0, diffDays(minDate, startDate));
     const duration = Math.max(1, diffDays(startDate, endDate) + 1);
 
-    // 狀態判定
     const today = state.todayISO;
     const isDone = s.done;
     const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
@@ -2567,10 +2641,10 @@ function projectDetailCalendar(p){
     else if (isInProgress) { statusBg = '#2563EB'; statusText = '進行中'; }
     else if (isPast) { statusBg = '#B23A3A'; statusText = '已逾期'; }
 
-    // ⭕ 貫穿整行的底部線條（border-b）
+    // ⭕ 貫穿到底部的橫線 (border-b)
     const row = el(`<div class="flex items-center py-2 border-b text-[12px] relative" style="border-color:var(--line)">
-      <!-- 左側名稱欄 (凍結左側，防止捲動時名稱消失) -->
-      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 bg-white/95 z-10 backdrop-blur-sm">
+      <!-- ⭕ 凍結左側項目欄 (sticky left-0 + z-20 + 邊框) -->
+      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 bg-white z-20 border-r" style="border-color:var(--line)">
         <div class="truncate font-medium flex items-center gap-1.5" title="${s.name}">
           <span class="stage-pill text-[9px] text-gray-400">${String(i+1).padStart(2,'0')}</span>
           <span class="truncate">${s.name}</span>
@@ -2578,24 +2652,24 @@ function projectDetailCalendar(p){
         <span class="text-[9px] px-1.5 py-0.5 rounded shrink-0" style="background:${hexToRgba(statusBg, 0.15)};color:${statusBg}">${statusText}</span>
       </div>
 
-      <!-- 右側日期背景網格與時間軸圖條 -->
+      <!-- 右側背景網格與時間軸圖條 -->
       <div class="flex-1 grid relative items-center h-7" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
     </div>`);
 
     const grid = row.querySelector('.grid');
 
-    // ⭕ 背景格線 (加深豎線 + 週末淺粉紅底 + 當日琥珀底)
+    // 背景格線 (豎線 + 週末粉紅 + 當日琥珀)
     dateList.forEach(d => {
       const dt = new Date(d + "T00:00:00");
       const dayOfWeek = dt.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const isToday = d === state.todayISO;
 
-      let bgClass = "h-7 border-r border-[var(--line)] "; // ⭕ 加深豎直格線
+      let bgClass = "h-7 border-r border-[var(--line)] ";
       if (isToday) {
-        bgClass += "bg-amber-100/60 "; // ⭕ 當日琥珀色
+        bgClass += "bg-amber-100/60 ";
       } else if (isWeekend) {
-        bgClass += "bg-pink-50/50 ";   // ⭕ 週末淺粉紅底
+        bgClass += "bg-pink-50/50 ";
       }
 
       grid.appendChild(el(`<div class="${bgClass}"></div>`));
@@ -2606,14 +2680,12 @@ function projectDetailCalendar(p){
     let barStyle = `left: calc(${(startOffset / totalDays) * 100}% + 4px); background: ${statusBg};`;
     
     if (isPoint) {
-      // 📍 單日圓形節點
       barStyle += ` width: 20px; height: 20px; border-radius: 999px; margin-left: -2px;`;
     } else {
-      // 📅 跨日長條圖
       barStyle += ` width: calc(${(duration / totalDays) * 100}% - 8px); height: 20px; border-radius: 999px;`;
     }
 
-    const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-1" 
+  const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-10" 
       style="${barStyle}">
       ${!isPoint ? `${duration}天` : ''}
     </div>`);
