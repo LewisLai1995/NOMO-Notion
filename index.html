@@ -1607,23 +1607,24 @@ function contractorShareModal(p){
   return wrap;
 }
 function contractorRow(p, c){
-  const row = el(`<div class="flex items-center justify-between gap-3 py-1.5 border-b last:border-b-0 text-[13px]" style="border-color:var(--line);">
+  const row = el(`<div class="flex items-center justify-between gap-3 py-2 border-b last:border-b-0 text-[13px]" style="border-color:var(--line);">
     <div class="flex items-center gap-2 min-w-0 flex-wrap">
       <span class="tag shrink-0">${c.trade||'工班'}</span>
-      <span class="truncate">${c.name}</span>
-      <!-- ⭕ 可點擊切換的「曾合作過」標籤 -->
+      <span class="truncate font-medium">${c.name}</span>
       <button type="button" class="coop-btn tag shrink-0 cursor-pointer transition-colors ${c.isCooperated ? 'bg-green-50 text-green-700 border-green-300' : 'text-gray-400 border-gray-200 hover:border-gray-400'}" title="點擊切換是否曾合作過">
         ${c.isCooperated ? '★ 曾合作過' : '＋ 標記已合作'}
       </button>
     </div>
-    <div class="flex items-center gap-2 shrink-0">
+    <div class="flex items-center gap-3 shrink-0">
       <span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span>
       <span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
-      <button class="edit-btn text-[13px]" title="編輯">編輯</button>
-      <button class="del-btn text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button>
+      <!-- ⭕ 淡淡灰底方塊的編輯按鈕 -->
+      <button class="edit-btn text-[12px] px-2 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors flex items-center gap-1" title="編輯">
+        <span>✏️</span> <span>編輯</span>
+      </button>
+      <button class="del-btn text-[14px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除">×</button>
     </div></div>`);
 
-  // ⭕ 無感區域即時更新：點擊切換樣式 + 背景存檔，不重整頁面
   const coopBtn = row.querySelector('.coop-btn');
   coopBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1637,7 +1638,7 @@ function contractorRow(p, c){
       coopBtn.className = 'coop-btn tag shrink-0 cursor-pointer transition-colors text-gray-400 border-gray-200 hover:border-gray-400';
     }
 
-    saveState(); // 靜默同步雲端，不觸發 render()
+    saveState();
   });
 
   const editBtn = row.querySelector('.edit-btn');
