@@ -2502,21 +2502,19 @@ function projectDetailCalendar(p){
       <div class="text-[11px]" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>
     </div>
     <button id="exportExcelBtn" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1 shrink-0 transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--line);color:var(--ink)">
-      匯出
+      📊 匯出 Excel
     </button>
   </div>`);
 
   wrap.appendChild(topRow);
 
-  // ⭕ 右上角 Excel 匯出邏輯
-  // ⭕ 升級版：匯出帶有色塊甘特圖與視覺化樣式的 Excel (.xls)
+  // ⭕ Excel 匯出邏輯（完整修正字串與 CSS 閉合）
   topRow.querySelector('#exportExcelBtn').addEventListener('click', () => {
     if (!p.stages || !p.stages.length) {
       alertModal('目前沒有時程資料可匯出。');
       return;
     }
 
-    // 1. 計算日期涵蓋範圍
     const allDates = [];
     p.stages.forEach(s => {
       if (s.date) allDates.push(s.date);
@@ -2533,7 +2531,6 @@ function projectDetailCalendar(p){
       dateList.push(addDays(minDate, i));
     }
 
-    // 2. 建立 Excel HTML 內容與 Inline CSS 樣式 (指定微軟正黑體)
     let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
     <head><meta charset="utf-8"/>
     <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>時程時間軸</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
@@ -2551,17 +2548,6 @@ function projectDetailCalendar(p){
       .bar-overdue { background-color: #AB3B3A; }
       .bar-upcoming { background-color: #D9CD90; }
     </style></head><body>`;
-      th, td { border: 1px solid #DBD4C4; text-align: center; vertical-align: middle; height: 30px; }
-      .th-header { background-color: #2B2A28; color: #ffffff; font-weight: bold; }
-      .th-date { background-color: #EFEADF; font-size: 9pt; }
-      .th-weekend { background-color: #FCE7F3; font-size: 9pt; color: #DB2777; }
-      .th-today { background-color: #FEF3C7; font-size: 9pt; color: #92400E; font-weight: bold; }
-      .cell-name { text-align: left; padding: 0 10px; font-weight: bold; background-color: #F6F3EC; }
-      .bar-done { background-color: #BDC0BA; color: #ffffff; font-weight: bold; }
-      .bar-progress { background-color: #CA7A2C; color: #ffffff; font-weight: bold; }
-      .bar-overdue { background-color: #AB3B3A; color: #ffffff; font-weight: bold; }
-      .bar-upcoming { background-color: #D9CD90; color: #2B2A28; font-weight: bold; }
-    </style></head><body>`;
 
     html += `<h2>【${p.name}】專案時程甘特圖 Timeline</h2>`;
     html += `<table><thead><tr>
@@ -2572,7 +2558,6 @@ function projectDetailCalendar(p){
       <th class="th-header" style="width:60px;">天數</th>
       <th class="th-header" style="width:80px;">狀態</th>`;
 
-    // 渲染日期抬頭與週末色塊
     dateList.forEach(d => {
       const dt = new Date(d + "T00:00:00");
       const isWeekend = dt.getDay() === 0 || dt.getDay() === 6;
@@ -2582,8 +2567,6 @@ function projectDetailCalendar(p){
     });
     html += `</tr></thead><tbody>`;
 
-    // 3. 繪製各階段圖條
-    // 3. 繪製各階段圖條
     p.stages.forEach(s => {
       const startDate = s.date || '';
       const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
@@ -2594,7 +2577,6 @@ function projectDetailCalendar(p){
       let statusText = '未到期';
       let barCss = 'bar-upcoming';
 
-      // ⭕ 複製這段貼在下面這裡：
       if (s.done) {
         statusText = '已完成'; barCss = 'bar-done';
       } else if (startDate && endDate && today >= startDate && today <= endDate) {
@@ -2613,7 +2595,6 @@ function projectDetailCalendar(p){
         <td>${duration}天</td>
         <td>${statusText}</td>`;
 
-      // ⭕ 渲染 Gantt 圖條填色 (純背景色填滿，不放入任何圖示或文字)
       dateList.forEach(d => {
         const isInRange = d >= startDate && d <= endDate;
         if (isInRange) {
@@ -2628,7 +2609,6 @@ function projectDetailCalendar(p){
 
     html += `</tbody></table></body></html>`;
 
-    // 下載 .xls 格式檔案
     const blob = new Blob(["\uFEFF" + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2639,6 +2619,158 @@ function projectDetailCalendar(p){
     a.remove();
     URL.revokeObjectURL(url);
   });
+  
+  if (!p.stages || p.stages.length === 0) {
+    wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-6 text-center">尚未建立任何時程項目，請點擊「＋」開始建立。</div>`));
+    return wrap;
+  }
+
+  const allDates = [];
+  p.stages.forEach(s => {
+    if (s.date) allDates.push(s.date);
+    if (s.endDate) allDates.push(s.endDate);
+  });
+  
+  if (!allDates.length) return wrap;
+
+  allDates.sort();
+  const minDate = addDays(allDates[0], -2);
+  const maxDate = addDays(allDates[allDates.length - 1], 2);
+  const totalDays = Math.max(7, diffDays(minDate, maxDate) + 1);
+
+  const dateList = [];
+  for (let i = 0; i < totalDays; i++) {
+    dateList.push(addDays(minDate, i));
+  }
+
+  const trackWrap = el(`<div class="timeline-track overflow-x-auto scrollbar-thin cursor-grab active:cursor-grabbing select-none pb-2"></div>`);
+  
+  trackWrap.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      trackWrap.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+
+  let isDown = false, startX = 0, scrollLeft = 0;
+  trackWrap.addEventListener('mousedown', e => {
+    isDown = true;
+    startX = e.pageX - trackWrap.offsetLeft;
+    scrollLeft = trackWrap.scrollLeft;
+  });
+  trackWrap.addEventListener('mouseleave', () => isDown = false);
+  trackWrap.addEventListener('mouseup', () => isDown = false);
+  trackWrap.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - trackWrap.offsetLeft;
+    trackWrap.scrollLeft = scrollLeft - (x - startX) * 1.5;
+  });
+
+  const table = el(`<div class="inline-block min-w-full" style="width: ${192 + totalDays * 36}px"></div>`);
+
+  // 表頭（左欄硬白底 z-30）
+  const headerRow = el(`<div class="flex items-center border-b pb-2 mb-1 text-[10px] font-mono" style="border-color:var(--line);color:var(--ink-soft)">
+    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 z-30 pr-2 border-r" style="background-color:#ffffff !important;color:var(--ink);border-color:var(--line)">階段項目</div>
+    <div class="flex-1 grid" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
+  </div>`);
+
+  const headerGrid = headerRow.querySelector('.grid');
+  dateList.forEach(d => {
+    const dt = new Date(d + "T00:00:00");
+    const dayOfWeek = dt.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isToday = d === state.todayISO;
+    const dayNum = d.slice(8);
+
+    headerGrid.appendChild(el(`<div class="text-center font-mono ${isToday ? 'font-bold text-amber-800' : (isWeekend ? 'text-pink-600' : '')}">
+      <div>${dayNum}</div>
+      <div class="text-[8px] opacity-60">${fmt(d).split('/')[0]}月</div>
+    </div>`));
+  });
+  table.appendChild(headerRow);
+
+  // 渲染時程軸內容
+  p.stages.forEach((s, i) => {
+    const startDate = s.date;
+    const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
+
+    const startOffset = Math.max(0, diffDays(minDate, startDate));
+    const duration = Math.max(1, diffDays(startDate, endDate) + 1);
+
+    const today = state.todayISO;
+    const isDone = s.done;
+    const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
+    const isPast = !isDone && endDate && today > endDate;
+
+    let statusBg = '#D9CD90';
+    let statusText = '未到期';
+
+    if (isDone) {
+      statusBg = '#DAC9A6';
+      statusText = '已完成';
+    } else if (isInProgress) {
+      statusBg = '#CA7A2C';
+      statusText = '進行中';
+    } else if (isPast) {
+      statusBg = '#AB3B3A';
+      statusText = '已逾期';
+    }
+
+    // 項目列（左欄硬白底 z-30 + 右側長條 z-1）
+    const row = el(`<div class="flex items-center py-2 border-b text-[12px] relative" style="border-color:var(--line)">
+      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 z-30 border-r" style="background-color:#ffffff !important;border-color:var(--line)">
+        <div class="truncate font-medium flex items-center gap-1.5" title="${s.name}">
+          <span class="stage-pill text-[9px] text-gray-400">${String(i+1).padStart(2,'0')}</span>
+          <span class="truncate">${s.name}</span>
+        </div>
+        <span class="text-[9px] px-1.5 py-0.5 rounded shrink-0" style="background:${hexToRgba(statusBg, 0.15)};color:${statusBg}">${statusText}</span>
+      </div>
+
+      <div class="flex-1 grid relative items-center h-7" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
+    </div>`);
+
+    const grid = row.querySelector('.grid');
+
+    dateList.forEach(d => {
+      const dt = new Date(d + "T00:00:00");
+      const dayOfWeek = dt.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      const isToday = d === state.todayISO;
+
+      let bgClass = "h-7 border-r border-[var(--line)] ";
+      if (isToday) {
+        bgClass += "bg-amber-100/60 ";
+      } else if (isWeekend) {
+        bgClass += "bg-pink-50/50 ";
+      }
+
+      grid.appendChild(el(`<div class="${bgClass}"></div>`));
+    });
+
+    const isPoint = s.type !== 'range' || duration === 1;
+    let barStyle = `background: ${statusBg};`;
+    
+    if (isPoint) {
+      const centerPercent = ((startOffset + 0.5) / totalDays) * 100;
+      barStyle += ` left: ${centerPercent}%; transform: translateX(-50%); width: 20px; height: 20px; border-radius: 999px;`;
+    } else {
+      barStyle += ` left: calc(${(startOffset / totalDays) * 100}% + 4px); width: calc(${(duration / totalDays) * 100}% - 8px); height: 20px; border-radius: 999px;`;
+    }
+
+    const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-1" 
+      style="${barStyle}">
+      ${!isPoint ? `${duration}天` : ''}
+    </div>`);
+
+    grid.appendChild(bar);
+    table.appendChild(row);
+  });
+
+  trackWrap.appendChild(table);
+  wrap.appendChild(trackWrap);
+  return wrap;
+}
   
   if (!p.stages || p.stages.length === 0) {
     wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-6 text-center">尚未建立任何時程項目，請點擊「＋」開始建立。</div>`));
