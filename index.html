@@ -2697,7 +2697,7 @@ function projectDetailCalendar(p){
   // 表頭日期列
   const headerRow = el(`<div class="flex items-center border-b pb-2 mb-1 text-[10px] font-mono" style="border-color:var(--line);color:var(--ink-soft)">
     <!-- ⭕ 左側固定標頭 (sticky left-0) -->
-    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 bg-white z-30 pr-2 border-r" style="color:var(--ink);border-color:var(--line)">階段項目</div>
+    <div class="w-48 shrink-0 font-sans font-medium text-[11px] sticky left-0 z-30 pr-2 border-r" style="background-color:#ffffff !important;color:var(--ink);border-color:var(--line)">階段項目</div>
     <div class="flex-1 grid" style="grid-template-columns: repeat(${totalDays}, minmax(36px, 1fr));"></div>
   </div>`);
 
@@ -2747,7 +2747,7 @@ function projectDetailCalendar(p){
     // ⭕ 貫穿到底部的橫線 (border-b)
     const row = el(`<div class="flex items-center py-2 border-b text-[12px] relative" style="border-color:var(--line)">
       <!-- ⭕ 凍結左側項目欄 (sticky left-0 + z-20 + 邊框) -->
-      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 bg-white z-20 border-r" style="border-color:var(--line)">
+      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0 sticky left-0 z-30 border-r" style="background-color:#ffffff !important;border-color:var(--line)">
         <div class="truncate font-medium flex items-center gap-1.5" title="${s.name}">
           <span class="stage-pill text-[9px] text-gray-400">${String(i+1).padStart(2,'0')}</span>
           <span class="truncate">${s.name}</span>
@@ -2792,7 +2792,7 @@ function projectDetailCalendar(p){
       barStyle += ` left: calc(${(startOffset / totalDays) * 100}% + 4px); width: calc(${(duration / totalDays) * 100}% - 8px); height: 20px; border-radius: 999px;`;
     }
 
-  const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-10" 
+  const bar = el(`<div class="absolute flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all pointer-events-none z-1" 
       style="${barStyle}">
       ${!isPoint ? `${duration}天` : ''}
     </div>`);
