@@ -2771,11 +2771,6 @@ function projectDetailCalendar(p){
   wrap.appendChild(trackWrap);
   return wrap;
 }
-  
-  if (!p.stages || p.stages.length === 0) {
-    wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-6 text-center">尚未建立任何時程項目，請點擊「＋」開始建立。</div>`));
-    return wrap;
-  }
 
   // 1. 計算最早與最晚日期
   const allDates = [];
