@@ -2073,17 +2073,12 @@ function renderProjectDetail(id){
     function handleStageToggle(checked){
       s.done = checked;
       item.style.borderColor = checked ? p.color : 'var(--line)';
-      item.style.background = i === p.viewStageIndex ? '#B07736' : (checked ? hexToRgba(p.color,0.06) : '#fff');
+      item.style.background = i === p.viewStageIndex ? hexToRgba(p.color,0.12) : (checked ? hexToRgba(p.color,0.06) : '#fff');
       
-      const statusTextEl = item.querySelector('.stage-status-text');
-      if (statusTextEl) {
-        if (checked) {
-          statusTextEl.textContent = '已完成';
-          statusTextEl.style.color = i === p.viewStageIndex ? '#ffffff' : 'var(--good)';
-        } else {
-          statusTextEl.textContent = statusText;
-          statusTextEl.style.color = i === p.viewStageIndex ? '#ffffff' : statusColor;
-        }
+      const statusText = item.querySelector('.stage-status-text');
+      if (statusText) {
+        statusText.textContent = checked ? '已完成' : (isPast ? '已逾期' : '未到期');
+        statusText.style.color = checked ? 'var(--good)' : (isPast ? '#B23A3A' : 'var(--ink-soft)');
       }
 
       saveState();
