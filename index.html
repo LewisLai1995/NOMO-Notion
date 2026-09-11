@@ -1226,8 +1226,35 @@ function projectCreateModal(){
     const contactName = form.querySelector('#fContact').value.trim();
     const contactPhone = form.querySelector('#fPhone').value.trim();
     const cDate = form.querySelector('#fDate').value||addDays(state.todayISO,30);
-    state.projects.push({ id:"p"+uid(), name, client, budget, dealAmount, contactName, contactPhone, constructionDate:cDate, viewStageIndex:null, color:randomColor, settled:false, settlement:null, contractors:[],
-      stages: [] });
+    // ⭕ 自動計算預設結案日期 (預設為預計進場施工日 + 60 天)
+    const defaultSettledDate = addDays(cDate, 60);
+
+    state.projects.push({ 
+      id: "p" + uid(), 
+      name, client, budget, dealAmount, contactName, contactPhone, 
+      constructionDate: cDate, 
+      viewStageIndex: 0, 
+      color: randomColor, 
+      settled: false, 
+      settlement: null, 
+      contractors: [],
+      // ⭕ 建立專案時自動預置「結案」單日卡片
+      stages: [
+        {
+          name: "結案",
+          type: "point",
+          date: defaultSettledDate,
+          endDate: null,
+          done: false,
+          note: "包含發票開立、尾款追蹤與最終實際成本/毛利結算。",
+          checklist: [
+            { label: "確認發票開立抬頭與統編", done: false },
+            { label: "確認客戶尾款已撥款入帳", done: false },
+            { label: "核對施工與工班實際花費發票/收據", done: false }
+          ]
+        }
+      ] 
+    });
     closeModal(); commit();
   });
   return form;
@@ -2233,64 +2260,109 @@ function renderProjectDetail(id){
 }
 function highlightStage(inner,p){ inner.querySelectorAll('.flex-1').forEach((c,ci)=>{ const st=p.stages[ci]; c.style.background = ci===p.viewStageIndex ? hexToRgba(p.color,0.12) : (st.done?hexToRgba(p.color,0.06):'#fff'); }); }
 function projectDetailCalendar(p){
-  const wrap = el(`<div class="card rounded-xl p-5"></div>`);
-  wrap.innerHTML = `<div class="text-[13px] font-medium mb-4">「${p.name}」專屬行事曆總覽</div>`;
+  const wrap = el(`<div class="card rounded-xl p-5 overflow-hidden"></div>`);
+  wrap.innerHTML = `<div class="text-[13px] font-medium mb-1">「${p.name}」專屬時間軸 Timeline</div>
+    <div class="text-[11px] mb-4" style="color:var(--ink-soft)">直覺掌握單日里程碑與跨日工期區間之時間重疊關係。</div>`;
   
   if (!p.stages || p.stages.length === 0) {
-    wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-4 text-center">尚未建立任何時程項目</div>`));
+    wrap.appendChild(el(`<div class="text-[12px] text-gray-400 py-6 text-center">尚未建立任何時程項目，請點擊「＋ 新增客製時程」開始建立。</div>`));
     return wrap;
   }
 
-  const grid = el(`<div class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>`);
+  // 1. 計算所有時程的最早與最晚日期，建立時間軸涵蓋範圍
+  const allDates = [];
+  p.stages.forEach(s => {
+    if (s.date) allDates.push(s.date);
+    if (s.endDate) allDates.push(s.endDate);
+  });
+  
+  if (!allDates.length) return wrap;
 
+  allDates.sort();
+  // 軸線前後各多擴展 2 天，留出呼吸感
+  const minDate = addDays(allDates[0], -2);
+  const maxDate = addDays(allDates[allDates.length - 1], 2);
+  const totalDays = Math.max(7, diffDays(minDate, maxDate) + 1);
+
+  const dateList = [];
+  for (let i = 0; i < totalDays; i++) {
+    dateList.push(addDays(minDate, i));
+  }
+
+  // 2. 建立 Timeline 表頭與網格容器
+  const trackWrap = el(`<div class="overflow-x-auto scrollbar-thin"></div>`);
+  const table = el(`<div class="min-w-[700px]"></div>`);
+
+  // 表頭日期列
+  const headerRow = el(`<div class="flex items-center border-b pb-2 mb-2 text-[10px] font-mono" style="border-color:var(--line);color:var(--ink-soft)">
+    <div class="w-48 shrink-0 font-sans font-medium text-[11px]" style="color:var(--ink)">階段項目</div>
+    <div class="flex-1 grid" style="grid-template-columns: repeat(${totalDays}, minmax(32px, 1fr));"></div>
+  </div>`);
+
+  const headerGrid = headerRow.querySelector('.grid');
+  dateList.forEach(d => {
+    const isToday = d === state.todayISO;
+    const dayNum = d.slice(8);
+    headerGrid.appendChild(el(`<div class="text-center font-mono ${isToday ? 'font-bold text-red-600' : ''}">
+      <div>${dayNum}</div>
+      <div class="text-[8px] opacity-60">${fmt(d).split('/')[0]}月</div>
+    </div>`));
+  });
+  table.appendChild(headerRow);
+
+  // 3. 渲染各階段的 Timeline 軌道
   p.stages.forEach((s, i) => {
-    const isRange = s.type === 'range' && s.endDate && s.endDate !== s.date;
-    const dateText = isRange ? `${fmt(s.date)} ~ ${fmt(s.endDate)}` : fmt(s.date);
-    
-    // ⭕ 狀態計算
-    const today = state.todayISO;
     const startDate = s.date;
-    const endDate = isRange ? s.endDate : s.date;
+    const endDate = s.type === 'range' && s.endDate ? s.endDate : s.date;
 
+    const startOffset = Math.max(0, diffDays(minDate, startDate));
+    const duration = Math.max(1, diffDays(startDate, endDate) + 1);
+
+    // 狀態判定
+    const today = state.todayISO;
     const isDone = s.done;
     const isInProgress = !isDone && startDate && endDate && today >= startDate && today <= endDate;
     const isPast = !isDone && endDate && today > endDate;
 
+    let statusBg = p.color;
     let statusText = '未到期';
-    let statusColor = 'var(--ink-soft)';
+    if (isDone) { statusBg = 'var(--good)'; statusText = '已完成'; }
+    else if (isInProgress) { statusBg = '#2563EB'; statusText = '進行中'; }
+    else if (isPast) { statusBg = '#B23A3A'; statusText = '已逾期'; }
 
-    if (isDone) {
-      statusText = '已完成';
-      statusColor = 'var(--good)';
-    } else if (isInProgress) {
-      statusText = isRange ? '進行中' : '今日到期';
-      statusColor = '#2563EB';
-    } else if (isPast) {
-      statusText = '已逾期';
-      statusColor = '#B23A3A';
-    }
-
-    const card = el(`<div class="rounded-lg p-3 border flex items-center justify-between transition-all" style="border-color:${s.done ? p.color : 'var(--line)'};background:${s.done ? hexToRgba(p.color, 0.08) : '#fff'}">
-      <div class="flex items-center gap-3">
-        <span class="stage-pill shrink-0" style="color:var(--ink-soft)">${String(i+1).padStart(2,'0')}</span>
-        <div>
-          <div class="text-[13px] font-medium flex items-center gap-1.5">
-            <span>${isRange ? '📅' : '📍'}</span>
-            <span>${s.name}</span>
-          </div>
-          <div class="text-[11px] font-mono mt-0.5" style="color:var(--ink-soft)">
-            ${isRange ? `<span class="tag py-0 px-1.5 text-[9px] mr-1" style="border-color:${p.color};color:${p.color}">跨日區間</span>` : ''}
-            ${dateText}
-          </div>
+    const row = el(`<div class="flex items-center py-2 border-b last:border-b-0 text-[12px]" style="border-color:var(--line)">
+      <div class="w-48 shrink-0 pr-3 flex items-center justify-between min-w-0">
+        <div class="truncate font-medium flex items-center gap-1.5" title="${s.name}">
+          <span class="stage-pill text-[9px] text-gray-400">${String(i+1).padStart(2,'0')}</span>
+          <span class="truncate">${s.name}</span>
         </div>
+        <span class="text-[9px] px-1.5 py-0.5 rounded shrink-0" style="background:${hexToRgba(statusBg, 0.15)};color:${statusBg}">${statusText}</span>
       </div>
-      <span class="text-[11px] font-medium shrink-0" style="color:${statusColor}">${statusText}</span>
+      <div class="flex-1 grid relative items-center" style="grid-template-columns: repeat(${totalDays}, minmax(32px, 1fr));"></div>
     </div>`);
 
-    grid.appendChild(card);
+    const grid = row.querySelector('.grid');
+
+    // 背景格線
+    dateList.forEach(d => {
+      const isToday = d === state.todayISO;
+      grid.appendChild(el(`<div class="h-7 border-r border-gray-100 ${isToday ? 'bg-red-50/40' : ''}"></div>`));
+    });
+
+    // 軸線上圖條 (Bar / Point)
+    const bar = el(`<div class="absolute h-5 rounded-full flex items-center justify-center text-[9px] font-mono font-medium text-white shadow-sm transition-all" 
+      style="left: calc(${(startOffset / totalDays) * 100}% + 2px); 
+             width: calc(${(duration / totalDays) * 100}% - 4px); 
+             background: ${statusBg};">
+      ${s.type === 'range' && duration > 1 ? `${duration}天` : ''}
+    </div>`);
+
+    grid.appendChild(bar);
+    table.appendChild(row);
   });
 
-  wrap.appendChild(grid);
+  trackWrap.appendChild(table);
+  wrap.appendChild(trackWrap);
   return wrap;
 }
 
