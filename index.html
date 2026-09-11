@@ -1619,7 +1619,7 @@ function contractorRow(p, c){
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span>
       <span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
-      <button class="edit-btn text-[13px]" title="編輯">✏️</button>
+      <button class="edit-btn text-[13px]" title="編輯">編輯</button>
       <button class="del-btn text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button>
     </div></div>`);
 
@@ -1868,7 +1868,6 @@ function renderProjectDetail(id){
         </div>
         <div class="stage-name-btn text-[12px] font-medium mb-2 leading-tight hover:underline flex items-center gap-1" title="點擊修改階段名稱">
           <span>${s.name}</span>
-          <span class="text-[10px] ${isSelected ? 'opacity-80' : 'opacity-40'}">✏️</span>
         </div>
         <input type="date" value="${s.date}" class="text-[11px] font-mono w-full border rounded px-1 py-0.5 mb-1" style="border-color:${isSelected ? 'rgba(255,255,255,0.4)' : 'var(--line)'};background:transparent;color:${isSelected ? '#ffffff' : 'inherit'}"/>
       </div>
