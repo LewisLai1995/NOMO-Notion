@@ -1619,18 +1619,30 @@ function contractorRow(p, c){
     <div class="flex items-center gap-2 shrink-0">
       <span class="font-mono text-[11px]" style="color:var(--ink-soft)">進場 ${c.arrival?fmt(c.arrival):'—'}</span>
       <span class="font-mono text-[12px]" style="color:var(--ink-soft)">${c.phone}</span>
-      <button class="text-[13px]" title="編輯">✏️</button>
-      <button class="text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button>
+      <button class="edit-btn text-[13px]" title="編輯">✏️</button>
+      <button class="del-btn text-[13px]" style="color:var(--ink-soft)" title="刪除">×</button>
     </div></div>`);
 
-  // 切換「曾合作過」狀態
+  // ⭕ 無感區域即時更新：點擊切換樣式 + 背景存檔，不重整頁面
   const coopBtn = row.querySelector('.coop-btn');
-  coopBtn.addEventListener('click', () => {
+  coopBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     c.isCooperated = !c.isCooperated;
-    commit();
+
+    if (c.isCooperated) {
+      coopBtn.textContent = '★ 曾合作過';
+      coopBtn.className = 'coop-btn tag shrink-0 cursor-pointer transition-colors bg-green-50 text-green-700 border-green-300';
+    } else {
+      coopBtn.textContent = '＋ 標記已合作';
+      coopBtn.className = 'coop-btn tag shrink-0 cursor-pointer transition-colors text-gray-400 border-gray-200 hover:border-gray-400';
+    }
+
+    saveState(); // 靜默同步雲端，不觸發 render()
   });
 
-  const [editBtn, delBtn] = row.querySelectorAll('button:not(.coop-btn)');
+  const editBtn = row.querySelector('.edit-btn');
+  const delBtn = row.querySelector('.del-btn');
+
   editBtn.addEventListener('click', ()=>{
     promptModal('編輯工班聯絡人', [
       {key:'name', label:'姓名/公司', value:c.name},
@@ -1642,7 +1654,12 @@ function contractorRow(p, c){
       commit();
     });
   });
-  delBtn.addEventListener('click', ()=>{ p.contractors = p.contractors.filter(x=>x.id!==c.id); commit(); });
+
+  delBtn.addEventListener('click', ()=>{ 
+    p.contractors = p.contractors.filter(x=>x.id!==c.id); 
+    commit(); 
+  });
+
   return row;
 }
 
