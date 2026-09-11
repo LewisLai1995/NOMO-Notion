@@ -1623,8 +1623,11 @@ function renderProjectDetail(id){
   const body = el(`<div></div>`);
   if(state.detailTab==='calendar'){ body.appendChild(projectDetailCalendar(p)); wrap.appendChild(body); return wrap; }
 
-  // 1. 預先建立筆記容器結構
+  // 1. 預先建構筆記與確認清單 DOM
   const noteWrap = el(`<div class="grid grid-cols-2 gap-5 mb-6"></div>`);
+  const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
+  const checkBox = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">確認清單</div><div class="flex flex-col gap-2" id="clist"></div><button class="text-[12px] mt-3" id="addCheck" style="color:${color}">＋ 新增項目</button></div>`);
+  noteWrap.append(noteBox, checkBox);
 
   // 2. 時程軸卡片容器
   const timelineCard = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
@@ -1766,7 +1769,7 @@ function renderProjectDetail(id){
     inner.appendChild(item);
   };
 
-  // 4. 重繪軌道函式
+  // 4. 重繪軌道與面板函式
   const rebuildStageTrack = () => {
     inner.innerHTML = '';
     p.stages.forEach((stg, stgIdx) => renderSingleStageCard(stg, stgIdx));
@@ -1778,11 +1781,7 @@ function renderProjectDetail(id){
   timelineCard.appendChild(track); 
   wrap.appendChild(timelineCard);
 
-  // 5. 筆記與確認清單
-  const noteBox = el(`<div class="card rounded-xl p-5"><div class="flex items-center justify-between mb-3"><div class="text-[13px] font-medium" id="stageTitle"></div><div class="flex items-center gap-2"><button id="prevStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">‹</button><span id="stagePos" class="text-[11px] font-mono" style="color:var(--ink-soft)"></span><button id="nextStage" class="w-6 h-6 rounded border text-[12px]" style="border-color:var(--line)">›</button></div></div><textarea class="w-full h-28 text-[13px] border rounded-lg p-3 resize-none" style="border-color:var(--line)" placeholder="輸入這個階段的筆記..."></textarea></div>`);
-  const checkBox = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">確認清單</div><div class="flex flex-col gap-2" id="clist"></div><button class="text-[12px] mt-3" id="addCheck" style="color:${color}">＋ 新增項目</button></div>`);
-  noteWrap.append(noteBox, checkBox);
-  
+  // 5. 綁定筆記區導覽事件並裝載面板
   noteBox.querySelector('#prevStage').addEventListener('click', ()=>{ if(p.viewStageIndex>0){ p.viewStageIndex--; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
   noteBox.querySelector('#nextStage').addEventListener('click', ()=>{ if(p.viewStageIndex<p.stages.length-1){ p.viewStageIndex++; refreshStagePanel(p, noteWrap); highlightStage(inner,p); } });
   
