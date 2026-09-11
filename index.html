@@ -1208,50 +1208,163 @@ function projectCreateModal(){
   const getNextFriday = (isoDate) => {
     const [y, m, d] = isoDate.split('-').map(Number);
     const date = new Date(y, m - 1, d);
-    // 先推算至隔天
     date.setDate(date.getDate() + 1);
-    // 0 = 週日, 1 = 週一, ..., 5 = 週五, 6 = 週六
     while (date.getDay() !== 5) {
       date.setDate(date.getDate() + 1);
     }
     return toISO(date);
   };
 
-  const defaultStartDate = addDays(state.todayISO, 30);
-  const defaultEndDate = addDays(state.todayISO, 35);
+  // 預設日期區間狀態（預設 30 天後）
+  let startDate = addDays(state.todayISO, 30);
+  let endDate = addDays(state.todayISO, 35);
 
-  const form = el(`<div><div class="font-display font-bold text-[19px] mb-4" style="color:${state.theme.project}">建立新專案</div><div class="flex flex-col gap-3">
-    <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱 <span style="color:#B23A3A">*</span><input id="fName" type="text" placeholder="例如：森之光 — 台北當代館特展" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/><span id="fNameErr" class="text-[11px] hidden" style="color:#B23A3A">請輸入專案名稱</span></label>
-    <label class="text-[12px]" style="color:var(--ink-soft)">客戶<input id="fClient" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
+  // 以當前月曆為基準
+  let currYear = new Date().getFullYear();
+  let currMonth = new Date().getMonth(); // 0 ~ 11
+
+  const form = el(`<div>
+    <div class="font-display font-bold text-[19px] mb-3" style="color:${state.theme.project}">建立新專案</div>
     
-    <div class="grid grid-cols-2 gap-3">
-      <label class="text-[12px]" style="color:var(--ink-soft)">預算成本<input id="fBudget" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">談定金額<input id="fDeal" type="number" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-    </div>
-
-    <div class="grid grid-cols-2 gap-3">
-      <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名<input id="fContact" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-      <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話<input id="fPhone" type="text" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/></label>
-    </div>
-
-    <!-- ⭕ 展覽日期區間設定 -->
-    <div class="border-t pt-3 mt-1" style="border-color:var(--line)">
-      <div class="text-[12px] font-medium mb-2" style="color:var(--ink)">展覽日期區間（自動生成展期與結案卡片）</div>
-      <div class="grid grid-cols-2 gap-3">
-        <label class="text-[12px]" style="color:var(--ink-soft)">展覽開始日
-          <input id="fExStart" type="date" value="${defaultStartDate}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    <div class="flex flex-col gap-2.5">
+      <label class="text-[12px]" style="color:var(--ink-soft)">專案名稱 <span style="color:#B23A3A">*</span>
+        <input id="fName" type="text" placeholder="例如：森之光 — 台北當代館特展" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        <span id="fNameErr" class="text-[11px] hidden" style="color:#B23A3A">請輸入專案名稱</span>
+      </label>
+      
+      <label class="text-[12px]" style="color:var(--ink-soft)">客戶
+        <input id="fClient" type="text" placeholder="請輸入客戶名稱" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+      
+      <div class="grid grid-cols-2 gap-2.5">
+        <label class="text-[12px]" style="color:var(--ink-soft)">預算成本
+          <input id="fBudget" type="number" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
         </label>
-        <label class="text-[12px]" style="color:var(--ink-soft)">展覽結束日
-          <input id="fExEnd" type="date" value="${defaultEndDate}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+        <label class="text-[12px]" style="color:var(--ink-soft)">談定金額
+          <input id="fDeal" type="number" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
         </label>
       </div>
-    </div>
-  </div>
 
-  <div class="flex justify-end gap-2 mt-5">
-    <button id="fCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
-    <button id="fSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${state.theme.project};color:${contrastText(state.theme.project)}">建立專案</button>
-  </div></div>`);
+      <div class="grid grid-cols-2 gap-2.5">
+        <label class="text-[12px]" style="color:var(--ink-soft)">窗口姓名
+          <input id="fContact" type="text" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">窗口電話
+          <input id="fPhone" type="text" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
+
+      <!-- ⭕ 訂房網站風格月曆選取區塊 -->
+      <div class="border-t pt-2.5 mt-1" style="border-color:var(--line)">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="text-[12px] font-medium" style="color:var(--ink)">選擇展覽日期區間：</div>
+          <div id="rangeDisplay" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+            ${startDate} ➔ ${endDate}
+          </div>
+        </div>
+
+        <div class="border rounded-xl p-2.5 bg-white" style="border-color:var(--line)">
+          <!-- 月曆標頭切換 -->
+          <div class="flex items-center justify-between mb-1.5 px-1">
+            <button type="button" id="prevM" class="text-[11px] px-2 py-0.5 border rounded hover:bg-gray-100">‹ 上個月</button>
+            <span id="mTitle" class="text-[12px] font-bold font-mono"></span>
+            <button type="button" id="nextM" class="text-[11px] px-2 py-0.5 border rounded hover:bg-gray-100">下個月 ›</button>
+          </div>
+
+          <!-- 星期抬頭 -->
+          <div class="grid grid-cols-7 text-center text-[10px] text-gray-400 font-medium mb-1">
+            <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+          </div>
+
+          <!-- 日期方格 -->
+          <div id="calGrid" class="grid grid-cols-7 gap-y-1 text-center text-[11px] font-mono"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 按鈕區 -->
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="fCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="fSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${state.theme.project};color:${contrastText(state.theme.project)}">建立專案</button>
+    </div>
+  </div>`);
+
+  // ⭕ 訂房網月曆核心渲染邏輯
+  const renderCalendar = () => {
+    const grid = form.querySelector('#calGrid');
+    const mTitle = form.querySelector('#mTitle');
+    const rangeDisplay = form.querySelector('#rangeDisplay');
+    grid.innerHTML = '';
+
+    mTitle.textContent = `${currYear} 年 ${currMonth + 1} 月`;
+
+    if (startDate === endDate) {
+      rangeDisplay.textContent = `${startDate} (請點選展覽結束日)`;
+    } else {
+      rangeDisplay.textContent = `${startDate}  ➔  ${endDate}`;
+    }
+
+    const firstDay = new Date(currYear, currMonth, 1).getDay();
+    const daysInMonth = new Date(currYear, currMonth + 1, 0).getDate();
+
+    // 填補空白
+    for (let i = 0; i < firstDay; i++) {
+      grid.appendChild(el(`<div></div>`));
+    }
+
+    // 渲染日期按鈕
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dStr = `${currYear}-${String(currMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      
+      const isStart = dStr === startDate;
+      const isEnd = dStr === endDate;
+      const isInRange = startDate && endDate && dStr > startDate && dStr < endDate;
+
+      let cellClass = "py-1 cursor-pointer rounded-md transition-all ";
+
+      if (isStart && isEnd) {
+        cellClass += "bg-[#B07736] text-white font-bold rounded-md";
+      } else if (isStart) {
+        cellClass += "bg-[#B07736] text-white font-bold rounded-l-md rounded-r-none";
+      } else if (isEnd) {
+        cellClass += "bg-[#B07736] text-white font-bold rounded-r-md rounded-l-none";
+      } else if (isInRange) {
+        cellClass += "bg-amber-100 text-amber-900 rounded-none";
+      } else {
+        cellClass += "hover:bg-gray-100 text-gray-700";
+      }
+
+      const dayCell = el(`<div class="${cellClass}">${d}</div>`);
+
+      // 點擊選取邏輯 (訂房網體驗)
+      dayCell.addEventListener('click', () => {
+        if (!startDate || (startDate && endDate !== startDate)) {
+          startDate = dStr;
+          endDate = dStr;
+        } else if (dStr < startDate) {
+          startDate = dStr;
+          endDate = dStr;
+        } else {
+          endDate = dStr;
+        }
+        renderCalendar();
+      });
+
+      grid.appendChild(dayCell);
+    }
+  };
+
+  // 月份切換事件
+  form.querySelector('#prevM').addEventListener('click', () => {
+    currMonth--;
+    if (currMonth < 0) { currMonth = 11; currYear--; }
+    renderCalendar();
+  });
+  form.querySelector('#nextM').addEventListener('click', () => {
+    currMonth++;
+    if (currMonth > 11) { currMonth = 0; currYear++; }
+    renderCalendar();
+  });
 
   const nameInput = form.querySelector('#fName');
   const nameErr = form.querySelector('#fNameErr');
@@ -1268,34 +1381,34 @@ function projectCreateModal(){
     const contactName = form.querySelector('#fContact').value.trim();
     const contactPhone = form.querySelector('#fPhone').value.trim();
 
-    let exStart = form.querySelector('#fExStart').value || defaultStartDate;
-    let exEnd = form.querySelector('#fExEnd').value || defaultEndDate;
+    // 確保結束日不早於開始日
+    if (endDate < startDate) endDate = startDate;
 
-    // 邏輯防護：若結束日早於開始日，自動將結束日推齊為開始日
-    if (exEnd < exStart) exEnd = exStart;
-
-    // ⭕ 自動計算展覽結束後的第一個週五
-    const fridaySettlementDate = getNextFriday(exEnd);
+    // 自動計算展後第一個週五
+    const fridaySettlementDate = getNextFriday(endDate);
 
     state.projects.push({ 
       id: "p" + uid(), 
       name, client, budget, dealAmount, contactName, contactPhone, 
-      constructionDate: exStart, 
+      constructionDate: startDate, 
       viewStageIndex: 0, 
       color: randomColor, 
       settled: false, 
       settlement: null, 
       contractors: [],
-      // ⭕ 自動預置「展覽展期」與「結案」兩張關鍵卡片
+      // ⭕ 自動建立帶有選取展期與第一個週五結案日期的時程卡片
       stages: [
         {
           name: "展覽展期",
           type: "range",
-          date: exStart,
-          endDate: exEnd,
+          date: startDate,
+          endDate: endDate,
           done: false,
           note: "現場展出營運期，包含每日展場巡視與現場維護。",
-          checklist: []
+          checklist: [
+            { label: "確認展場燈光與影音設備開啟", done: false },
+            { label: "展品狀況每日巡檢記錄", done: false }
+          ]
         },
         {
           name: "結案",
@@ -1317,6 +1430,8 @@ function projectCreateModal(){
     commit();
   });
 
+  // 初次渲染月曆
+  renderCalendar();
   return form;
 }
 function editProjectModal(p){
@@ -1885,7 +2000,7 @@ function refreshStagePanel(p, container){
   if (!p.stages || p.stages.length === 0) {
     container.querySelector('#stageTitle').textContent = `尚未建立階段筆記`;
     const ta = container.querySelector('textarea');
-    if (ta) { ta.value = ''; ta.placeholder = '請先點擊上方「＋ 新增客製時程」建立第一個階段卡片...'; }
+    if (ta) { ta.value = ''; ta.placeholder = '請先點擊上方「＋」建立第一個階段卡片...'; }
     const clist = container.querySelector('#clist');
     if (clist) clist.innerHTML = `<div class="text-[12px]" style="color:var(--ink-soft)">尚無卡片項目</div>`;
     container.querySelector('#stagePos').textContent = `0 / 0`;
@@ -1894,26 +2009,89 @@ function refreshStagePanel(p, container){
 
   const cur = p.stages[p.viewStageIndex] || p.stages[0];
   container.querySelector('#stageTitle').textContent = `「${cur.name}」階段筆記`;
+  
+  // 筆記區域綁定
   const ta = container.querySelector('textarea');
-  ta.value = cur.note; ta.oninput = e=>{ cur.note=e.target.value; }; ta.onchange = ()=> saveState();
+  ta.value = cur.note || ''; 
+  ta.oninput = e => { cur.note = e.target.value; }; 
+  ta.onchange = () => saveState();
+
+  // 確認清單渲染與新增區塊
   const clist = container.querySelector('#clist');
+  const addCheckBtn = container.querySelector('#addCheck');
+
+  // 1. 渲染清單列表（含勾選框與刪除按鈕）
   function renderChecklist(){
-    clist.innerHTML='';
-    if(!cur.checklist.length) clist.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">尚無項目</div>`));
-    cur.checklist.forEach(c=>{
-      const row = el(`<div class="flex items-center gap-2 text-[13px]"></div>`);
-      const cb = checkboxEl(c.done, checked=>{ c.done=checked; span.style.color=checked?'var(--ink-soft)':'var(--ink)'; span.style.textDecoration=checked?'line-through':'none'; saveState(); });
-      const span = el(`<span style="color:${c.done?'var(--ink-soft)':'var(--ink)'};${c.done?'text-decoration:line-through;':''}">${c.label}</span>`);
-      row.append(cb,span); clist.appendChild(row);
-    });
+    clist.innerHTML = '';
+    
+    if (!cur.checklist || !cur.checklist.length) {
+      clist.appendChild(el(`<div class="text-[12px] placeholder-row" style="color:var(--ink-soft)">尚無確認項目，可在下方直接輸入新增</div>`));
+    } else {
+      cur.checklist.forEach((item, idx) => {
+        const row = el(`<div class="flex items-center gap-2 text-[13px] group py-0.5"></div>`);
+        
+        // 勾選框（使用客製流暢 Checkbox）
+        const cb = checkboxEl(item.done, checked => {
+          item.done = checked;
+          span.style.color = checked ? 'var(--ink-soft)' : 'var(--ink)';
+          span.style.textDecoration = checked ? 'line-through' : 'none';
+          saveState();
+        });
+
+        // 內容文字
+        const span = el(`<span class="flex-1 min-w-0 truncate" style="color:${item.done ? 'var(--ink-soft)' : 'var(--ink)'};${item.done ? 'text-decoration:line-through;' : ''}">${item.label}</span>`);
+
+        // 刪除按鈕
+        const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)" title="刪除">×</button>`);
+        del.addEventListener('click', () => {
+          cur.checklist.splice(idx, 1);
+          renderChecklist();
+          saveState();
+        });
+
+        row.append(cb, span, del);
+        clist.appendChild(row);
+      });
+    }
   }
+
   renderChecklist();
-  container.querySelector('#addCheck').onclick = ()=>{
-    promptModal('新增確認項目', [{key:'label', label:'項目內容'}], (v)=>{
-      if(v.label){ cur.checklist.push({label:v.label,done:false}); renderChecklist(); saveState(); }
-    });
-  };
-  container.querySelector('#stagePos').textContent = `${p.viewStageIndex+1} / ${p.stages.length}`;
+
+  // 2. 替換舊有的「＋ 新增項目」按鈕為「直覺單行輸入框」
+  if (addCheckBtn) {
+    const parentBox = addCheckBtn.parentElement;
+    addCheckBtn.remove(); // 移除舊按鈕
+
+    // 檢查是否已存在輸入框列，若無則插入
+    let addRow = parentBox.querySelector('.check-add-row');
+    if (!addRow) {
+      const color = state.theme.project;
+      addRow = el(`<div class="check-add-row flex gap-1.5 pt-3 mt-2 border-t" style="border-color:var(--line)">
+        <input id="newCheckText" type="text" placeholder="新增確認事項…" class="flex-1 text-[12px] border rounded-lg px-2.5 py-1.5 outline-none focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
+        <button id="newCheckSubmit" class="text-[12px] px-3 py-1.5 rounded-lg font-medium shrink-0" style="background:${color};color:${contrastText(color)}">＋</button>
+      </div>`);
+
+      const submitCheck = () => {
+        const inp = addRow.querySelector('#newCheckText');
+        const v = inp.value.trim();
+        if (v) {
+          cur.checklist.push({ label: v, done: false });
+          inp.value = '';
+          renderChecklist();
+          saveState();
+        }
+      };
+
+      addRow.querySelector('#newCheckSubmit').addEventListener('click', submitCheck);
+      addRow.querySelector('#newCheckText').addEventListener('keydown', e => {
+        if (e.key === 'Enter') submitCheck();
+      });
+
+      parentBox.appendChild(addRow);
+    }
+  }
+
+  container.querySelector('#stagePos').textContent = `${p.viewStageIndex + 1} / ${p.stages.length}`;
 }
 function projectTodoCard(p){
   const color = state.theme.project;
