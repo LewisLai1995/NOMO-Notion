@@ -2508,7 +2508,7 @@ function projectDetailCalendar(p){
 
   wrap.appendChild(topRow);
 
-  // ⭕ Excel 匯出邏輯（完整修正字串與 CSS 閉合）
+  // ⭕ Excel 匯出邏輯
   topRow.querySelector('#exportExcelBtn').addEventListener('click', () => {
     if (!p.stages || !p.stages.length) {
       alertModal('目前沒有時程資料可匯出。');
