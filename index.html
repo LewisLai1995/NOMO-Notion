@@ -1947,13 +1947,10 @@ function projectMiniCalendar(){
       }
     });
 
-    // ⭕ 移除 overflow-hidden 允許線條向左右溢出貫穿，並設定 relative 確保層級對齊
+// ⭕ 修正版 cell 元件（移除 overflow-hidden，確保語法單一閉合）
     const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-between transition-all relative" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
       <span class="text-[11px] font-medium leading-none mt-0.5 relative z-10">${d}</span>
       <div class="w-full flex flex-col justify-end min-h-[14px] px-0 relative z-1">${indicatorsHtml}</div>
-    </button>`);
-      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
-      <div class="w-full flex flex-col justify-end min-h-[14px] px-0.5">${indicatorsHtml}</div>
     </button>`);
     
     cell.addEventListener('click', () => {
