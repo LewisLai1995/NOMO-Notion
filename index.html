@@ -1897,17 +1897,16 @@ function projectMiniCalendar(){
     panel.appendChild(el(`<div class="text-[12px] font-medium mb-2">${fmt(sel)} 的專案節點</div>`));
     const items = eventsByDate[sel] || [];
     if(!items.length) panel.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有專案節點。</div>`));
-    // ⭕ 若已完成，名稱後方自動加上「已完成」綠底深綠字標籤
+
+    // ⭕ 已完成標籤直接緊貼於時程名稱後面
     items.forEach(it => {
       const doneTag = it.done 
-        ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-green-700 border border-green-200 shrink-0">已完成</span>` 
+        ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-green-700 border border-green-200 shrink-0 ml-1">已完成</span>` 
         : '';
         
-      panel.appendChild(el(`<div class="text-[12px] mb-1 flex items-center justify-between gap-2" style="color:var(--ink-soft)">
-        <div class="flex items-center gap-1.5 min-w-0 truncate">
-          <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${it.color}"></span>
-          <span class="truncate">${it.name}</span>
-        </div>
+      panel.appendChild(el(`<div class="text-[12px] mb-1.5 flex items-center justify-start gap-1.5" style="color:var(--ink-soft)">
+        <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${it.color}"></span>
+        <span class="truncate">${it.name}</span>
         ${doneTag}
       </div>`));
     });
