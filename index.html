@@ -1919,39 +1919,47 @@ function projectMiniCalendar(){
     const isToday = iso === state.todayISO;
     const isSel = iso === state.projectCalSelected;
 
-    // ⭕ 統一定位邏輯：圓點固定正中央、三角形固定右下角
-    let indicatorsHtml = '';
-    evts.slice(0, 3).forEach(e => {
-      if (e.type === 'range') {
+    // ⭕ 統一水平對齊邏輯：圓點居中、三角形靠右，共用底部基準線
+    let pointHtml = '';
+    let rangeHtml = '';
+
+    evts.forEach(e => {
+      if (e.type === 'range' && !rangeHtml) {
         const isBoundary = e.isStart || e.isEnd;
-        
         if (isBoundary) {
-          // 實心向右三角形 ▶ (固定於右下角)
-          indicatorsHtml += `<div class="absolute bottom-1 right-1 flex items-center justify-center pointer-events-none" title="${e.name}">
+          // 實心向右三角形 ▶
+          rangeHtml = `<div class="flex items-center justify-center shrink-0" title="${e.name}">
             <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="${e.color}"/>
             </svg>
           </div>`;
         } else {
-          // 過程：空心向右三角形 ▷ (固定於右下角)
-          indicatorsHtml += `<div class="absolute bottom-1 right-1 flex items-center justify-center pointer-events-none" title="${e.name}">
+          // 過程：空心向右三角形 ▷
+          rangeHtml = `<div class="flex items-center justify-center shrink-0" title="${e.name}">
             <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" stroke="${e.color}" stroke-width="1.4" fill="none"/>
             </svg>
           </div>`;
         }
-      } else {
-        // 單日節點：固定於正中央（稍微偏下避開日期數字）
-        indicatorsHtml += `<div class="absolute inset-x-0 bottom-2.5 flex justify-center items-center pointer-events-none" title="${e.name}">
-          <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${e.color};"></div>
-        </div>`;
+      } else if (e.type === 'point' && !pointHtml) {
+        // 單日圓點
+        pointHtml = `<div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${e.color};" title="${e.name}"></div>`;
       }
     });
 
-    // ⭕ cell 按鈕容器（設為 relative 以支援內部絕對定位）
-    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-start transition-all relative overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
-      <span class="text-[11px] font-medium leading-none mt-0.5 relative z-10">${d}</span>
-      ${indicatorsHtml}
+    // ⭕ cell 按鈕容器：頂部為日期數字，底部為統一對齊的指標區域
+    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col justify-between items-center transition-all relative overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
+      <div class="w-full flex items-center justify-center relative h-3 mb-0.5">
+        <!-- 置中的圓點 -->
+        <div class="flex items-center justify-center">
+          ${pointHtml}
+        </div>
+        <!-- 靠右的三角形 -->
+        <div class="absolute right-0 flex items-center justify-center">
+          ${rangeHtml}
+        </div>
+      </div>
     </button>`);
     
     cell.addEventListener('click', () => {
