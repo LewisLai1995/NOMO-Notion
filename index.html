@@ -1838,26 +1838,30 @@ function projectMiniCalendar(){
   const startWeekday = firstDay.getDay(); 
   const daysInMonth = new Date(y, mo, 0).getDate();
   
-  // ⭕ 支援跨日區間：將 start 到 end 的每一天都登記至月曆中
+  // ⭕ 整理日期事件：區分單日節點 (point) 與跨日區間 (range)
   const eventsByDate = {};
   state.projects.forEach(p => p.stages.forEach(s => {
     const startDate = s.date;
     const endDate = (s.type === 'range' && s.endDate) ? s.endDate : s.date;
 
-    if (startDate && endDate) {
+    if (startDate && endDate && startDate !== endDate && s.type === 'range') {
       const duration = diffDays(startDate, endDate);
-      // 巡迴區間內的每一天
       for (let i = 0; i <= duration; i++) {
         const d = addDays(startDate, i);
         (eventsByDate[d] = eventsByDate[d] || []).push({
-          name: `「${p.name}」${s.name}${s.type === 'range' ? ` (${i+1}/${duration+1}天)` : ''}`, 
-          color: p.color
+          name: `「${p.name}」${s.name} (${i+1}/${duration+1}天)`, 
+          color: p.color,
+          type: 'range',
+          isStart: i === 0,
+          isEnd: i === duration,
+          isMiddle: i > 0 && i < duration
         });
       }
     } else if (startDate) {
       (eventsByDate[startDate] = eventsByDate[startDate] || []).push({
         name: `「${p.name}」${s.name}`, 
-        color: p.color
+        color: p.color,
+        type: 'point'
       });
     }
   }));
@@ -1900,10 +1904,26 @@ function projectMiniCalendar(){
     const isToday = iso === state.todayISO;
     const isSel = iso === state.projectCalSelected;
 
-    // ⭕ 自訂簡潔方格（不套用含有比例約束的 cal-cell），預設高度 42px，呈現比例極佳
-    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1.5 flex flex-col items-center justify-between transition-all" style="height:42px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
-      <span class="text-[11px] font-medium leading-none">${d}</span>
-      <span class="flex gap-1 h-1.5 items-center">${evts.slice(0, 3).map(e => `<span class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${e.color}"></span>`).join('')}</span>
+    // 渲染微型標示：單日為點，跨日為貫穿橫條
+    let indicatorsHtml = '';
+    evts.slice(0, 2).forEach(e => {
+      if (e.type === 'range') {
+        // 跨日拉線樣式
+        let borderRadius = '0px';
+        if (e.isStart) borderRadius = '4px 0 0 4px';
+        if (e.isEnd) borderRadius = '0 4px 4px 0';
+        if (e.isStart && e.isEnd) borderRadius = '4px';
+
+        indicatorsHtml += `<div class="h-1.5 w-full my-0.5" style="background:${e.color}; border-radius:${borderRadius}; opacity:0.85;" title="${e.name}"></div>`;
+      } else {
+        // 單日圓點樣式
+        indicatorsHtml += `<div class="w-1.5 h-1.5 rounded-full shrink-0 my-0.5 mx-auto" style="background:${e.color};" title="${e.name}"></div>`;
+      }
+    });
+
+    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-between transition-all overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
+      <div class="w-full flex flex-col justify-end min-h-[14px] px-0.5">${indicatorsHtml}</div>
     </button>`);
     
     cell.addEventListener('click', () => {
