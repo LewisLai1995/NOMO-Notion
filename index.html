@@ -1831,10 +1831,15 @@ function editSettlementModal(p) {
   return form;
 }
 function projectMiniCalendar(){
-  // ⭕ 1. 確保初始化年月：若無設定則依據當前今天 (todayISO) 自動帶入
+  // ⭕ 1. 確保初始化年月與選取日期：若未指定 selected 則自動對齊 Today
   const todayDateObj = state.todayISO ? new Date(state.todayISO + "T00:00:00") : new Date();
   if (!state.projectCalMonth) {
     state.projectCalMonth = `${todayDateObj.getFullYear()}-${String(todayDateObj.getMonth() + 1).padStart(2, '0')}`;
+  }
+  
+  // 👈 加上這行：如果沒有選取日期，自動鎖定為今天的日期 (Today)
+  if (!state.projectCalSelected) {
+    state.projectCalSelected = state.todayISO;
   }
 
   const [y, mo] = state.projectCalMonth.split('-').map(Number);
