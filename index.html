@@ -1156,13 +1156,37 @@ function renderToday(){
 
 /* ============================================================ PROJECT LOG ============================================================ */
 function projectListRow(p){
-  const status = projectStatus(p); const sc = statusColor(status); const idx = currentStageIndex(p);
+  const status = projectStatus(p); 
+  const sc = statusColor(status); 
+  
+  // ⭕ 精準抓取第一個未完成的階段；若全數完成則抓取最後一個階段
+  const unfinishedStage = (p.stages && p.stages.length) 
+    ? (p.stages.find(s => !s.done) || p.stages[p.stages.length - 1]) 
+    : null;
+  const currentStageName = unfinishedStage ? unfinishedStage.name : '—';
+
+  // 計算進度條比例
+  const doneCount = (p.stages && p.stages.length) ? p.stages.filter(s => s.done).length : 0;
+  const totalCount = (p.stages && p.stages.length) || 1;
+  const progressPercent = (doneCount / totalCount) * 100;
+
   const d = diffDays(state.todayISO, p.constructionDate);
+  
   const row = el(`<button class="w-full flex items-center justify-between gap-4 px-4 py-3.5 text-left border-b last:border-b-0 hover:bg-[color:var(--paper-deep)] transition-colors" style="border-color:var(--line);">
-    <div class="flex items-center gap-3 min-w-0"><span class="w-2 h-2 rounded-full shrink-0" style="background:${p.color}"></span><span class="tag shrink-0" style="border-color:${sc};color:${sc}">${status}</span><span class="font-display font-medium text-[14px] truncate">${p.name}</span></div>
-    <div class="flex items-center gap-4 shrink-0"><span class="text-[12px] hidden sm:inline" style="color:var(--ink-soft)">${STAGES[idx]}</span>
-      <div class="w-24 h-1.5 rounded-full hidden md:block" style="background:var(--paper-deep)"><div class="h-1.5 rounded-full" style="width:${(idx/(STAGES.length-1))*100}%;background:${p.color}"></div></div>
-      <span class="text-[11px] font-mono w-12 text-right" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span></div></button>`);
+    <div class="flex items-center gap-3 min-w-0">
+      <span class="w-2 h-2 rounded-full shrink-0" style="background:${p.color}"></span>
+      <span class="tag shrink-0" style="border-color:${sc};color:${sc}">${status}</span>
+      <span class="font-display font-medium text-[14px] truncate">${p.name}</span>
+    </div>
+    <div class="flex items-center gap-4 shrink-0">
+      <span class="text-[12px] hidden sm:inline font-medium" style="color:var(--ink-soft)">${currentStageName}</span>
+      <div class="w-24 h-1.5 rounded-full hidden md:block" style="background:var(--paper-deep)">
+        <div class="h-1.5 rounded-full" style="width:${progressPercent}%;background:${p.color}"></div>
+      </div>
+      <span class="text-[11px] font-mono w-12 text-right" style="color:var(--ink-soft)">${d>=0?`D-${d}`:`D+${-d}`}</span>
+    </div>
+  </button>`);
+
   row.addEventListener('click', ()=>{ state.route="projectlog"; state.detailProjectId=p.id; state.detailTab="main"; render(); });
   return row;
 }
