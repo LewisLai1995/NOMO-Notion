@@ -1919,7 +1919,7 @@ function projectMiniCalendar(){
     const isToday = iso === state.todayISO;
     const isSel = iso === state.projectCalSelected;
 
-    // ⭕ 支援多個專案跨日三角形平行並排（不重疊）
+    // ⭕ 支援最多 3 個專案跨日三角形平行並排（不擠壓重疊）
     let pointHtml = '';
     let rangeArray = [];
 
@@ -1929,14 +1929,14 @@ function projectMiniCalendar(){
         if (isBoundary) {
           // 實心向右三角形 ▶
           rangeArray.push(`<div class="flex items-center justify-center shrink-0" title="${e.name}">
-            <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+            <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="${e.color}"/>
             </svg>
           </div>`);
         } else {
           // 過程：空心向右三角形 ▷
           rangeArray.push(`<div class="flex items-center justify-center shrink-0" title="${e.name}">
-            <svg width="8" height="8" viewBox="0 0 10 10" fill="none">
+            <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" stroke="${e.color}" stroke-width="1.4" fill="none"/>
             </svg>
           </div>`);
@@ -1947,7 +1947,7 @@ function projectMiniCalendar(){
       }
     });
 
-    // ⭕ cell 按鈕容器：置中圓點 + 右側彈性並排三角形區塊 (最多顯示 2-3 個)
+    // ⭕ cell 按鈕容器：置中圓點 + 右側可容納最多 3 個三角形的並排區塊
     const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col justify-between items-center transition-all relative overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
       <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
       <div class="w-full flex items-center justify-center relative h-3 mb-0.5">
@@ -1955,9 +1955,9 @@ function projectMiniCalendar(){
         <div class="flex items-center justify-center">
           ${pointHtml}
         </div>
-        <!-- 靠右側平行的三角形容器 (gap-0.5 確保多個三角形水平一字排開不重疊) -->
-        <div class="absolute right-0 flex items-center justify-end gap-0.5 max-w-[60%] overflow-hidden">
-          ${rangeArray.slice(0, 2).join('')}
+        <!-- 靠右側平行的三角形容器 (放寬 slice(0, 3) 讓 3 個專案都能完整顯示) -->
+        <div class="absolute right-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
+          ${rangeArray.slice(0, 3).join('')}
         </div>
       </div>
     </button>`);
