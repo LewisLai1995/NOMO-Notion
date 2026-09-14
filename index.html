@@ -1705,6 +1705,91 @@ function settlementModal(p, onCancel){
   });
   return form;
 }
+  // ⭕ 編輯已結算專案財務資料彈窗
+function editSettlementModal(p) {
+  const color = state.theme.finance;
+  const st = p.settlement || {};
+  const inv = st.invoice || {};
+
+  const form = el(`<div>
+    <div class="font-display font-bold text-[19px] mb-1" style="color:${color}">編輯專案財務結算</div>
+    <p class="text-[12px] mb-4" style="color:var(--ink-soft)">修改「${p.name}」的結算數據，儲存後經營績效與發票資訊將自動即時更新。</p>
+    
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">主案議定金額 <span style="color:#B23A3A">*</span>
+      <input id="stDeal" type="number" value="${p.dealAmount || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    </label>
+    
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">追加金額
+      <input id="stAdd" type="number" value="${st.additionalAmount || 0}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    </label>
+    
+    <label class="text-[12px] block mb-4" style="color:var(--ink-soft)">實際成本 <span style="color:#B23A3A">*</span>
+      <input id="stCost" type="number" value="${st.actualCost || 0}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    </label>
+    
+    <div class="border-t pt-4 mb-3" style="border-color:var(--line)">
+      <div class="text-[11px] font-mono tracking-widest mb-3" style="color:${color}">發票資訊</div>
+    </div>
+    
+    <div class="grid grid-cols-2 gap-3 mb-1">
+      <label class="text-[12px]" style="color:var(--ink-soft)">抬頭 <span style="color:#B23A3A">*</span>
+        <input id="stInvTitle" type="text" value="${inv.title || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+      <label class="text-[12px]" style="color:var(--ink-soft)">統一編號 <span style="color:#B23A3A">*</span>
+        <input id="stInvTax" type="text" value="${inv.taxId || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+    </div>
+    
+    <label class="text-[12px] block mb-1" style="color:var(--ink-soft)">地址 <span style="color:#B23A3A">*</span>
+      <input id="stInvAddr" type="text" value="${inv.address || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    </label>
+    
+    <label class="text-[12px] block mb-2" style="color:var(--ink-soft)">含稅金額 <span style="color:#B23A3A">*</span>
+      <input id="stInvAmt" type="number" value="${inv.amountWithTax || ''}" class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>
+    </label>
+    
+    <div id="stErr" class="text-[12px] mb-2 hidden" style="color:#B23A3A">請完整填寫所有必填欄位（含發票資訊）。</div>
+    
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="stCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="stSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存修改</button>
+    </div>
+  </div>`);
+
+  form.querySelector('#stCancel').addEventListener('click', closeModal);
+  form.querySelector('#stSubmit').addEventListener('click', () => {
+    const dealAmountFinal = parseFloat(form.querySelector('#stDeal').value);
+    const additionalAmount = parseFloat(form.querySelector('#stAdd').value) || 0;
+    const actualCost = parseFloat(form.querySelector('#stCost').value);
+    const invoiceTitle = form.querySelector('#stInvTitle').value.trim();
+    const invoiceTax = form.querySelector('#stInvTax').value.trim();
+    const invoiceAddr = form.querySelector('#stInvAddr').value.trim();
+    const invoiceAmt = parseFloat(form.querySelector('#stInvAmt').value);
+
+    const valid = dealAmountFinal > 0 && actualCost >= 0 && !isNaN(actualCost) && invoiceTitle && invoiceTax && invoiceAddr && invoiceAmt > 0;
+    if (!valid) {
+      form.querySelector('#stErr').classList.remove('hidden');
+      return;
+    }
+
+    p.dealAmount = dealAmountFinal;
+    p.settlement = {
+      additionalAmount,
+      actualCost,
+      invoice: {
+        title: invoiceTitle,
+        taxId: invoiceTax,
+        address: invoiceAddr,
+        amountWithTax: invoiceAmt
+      }
+    };
+
+    closeModal();
+    commit(); // 重新渲染畫面並觸發 Firebase 雲端背景同步
+  });
+
+  return form;
+}
 function projectMiniCalendar(){
   const [y,mo] = state.projectCalMonth.split('-').map(Number);
   
