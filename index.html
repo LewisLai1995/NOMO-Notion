@@ -1838,9 +1838,28 @@ function projectMiniCalendar(){
   const startWeekday = firstDay.getDay(); 
   const daysInMonth = new Date(y, mo, 0).getDate();
   
+  // ⭕ 支援跨日區間：將 start 到 end 的每一天都登記至月曆中
   const eventsByDate = {};
-  state.projects.forEach(p => p.stages.forEach(s => { 
-    (eventsByDate[s.date] = eventsByDate[s.date] || []).push({name: `「${p.name}」${s.name}`, color: p.color}); 
+  state.projects.forEach(p => p.stages.forEach(s => {
+    const startDate = s.date;
+    const endDate = (s.type === 'range' && s.endDate) ? s.endDate : s.date;
+
+    if (startDate && endDate) {
+      const duration = diffDays(startDate, endDate);
+      // 巡迴區間內的每一天
+      for (let i = 0; i <= duration; i++) {
+        const d = addDays(startDate, i);
+        (eventsByDate[d] = eventsByDate[d] || []).push({
+          name: `「${p.name}」${s.name}${s.type === 'range' ? ` (${i+1}/${duration+1}天)` : ''}`, 
+          color: p.color
+        });
+      }
+    } else if (startDate) {
+      (eventsByDate[startDate] = eventsByDate[startDate] || []).push({
+        name: `「${p.name}」${s.name}`, 
+        color: p.color
+      });
+    }
   }));
   
   const wrap = el(`<div class="card rounded-xl p-5 mb-6 w-full"></div>`);
