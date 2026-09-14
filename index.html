@@ -954,32 +954,84 @@ function agentPageHeader(roleId,eyebrow,title){
 /* ============================================================ TODAY'S SCOPE ============================================================ */
 function derivedItemsFor(roleId, dateISO){
   const items = [];
-  if(roleId==="project") state.projects.filter(p=>!p.settled).forEach(p=> p.stages.forEach(s=>{ if(s.date===dateISO) items.push(`「${p.name}」進入「${s.name}」階段`); }));
-  if(roleId==="finance" && isBiweeklyReviewDate(dateISO)) items.push("雙週資產盤點日：核對銀行餘額");
+  if(roleId==="project") {
+    state.projects.filter(p => !p.settled).forEach(p => {
+      p.stages.forEach(s => {
+        const startDate = s.date;
+        const endDate = (s.type === 'range' && s.endDate) ? s.endDate : s.date;
+
+        // ⭕ 判斷此日期是否落在該時程區間內 (包含單日與跨日)
+        if (startDate && endDate && dateISO >= startDate && dateISO <= endDate) {
+          const isDone = s.done;
+          const doneTagHtml = isDone 
+            ? `<span class="text-[9px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-green-700 border border-green-200 shrink-0 ml-1">已完成</span>` 
+            : '';
+
+          if (s.type === 'range' && startDate !== endDate) {
+            const duration = diffDays(startDate, endDate) + 1;
+            const currentDay = diffDays(startDate, dateISO) + 1;
+            items.push({
+              text: `「${p.name}」${s.name} (${currentDay}/${duration}天)`,
+              doneTag: doneTagHtml
+            });
+          } else {
+            items.push({
+              text: `「${p.name}」進入「${s.name}」階段`,
+              doneTag: doneTagHtml
+            });
+          }
+        }
+      });
+    });
+  }
+  if(roleId==="finance" && isBiweeklyReviewDate(dateISO)) {
+    items.push({ text: "雙週資產盤點日：核對銀行餘額", doneTag: "" });
+  }
   return items;
 }
 function weekDates(offset){ const base = addDays(state.todayISO, offset*7); return [...Array(7)].map((_,i)=>addDays(base,i)); }
 function countAgentItems(roleId, dateISO){
-  if(roleId==="project") return state.projects.filter(p=>!p.settled).reduce((n,p)=>n+p.stages.filter(s=>s.date===dateISO).length,0);
-  if(roleId==="life") return state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date===dateISO).length;
-  return isBiweeklyReviewDate(dateISO)?1:0;
+  if(roleId==="project") {
+    let count = 0;
+    state.projects.filter(p => !p.settled).forEach(p => {
+      p.stages.forEach(s => {
+        const startDate = s.date;
+        const endDate = (s.type === 'range' && s.endDate) ? s.endDate : s.date;
+        if (startDate && endDate && dateISO >= startDate && dateISO <= endDate) {
+          count++;
+        }
+      });
+    });
+    return count;
+  }
+  if(roleId==="life") return state.personaEvents.filter(e => eventKind(e) === 'schedule' && e.date === dateISO).length;
+  return isBiweeklyReviewDate(dateISO) ? 1 : 0;
 }
 function buildDayDetail(dateISO){
-  // Calendar/schedule view (NOT the todo list) — project stage dates, persona events, finance review dates.
   const wrap = el(`<div class="flex flex-col gap-3"></div>`);
   const sources = [
     {id:"project", items: derivedItemsFor("project", dateISO)},
-    {id:"life", items: state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date===dateISO).map(e=>e.text||'（未命名）')},
+    {id:"life", items: state.personaEvents.filter(e => eventKind(e) === 'schedule' && e.date === dateISO).map(e => ({ text: e.text || '（未命名）', doneTag: '' }))},
     {id:"finance", items: derivedItemsFor("finance", dateISO)},
   ];
-  sources.forEach(({id,items})=>{
+
+  sources.forEach(({id, items}) => {
     if(!state.agentsEnabled[id] || !items.length) return;
     const color = state.theme[id];
     const group = el(`<div></div>`);
     group.innerHTML = `<div class="flex items-center gap-1.5 mb-1"><span class="w-1.5 h-1.5 rounded-full" style="background:${color}"></span><span class="text-[11px] font-mono tracking-widest" style="color:${color}">${ROLE_META[id].label}的行程（${state.nicknames[id]}）</span></div>`;
-    items.forEach(txt=> group.appendChild(el(`<div class="text-[13px] mb-1 pl-3" style="color:var(--ink)">・${txt}</div>`)));
+    
+    // ⭕ 渲染行程文字並緊貼「已完成」標籤
+    items.forEach(it => {
+      group.appendChild(el(`<div class="text-[13px] mb-1 pl-3 flex items-center justify-start gap-1" style="color:var(--ink)">
+        <span>・${it.text}</span>
+        ${it.doneTag || ''}
+      </div>`));
+    });
+    
     wrap.appendChild(group);
   });
+
   if(!wrap.children.length) wrap.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">這天沒有排定的行程。</div>`));
   return wrap;
 }
