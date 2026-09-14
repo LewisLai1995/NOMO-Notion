@@ -1919,37 +1919,39 @@ function projectMiniCalendar(){
     const isToday = iso === state.todayISO;
     const isSel = iso === state.projectCalSelected;
 
-    // ⭕ 微型標示：單日為圓點，跨日使用實心/空心向右三角形 (▶ / ▷)
+    // ⭕ 統一定位邏輯：圓點固定正中央、三角形固定右下角
     let indicatorsHtml = '';
-    evts.slice(0, 2).forEach(e => {
+    evts.slice(0, 3).forEach(e => {
       if (e.type === 'range') {
-        // 起點與終點：實心三角形 ▶ / 過程：空心三角形 ▷
         const isBoundary = e.isStart || e.isEnd;
         
         if (isBoundary) {
-          // 實心向右三角形 (SVG)
-          indicatorsHtml += `<div class="flex justify-center items-center my-0.5" title="${e.name}">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          // 實心向右三角形 ▶ (固定於右下角)
+          indicatorsHtml += `<div class="absolute bottom-1 right-1 flex items-center justify-center pointer-events-none" title="${e.name}">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="${e.color}"/>
             </svg>
           </div>`;
         } else {
-          // 過程：空心向右三角形 (SVG)
-          indicatorsHtml += `<div class="flex justify-center items-center my-0.5" title="${e.name}">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          // 過程：空心向右三角形 ▷ (固定於右下角)
+          indicatorsHtml += `<div class="absolute bottom-1 right-1 flex items-center justify-center pointer-events-none" title="${e.name}">
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
               <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" stroke="${e.color}" stroke-width="1.4" fill="none"/>
             </svg>
           </div>`;
         }
       } else {
-        // 單日節點：維持精緻小圓點
-        indicatorsHtml += `<div class="w-1.5 h-1.5 rounded-full shrink-0 my-0.5 mx-auto" style="background:${e.color};" title="${e.name}"></div>`;
+        // 單日節點：固定於正中央（稍微偏下避開日期數字）
+        indicatorsHtml += `<div class="absolute inset-x-0 bottom-2.5 flex justify-center items-center pointer-events-none" title="${e.name}">
+          <div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${e.color};"></div>
+        </div>`;
       }
     });
 
-const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-between transition-all overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
-      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
-      <div class="w-full flex justify-center gap-1 min-h-[14px] px-0.5 items-center">${indicatorsHtml}</div>
+    // ⭕ cell 按鈕容器（設為 relative 以支援內部絕對定位）
+    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-start transition-all relative overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none mt-0.5 relative z-10">${d}</span>
+      ${indicatorsHtml}
     </button>`);
     
     cell.addEventListener('click', () => {
