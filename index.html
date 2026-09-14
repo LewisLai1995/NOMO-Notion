@@ -1838,7 +1838,7 @@ function projectMiniCalendar(){
   const startWeekday = firstDay.getDay(); 
   const daysInMonth = new Date(y, mo, 0).getDate();
   
-  // ⭕ 整理日期事件：區分單日節點 (point) 與跨日區間 (range)
+  // ⭕ 整理日期事件：區分單日節點 (point) 與跨日區間 (range) 之起點/過程/終點
   const eventsByDate = {};
   state.projects.forEach(p => p.stages.forEach(s => {
     const startDate = s.date;
@@ -1851,8 +1851,8 @@ function projectMiniCalendar(){
         (eventsByDate[d] = eventsByDate[d] || []).push({
           name: `「${p.name}」${s.name} (${i+1}/${duration+1}天)`, 
           color: p.color,
-          done: s.done,
           type: 'range',
+          done: s.done,
           isStart: i === 0,
           isEnd: i === duration,
           isMiddle: i > 0 && i < duration
@@ -1861,9 +1861,9 @@ function projectMiniCalendar(){
     } else if (startDate) {
       (eventsByDate[startDate] = eventsByDate[startDate] || []).push({
         name: `「${p.name}」${s.name}`, 
-        done: s.done,
         color: p.color,
-        type: 'point'
+        type: 'point',
+        done: s.done
       });
     }
   }));
@@ -1919,38 +1919,37 @@ function projectMiniCalendar(){
     const isToday = iso === state.todayISO;
     const isSel = iso === state.projectCalSelected;
 
-    // ⭕ 渲染微型標示：單日為點，跨日為貫穿全格不間斷橫線
+    // ⭕ 微型標示：單日為圓點，跨日使用實心/空心向右三角形 (▶ / ▷)
     let indicatorsHtml = '';
     evts.slice(0, 2).forEach(e => {
       if (e.type === 'range') {
-        // 透過 negative margin (-mx-1.5) 與 width 突破方格內距，實現無縫接合
-        let style = `background:${e.color}; opacity:0.9; height:6px;`;
+        // 起點與終點：實心三角形 ▶ / 過程：空心三角形 ▷
+        const isBoundary = e.isStart || e.isEnd;
         
-        if (e.isStart && e.isEnd) {
-          // 單天內的跨日（只有一天）：保持獨立膠囊狀
-          style += ` border-radius: 999px; margin: 2px 2px;`;
-        } else if (e.isStart) {
-          // 起始日：左側圓角，右側向外拉延伸破格
-          style += ` border-radius: 999px 0 0 999px; margin-left: 2px; margin-right: -6px; width: calc(100% + 4px);`;
-        } else if (e.isEnd) {
-          // 結束日：左側延伸破格，右側圓角
-          style += ` border-radius: 0 999px 999px 0; margin-left: -6px; margin-right: 2px; width: calc(100% + 4px);`;
+        if (isBoundary) {
+          // 實心向右三角形 (SVG)
+          indicatorsHtml += `<div class="flex justify-center items-center my-0.5" title="${e.name}">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="${e.color}"/>
+            </svg>
+          </div>`;
         } else {
-          // 中間日：左右雙向延伸破格，達成完全無縫貫穿
-          style += ` border-radius: 0; margin-left: -6px; margin-right: -6px; width: calc(100% + 12px);`;
+          // 過程：空心向右三角形 (SVG)
+          indicatorsHtml += `<div class="flex justify-center items-center my-0.5" title="${e.name}">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" stroke="${e.color}" stroke-width="1.4" fill="none"/>
+            </svg>
+          </div>`;
         }
-
-        indicatorsHtml += `<div class="relative z-1 my-0.5" style="${style}" title="${e.name}"></div>`;
       } else {
-        // 單日圓點樣式
-        indicatorsHtml += `<div class="w-1.5 h-1.5 rounded-full shrink-0 my-0.5 mx-auto relative z-1" style="background:${e.color};" title="${e.name}"></div>`;
+        // 單日節點：維持精緻小圓點
+        indicatorsHtml += `<div class="w-1.5 h-1.5 rounded-full shrink-0 my-0.5 mx-auto" style="background:${e.color};" title="${e.name}"></div>`;
       }
     });
 
-// ⭕ 修正版 cell 元件（移除 overflow-hidden，確保語法單一閉合）
-    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-between transition-all relative" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
-      <span class="text-[11px] font-medium leading-none mt-0.5 relative z-10">${d}</span>
-      <div class="w-full flex flex-col justify-end min-h-[14px] px-0 relative z-1">${indicatorsHtml}</div>
+const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col items-center justify-between transition-all overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
+      <div class="w-full flex justify-center gap-1 min-h-[14px] px-0.5 items-center">${indicatorsHtml}</div>
     </button>`);
     
     cell.addEventListener('click', () => {
