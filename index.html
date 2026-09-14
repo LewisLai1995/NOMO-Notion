@@ -2167,18 +2167,50 @@ function renderProjectDetail(id){
   headRow.appendChild(btnRow); 
   wrap.appendChild(headRow);
 
+  // ⭕ 結案經營績效卡片 (含編輯結算資料功能)
   if(p.settled && p.settlement){
     const revenue = p.dealAmount + (p.settlement.additionalAmount||0);
-    const cost = p.settlement.actualCost||0; const profit = revenue-cost; const margin = revenue? (profit/revenue*100):0;
+    const cost = p.settlement.actualCost||0; 
+    const profit = revenue - cost; 
+    const margin = revenue ? (profit / revenue * 100) : 0;
+
     const perf = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
-    perf.innerHTML = `<div class="text-[13px] font-medium mb-3">經營績效</div>`;
+    
+    // ⭕ 標頭加上「編輯結算資料」按鈕
+    const perfHead = el(`<div class="flex items-center justify-between mb-3">
+      <div class="text-[13px] font-medium">經營績效</div>
+      <button id="editSettlementBtn" class="text-[11px] px-2.5 py-1 rounded border font-medium flex items-center gap-1 transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--line);color:var(--ink)">
+        ✏️ 編輯結算資料
+      </button>
+    </div>`);
+
+    // ⭕ 點擊編輯按鈕開啟編輯彈窗
+    perfHead.querySelector('#editSettlementBtn').addEventListener('click', () => {
+      openModal(editSettlementModal(p));
+    });
+
+    perf.appendChild(perfHead);
+
     const statsGrid = el(`<div class="grid grid-cols-3 gap-4 mb-4"></div>`);
-    const stat=(l,v)=>`<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">${l}</div><div class="text-[18px] font-display font-bold">NT$ ${Math.round(v).toLocaleString()}</div></div>`;
-    statsGrid.innerHTML = stat('總營收',revenue) + stat('利潤',profit) + `<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">毛利率</div><div class="text-[18px] font-display font-bold">${margin.toFixed(1)}%</div></div>`;
+    const stat = (l,v) => `<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">${l}</div><div class="text-[18px] font-display font-bold">NT$ ${Math.round(v).toLocaleString()}</div></div>`;
+    statsGrid.innerHTML = stat('總營收', revenue) + stat('利潤', profit) + `<div><div class="text-[10px] font-mono tracking-widest mb-0.5" style="color:var(--ink-soft)">毛利率</div><div class="text-[18px] font-display font-bold">${margin.toFixed(1)}%</div></div>`;
     perf.appendChild(statsGrid);
+
     const canvasWrap = el(`<div style="max-width:220px;"><canvas id="perfChart"></canvas></div>`);
-    perf.appendChild(canvasWrap); wrap.appendChild(perf);
-    setTimeout(()=> new Chart(canvasWrap.querySelector('canvas'), {type:'pie', data:{labels:['成本','利潤'], datasets:[{data:[cost,Math.max(profit,0)], backgroundColor:[hexToRgba('#B5654A',0.75), hexToRgba('#7A8B6F',0.8)]}]}, options:{plugins:{legend:{labels:{font:{size:11}}}}}}), 0);
+    perf.appendChild(canvasWrap); 
+    wrap.appendChild(perf);
+
+    setTimeout(() => new Chart(canvasWrap.querySelector('canvas'), {
+      type: 'pie', 
+      data: {
+        labels: ['成本', '利潤'], 
+        datasets: [{
+          data: [cost, Math.max(profit, 0)], 
+          backgroundColor: [hexToRgba('#B5654A', 0.75), hexToRgba('#7A8B6F', 0.8)]
+        }]
+      }, 
+      options: { plugins: { legend: { labels: { font: { size: 11 } } } } }
+    }), 0);
   }
 
   const infoBar = el(`<div class="card rounded-xl p-5 mb-6"></div>`);
