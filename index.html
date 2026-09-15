@@ -986,9 +986,18 @@ function render(){
   document.getElementById('todayLabel').textContent = state.todayISO.slice(5).replace('-','/');
   const view = document.getElementById('view');
   view.innerHTML=''; view.classList.remove('fade-in'); void view.offsetWidth; view.classList.add('fade-in');
-  if(state.route==="today"){ view.appendChild(renderToday()); initMascotScene(document.getElementById('mascotScene')); }
-  else {
-    if(mascotWalkTimer){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; }
+  if(state.route==="today"){ 
+    view.appendChild(renderToday()); 
+    initMascotScene(document.getElementById('mascotScene')); 
+  } else {
+    // ⭕ 離開 Today 頁面時，清除所有石頭的獨立動作計時器
+    Object.keys(mascotTimers).forEach(id => {
+      if (mascotTimers[id]) { 
+        clearTimeout(mascotTimers[id]); 
+        delete mascotTimers[id]; 
+      }
+    });
+
     if(state.route==="projectlog") view.appendChild(state.detailProjectId ? renderProjectDetail(state.detailProjectId) : renderProjectLog());
     else if(state.route==="persona") view.appendChild(renderPersona());
     else if(state.route==="reserve") view.appendChild(renderReserve());
