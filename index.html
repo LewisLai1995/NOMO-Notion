@@ -651,8 +651,9 @@ function citySkylineSVG(){
     ${buildings}
   </svg>`;
 }
+// ⭕ 補上全域 openMascot 宣告與獨立定時器容器
 const mascotState = ROLE_IDS.reduce((acc,id,i)=>{ acc[id]={x:20+i*90}; return acc; },{});
-// ⭕ 為每個角色紀錄獨立的計時器 ID
+let openMascot = null;
 const mascotTimers = {};
 
 function initMascotScene(sceneEl){
