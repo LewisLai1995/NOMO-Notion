@@ -401,7 +401,6 @@ state.finance.bank = [];
 state.finance.expense = [];
 state.finance.plan = [];
 
-// 3. 整合型 loadState 函式
 async function loadState() {
   // 若未登入，強制清空動態資料並刷新 UI
   if (!window.db || !window.doc || !window.currentUser) {
@@ -420,16 +419,16 @@ async function loadState() {
     const docRef = window.doc(window.db, "appData", window.currentUser.uid);
     const docSnap = await window.getDoc(docRef);
     
-  if (docSnap.exists()) {
-    const data = docSnap.data();
-   if (data.jsonPayload) {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data.jsonPayload) {
         Object.assign(state, JSON.parse(data.jsonPayload));
       } else {
         Object.assign(state, data);
       }
       state.route = "today"; // 重整載入後鎖定 Today 主頁
       
-      // ⭕ 強制將日常 Persona 的月份與選取日期對齊為今天的當地日期
+      // ⭕ 強制將日期與週對齊為今天
       state.todayISO = todayISO();
       state.weekOffset = 0;
       state.weekSelectedDate = state.todayISO;
@@ -448,6 +447,8 @@ async function loadState() {
   }
 
   if (typeof normalizeFinanceShape === "function") normalizeFinanceShape();
+  
+  // ⭕ 只有在 Firebase 資料完整寫入 state 之後，才執行唯一一次 render()
   if (typeof render === "function") render();
 }
 // 3. 全域掛載，確保 SDK 與 Auth 可以順利呼叫
@@ -3927,7 +3928,10 @@ function renderConnections(){
 }
 
 /* ============================================================ INIT ============================================================ */
-(async function init(){ await loadState(); render(); })();
+// ⭕ 確保 loadState 完成並載入雲端資料後，才進行一次性 UI 繪製
+(async function init(){ 
+  await loadState(); 
+})();
 </script>
 </body>
 </html>
