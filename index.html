@@ -52,6 +52,7 @@ onAuthStateChanged(auth, async (user) => {
   const userInfo = document.getElementById("user-info");
   const userName = document.getElementById("user-name");
   const mainContainer = document.querySelector("main");
+  const loadingOverlay = document.getElementById("auth-loading-overlay");
 
   if (user) {
     window.currentUser = user;
@@ -59,7 +60,6 @@ onAuthStateChanged(auth, async (user) => {
     if (userInfo) userInfo.style.display = "flex";
     if (userName) userName.textContent = `${user.displayName}`;
 
-    // 🔓 解鎖並移除遮罩點擊監聽
     if (mainContainer) {
       mainContainer.classList.remove("app-locked");
       mainContainer.onclick = null;
@@ -71,7 +71,6 @@ onAuthStateChanged(auth, async (user) => {
     if (loginBtn) loginBtn.style.display = "inline-block";
     if (userInfo) userInfo.style.display = "none";
 
-    // 🔒 上鎖，並讓使用者點擊 main 區域任意處即可觸發登入
     if (mainContainer) {
       mainContainer.classList.add("app-locked");
       mainContainer.onclick = () => {
@@ -81,6 +80,12 @@ onAuthStateChanged(auth, async (user) => {
       };
     }
     if (typeof loadState === "function") await loadState();
+  }
+
+  // ⭕ Firebase Auth 判定與資料載入完畢，平滑淡出並移除 Loading 遮罩
+  if (loadingOverlay) {
+    loadingOverlay.style.opacity = "0";
+    setTimeout(() => loadingOverlay.remove(), 250);
   }
 });
 </script>
@@ -98,7 +103,18 @@ onAuthStateChanged(auth, async (user) => {
   position: relative;
   user-select: none;
 }
-
+/* ⭕ Firebase Auth 判斷期間的全頁遮罩 */
+#auth-loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--paper);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s ease;
+}
 .app-locked::after {
   content: "點擊畫面登入使用 NOMO.notion";
   position: absolute;
@@ -169,6 +185,11 @@ onAuthStateChanged(auth, async (user) => {
 </style>
 </head>
 <body class="paper-texture min-h-screen">
+  <!-- ⭕ Auth 驗證中遮罩 -->
+<div id="auth-loading-overlay">
+  <div class="font-display font-bold text-[18px] mb-2" style="color:var(--ink)">NOMO.notion</div>
+  <div class="text-[11px] font-mono tracking-widest text-gray-400">LOADING...</div>
+</div>
 <div id="app" class="flex min-h-screen">
   <aside class="w-[220px] shrink-0 border-r flex flex-col justify-between py-6 px-4 sticky top-0 h-screen overflow-y-auto scrollbar-thin" style="border-color:var(--line);">
     <div>
