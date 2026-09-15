@@ -1061,21 +1061,86 @@ function weekStrip(){
   return wrap;
 }
 function fillWeekGrid(grid){
-  grid.innerHTML='';
+  grid.innerHTML = '';
   const sel = state.weekSelectedDate || state.todayISO;
-  weekDates(state.weekOffset).forEach(d=>{
-    const projN = countAgentItems('project',d), lifeN = countAgentItems('life',d), finN = countAgentItems('finance',d);
-    const isToday = d===state.todayISO, isSel = d===sel;
-    const cell = el(`<button class="rounded-lg p-2 text-center" style="background:${isSel?'var(--paper-deep)':'transparent'};border:1.5px solid ${isSel?'var(--ink)':(isToday?'var(--ink-soft)':'var(--line)')};">
-      <div class="text-[10px]" style="color:var(--ink-soft)">${new Date(d+"T00:00:00").toLocaleDateString('zh-TW',{weekday:'short'})}</div>
-      <div class="text-[13px] font-display font-semibold mb-1">${fmt(d)}</div>
-      <div class="flex items-center justify-center gap-1 h-2">
-        ${projN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.project}"></span>`:''}
-        ${lifeN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.life}"></span>`:''}
-        ${finN?`<span class="w-1.5 h-1.5 rounded-full" style="background:${state.theme.finance}"></span>`:''}
-        ${(!projN&&!lifeN&&!finN)?`<span class="w-1 h-1 rounded-full" style="background:var(--line)"></span>`:''}
-      </div></button>`);
-    cell.addEventListener('click', ()=>{ state.weekSelectedDate=d; refreshWeekStrip(); });
+
+  weekDates(state.weekOffset).forEach(d => {
+    const isToday = d === state.todayISO;
+    const isSel = d === sel;
+
+    // ⭕ 收集當天所有 Agent 的指標 (專案跨日區分起/中/終三角形、單日為圓點)
+    let pointHtml = '';
+    let rangeArray = [];
+
+    // 1. 專案指標判斷
+    if (state.agentsEnabled.project) {
+      state.projects.filter(p => !p.settled).forEach(p => {
+        p.stages.forEach(s => {
+          const startDate = s.date;
+          const endDate = (s.type === 'range' && s.endDate) ? s.endDate : s.date;
+
+          if (startDate && endDate && d >= startDate && d <= endDate) {
+            if (s.type === 'range' && startDate !== endDate) {
+              const isStart = d === startDate;
+              const isEnd = d === endDate;
+              const isBoundary = isStart || isEnd;
+
+              if (isBoundary) {
+                // 實心向右三角形 ▶ (起點/終點)
+                rangeArray.push(`<div class="flex items-center justify-center shrink-0" title="「${p.name}」${s.name}">
+                  <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
+                    <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" fill="${p.color}"/>
+                  </svg>
+                </div>`);
+              } else {
+                // 空心向右三角形 ▷ (中間過程)
+                rangeArray.push(`<div class="flex items-center justify-center shrink-0" title="「${p.name}」${s.name}">
+                  <svg width="7" height="7" viewBox="0 0 10 10" fill="none">
+                    <path d="M2.5 1.5 L8 5 L2.5 8.5 Z" stroke="${p.color}" stroke-width="1.4" fill="none"/>
+                  </svg>
+                </div>`);
+              }
+            } else if (!pointHtml) {
+              // 單日節點圓點
+              pointHtml = `<div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${p.color}"></div>`;
+            }
+          }
+        });
+      });
+    }
+
+    // 2. 日常與資產指標判斷 (若無專案圓點且當天有行程/盤點，則補上圓點)
+    const lifeN = countAgentItems('life', d);
+    const finN = countAgentItems('finance', d);
+
+    if (!pointHtml) {
+      if (lifeN) pointHtml = `<div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${state.theme.life}"></div>`;
+      else if (finN) pointHtml = `<div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${state.theme.finance}"></div>`;
+    }
+
+    // ⭕ 建立 7 天日歷方格：頂部顯示星期與日期，底部統一定位圓點與右下角三角形
+    const cell = el(`<button class="rounded-lg p-2 text-center transition-all relative overflow-hidden flex flex-col justify-between items-center" style="height:54px; background:${isSel ? 'var(--paper-deep)' : 'transparent'}; border:1.5px solid ${isSel ? 'var(--ink)' : (isToday ? 'var(--ink-soft)' : 'var(--line)')};">
+      <div>
+        <div class="text-[10px]" style="color:var(--ink-soft)">${new Date(d + "T00:00:00").toLocaleDateString('zh-TW', { weekday: 'short' })}</div>
+        <div class="text-[13px] font-display font-semibold leading-none mt-0.5">${fmt(d)}</div>
+      </div>
+      
+      <!-- 底部圖示對齊列 (中央圓點 + 右下角三角形陣列) -->
+      <div class="w-full flex items-center justify-center relative h-3 mb-0.5">
+        <div class="flex items-center justify-center">
+          ${pointHtml}
+        </div>
+        <div class="absolute right-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
+          ${rangeArray.slice(0, 3).join('')}
+        </div>
+      </div>
+    </button>`);
+
+    cell.addEventListener('click', () => { 
+      state.weekSelectedDate = d; 
+      refreshWeekStrip(); 
+    });
+
     grid.appendChild(cell);
   });
 }
