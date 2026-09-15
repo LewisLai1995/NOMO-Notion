@@ -1164,9 +1164,11 @@ function agendaCard(dateISO, title, opts){
     const isLife = roleId==="life";
     const arr = isLife ? state.personaEvents.filter(e=>eventKind(e)==='todo') : state.todos.filter(t=>t.agent===roleId);
     const todos = arr.filter(t=>t.date===dateISO);
-    const derived = derivedItemsFor(roleId, dateISO);
     function placeholder(){ return el(`<div class="text-[12px] pl-[22px] placeholder-row" style="color:var(--ink-soft)">沒有安排</div>`); }
-    if(!todos.length && !derived.length) itemsWrap.appendChild(placeholder());
+    
+    // ⭕ 只判斷是否有待辦事項
+    if(!todos.length) itemsWrap.appendChild(placeholder());
+    
     function buildRow(t){
       const row = el(`<div class="flex items-center gap-2 group"></div>`);
       const cb = checkboxEl(t.done, checked=>{ t.done=checked; input.style.color=checked?'var(--ink-soft)':'var(--ink)'; input.style.textDecoration=checked?'line-through':'none'; saveState(); });
@@ -1176,21 +1178,13 @@ function agendaCard(dateISO, title, opts){
       del.addEventListener('click', ()=>{
         if(isLife) state.personaEvents = state.personaEvents.filter(x=>x.id!==t.id); else state.todos = state.todos.filter(x=>x.id!==t.id);
         row.remove(); saveState();
-        if(!itemsWrap.querySelector('.group') && !itemsWrap.querySelector('.derived-line')) itemsWrap.appendChild(placeholder());
+        if(!itemsWrap.querySelector('.group')) itemsWrap.appendChild(placeholder());
       });
       row.append(cb,input,del); return row;
     }
+
+    // ⭕ 僅渲染使用者建立的待辦項目 (移除 derived.forEach)
     todos.forEach(t=> itemsWrap.appendChild(buildRow(t)));
-    // ⭕ 解析 derived 物件結構，正確顯示文字與已完成標籤
-derived.forEach(item => {
-  const txt = typeof item === 'object' ? item.text : item;
-  const tag = (typeof item === 'object' && item.doneTag) ? item.doneTag : '';
-  
-  itemsWrap.appendChild(el(`<div class="text-[13px] pl-[22px] derived-line flex items-center justify-start gap-1" style="color:var(--ink-soft)">
-    <span>・${txt}</span>
-    ${tag}
-  </div>`));
-});
     group.appendChild(itemsWrap);
     if(editable){
       const addBtn = el(`<button class="text-[11px] pl-[22px] mt-1" style="color:${color}">＋ 新增</button>`);
