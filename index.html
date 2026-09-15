@@ -543,33 +543,39 @@ const FINANCE_DIFF_FORMULA = { bank:(f,s)=> s-f, expense:(f,s)=> f-s, plan:(f,s)
 /* Six river pebbles, each its own height/width/tilt — no shared skeleton, each is its own
    complete hand-built silhouette (per spec: no gourd/snowman/potato shapes). Uniform
    currentColor stroke + translucent currentColor fill, fully themeable. */
+// ⭕ 將 fill-opacity 統一調整為 1 (實心)，並填入質感底色，避免重疊透視
 const PEBBLE_SVG = {
-  architect: (color)=> `<path d="M 12 18 C 12 12, 38 12, 38 18 L 42 38 C 42 43, 36 45, 25 45 C 14 45, 8 43, 8 38 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  architect: (color)=> `<path d="M 12 18 C 12 12, 38 12, 38 18 L 42 38 C 42 43, 36 45, 25 45 C 14 45, 8 43, 8 38 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M 14 14 L 36 14 C 36 14, 38 18, 25 18 Z M 10 18 H 40" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
     <circle cx="18" cy="28" r="2.2" fill="currentColor"/><circle cx="18.6" cy="27.4" r="0.7" fill="#FFF"/>
     <circle cx="32" cy="28" r="2.2" fill="currentColor"/><circle cx="32.6" cy="27.4" r="0.7" fill="#FFF"/>
     <path d="M 22 35 H 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>`,
-  sprout: (color)=> `<path d="M 25 14 C 36 14, 45 22, 45 32 C 45 42, 36 45, 25 45 C 14 45, 5 42, 5 32 C 5 22, 14 14, 25 14 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  sprout: (color)=> `<path d="M 25 14 C 36 14, 45 22, 45 32 C 45 42, 36 45, 25 45 C 14 45, 5 42, 5 32 C 5 22, 14 14, 25 14 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M 25 14 Q 22 7 17 9 M 25 14 Q 28 6 33 8 M 25 14 V 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
     <circle cx="17" cy="28" r="2.5" fill="currentColor"/><circle cx="17.8" cy="27.2" r="0.8" fill="#FFF"/>
     <circle cx="33" cy="28" r="2.5" fill="currentColor"/><circle cx="33.8" cy="27.2" r="0.8" fill="#FFF"/>
     <path d="M 21 34 Q 25 37 29 34" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>`,
-  stacked: (color)=> `<path d="M 25 22 C 38 22, 44 28, 44 36 C 44 43, 36 45, 25 45 C 14 45, 6 43, 6 36 C 6 28, 12 22, 25 22 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
-    <circle cx="25" cy="14" r="8" fill="${color}" fill-opacity="0.25" stroke="currentColor" stroke-width="1.8"/>
+
+  stacked: (color)=> `<path d="M 25 22 C 38 22, 44 28, 44 36 C 44 43, 36 45, 25 45 C 14 45, 6 43, 6 36 C 6 28, 12 22, 25 22 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2"/>
+    <circle cx="25" cy="14" r="8" fill="var(--paper)" stroke="currentColor" stroke-width="2"/>
     <circle cx="22" cy="13" r="1.5" fill="currentColor"/><circle cx="28" cy="13" r="1.5" fill="currentColor"/>
     <path d="M 23 17 Q 25 18.5 27 17" stroke="currentColor" stroke-width="1.4" fill="none"/>
     <circle cx="18" cy="33" r="2" fill="currentColor"/><circle cx="32" cy="33" r="2" fill="currentColor"/>
     <path d="M 22 38 Q 25 40 28 38" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/>`,
+
   catear: (color)=> `<g transform="rotate(8 25 25)">
-    <path d="M 16 12 L 20 18 C 22 16, 28 16, 30 18 L 34 12 C 42 18, 43 32, 40 40 C 36 46, 14 46, 10 40 C 7 32, 8 18, 16 12 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 16 12 L 20 18 C 22 16, 28 16, 30 18 L 34 12 C 42 18, 43 32, 40 40 C 36 46, 14 46, 10 40 C 7 32, 8 18, 16 12 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="19" cy="27" r="2.2" fill="currentColor"/><circle cx="31" cy="27" r="2.2" fill="currentColor"/>
     <path d="M 22 34 Q 25 36 28 34" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>`,
-  shiba: (color)=> `<path d="M 25 16 C 40 16, 47 24, 47 33 C 47 42, 38 44, 25 44 C 12 44, 3 42, 3 33 C 3 24, 10 16, 25 16 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
+
+  shiba: (color)=> `<path d="M 25 16 C 40 16, 47 24, 47 33 C 47 42, 38 44, 25 44 C 12 44, 3 42, 3 33 C 3 24, 10 16, 25 16 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2"/>
     <path d="M 15 22 H 19 M 31 22 H 35" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     <circle cx="17" cy="28" r="2.2" fill="currentColor"/><circle cx="33" cy="28" r="2.2" fill="currentColor"/>
     <ellipse cx="25" cy="32" rx="2" ry="1.3" fill="currentColor"/>
     <path d="M 22 36 Q 25 38 28 36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/>`,
-  scholar: (color)=> `<path d="M 25 6 C 33 6, 38 18, 38 34 C 38 43, 33 46, 25 46 C 17 46, 12 43, 12 34 C 12 18, 17 6, 25 6 Z" fill="${color}" fill-opacity="0.15" stroke="currentColor" stroke-width="2"/>
+
+  scholar: (color)=> `<path d="M 25 6 C 33 6, 38 18, 38 34 C 38 43, 33 46, 25 46 C 17 46, 12 43, 12 34 C 12 18, 17 6, 25 6 Z" fill="var(--paper)" stroke="currentColor" stroke-width="2.2"/>
     <circle cx="18" cy="24" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
     <circle cx="32" cy="24" r="5" stroke="currentColor" stroke-width="1.5" fill="none"/>
     <line x1="23" y1="24" x2="27" y2="24" stroke="currentColor" stroke-width="1.5"/>
