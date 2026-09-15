@@ -1118,19 +1118,19 @@ function fillWeekGrid(grid){
       else if (finN) pointHtml = `<div class="w-1.5 h-1.5 rounded-full shrink-0" style="background:${state.theme.finance}"></div>`;
     }
 
-    // ⭕ 建立 7 天日歷方格：頂部顯示星期與日期，底部統一定位圓點與右下角三角形
-    const cell = el(`<button class="rounded-lg p-2 text-center transition-all relative overflow-hidden flex flex-col justify-between items-center" style="height:54px; background:${isSel ? 'var(--paper-deep)' : 'transparent'}; border:1.5px solid ${isSel ? 'var(--ink)' : (isToday ? 'var(--ink-soft)' : 'var(--line)')};">
-      <div>
+    // ⭕ 調整高度至 60px、增加內距並加上縱向 gap，拉開與日期的距離
+    const cell = el(`<button class="rounded-lg px-2 py-1.5 text-center transition-all relative overflow-hidden flex flex-col justify-between items-center" style="height:60px; background:${isSel ? 'var(--paper-deep)' : 'transparent'}; border:1.5px solid ${isSel ? 'var(--ink)' : (isToday ? 'var(--ink-soft)' : 'var(--line)')};">
+      <div class="flex flex-col items-center">
         <div class="text-[10px]" style="color:var(--ink-soft)">${new Date(d + "T00:00:00").toLocaleDateString('zh-TW', { weekday: 'short' })}</div>
-        <div class="text-[13px] font-display font-semibold leading-none mt-0.5">${fmt(d)}</div>
+        <div class="text-[13px] font-display font-semibold leading-tight mt-0.5">${fmt(d)}</div>
       </div>
       
-      <!-- 底部圖示對齊列 (中央圓點 + 右下角三角形陣列) -->
-      <div class="w-full flex items-center justify-center relative h-3 mb-0.5">
+      <!-- 底部圖示列：沉到底部並維持穩定對齊 -->
+      <div class="w-full flex items-center justify-center relative h-3.5 mb-0.5">
         <div class="flex items-center justify-center">
           ${pointHtml}
         </div>
-        <div class="absolute right-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
+        <div class="absolute right-0.5 bottom-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
           ${rangeArray.slice(0, 3).join('')}
         </div>
       </div>
@@ -2100,16 +2100,17 @@ function projectMiniCalendar(){
       }
     });
 
-    // cell 按鈕容器：置中圓點 + 右側可容納最多 3 個三角形的並排區塊
-    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col justify-between items-center transition-all relative overflow-hidden" style="height:44px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
-      <span class="text-[11px] font-medium leading-none mt-0.5">${d}</span>
-      <div class="w-full flex items-center justify-center relative h-3 mb-0.5">
+   // ⭕ 調整小日曆方格高度至 48px，拉開圓點/三角形與日期數字的距離
+    const cell = el(`<button type="button" data-date="${iso}" class="rounded-lg border p-1 flex flex-col justify-between items-center transition-all relative overflow-hidden" style="height:48px; border-color:${isSel ? state.theme.project : (isToday ? 'var(--ink)' : 'var(--line)')}; background:${isSel ? hexToRgba(state.theme.project, 0.12) : 'transparent'};">
+      <span class="text-[11px] font-medium leading-none mt-1">${d}</span>
+      
+      <div class="w-full flex items-center justify-center relative h-3.5 mb-0.5">
         <!-- 置中的圓點 -->
         <div class="flex items-center justify-center">
           ${pointHtml}
         </div>
         <!-- 靠右側平行的三角形容器 -->
-        <div class="absolute right-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
+        <div class="absolute right-0.5 bottom-0 flex items-center justify-end gap-[1px] max-w-[70%] overflow-hidden">
           ${rangeArray.slice(0, 3).join('')}
         </div>
       </div>
