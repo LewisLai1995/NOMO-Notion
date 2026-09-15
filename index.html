@@ -1181,7 +1181,16 @@ function agendaCard(dateISO, title, opts){
       row.append(cb,input,del); return row;
     }
     todos.forEach(t=> itemsWrap.appendChild(buildRow(t)));
-    derived.forEach(txt=> itemsWrap.appendChild(el(`<div class="text-[13px] pl-[22px] derived-line" style="color:var(--ink-soft)">・${txt}</div>`)));
+    // ⭕ 解析 derived 物件結構，正確顯示文字與已完成標籤
+derived.forEach(item => {
+  const txt = typeof item === 'object' ? item.text : item;
+  const tag = (typeof item === 'object' && item.doneTag) ? item.doneTag : '';
+  
+  itemsWrap.appendChild(el(`<div class="text-[13px] pl-[22px] derived-line flex items-center justify-start gap-1" style="color:var(--ink-soft)">
+    <span>・${txt}</span>
+    ${tag}
+  </div>`));
+});
     group.appendChild(itemsWrap);
     if(editable){
       const addBtn = el(`<button class="text-[11px] pl-[22px] mt-1" style="color:${color}">＋ 新增</button>`);
