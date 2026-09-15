@@ -652,41 +652,73 @@ function citySkylineSVG(){
   </svg>`;
 }
 const mascotState = ROLE_IDS.reduce((acc,id,i)=>{ acc[id]={x:20+i*90}; return acc; },{});
-let mascotWalkTimer = null, openMascot = null;
+// ⭕ 為每個角色紀錄獨立的計時器 ID
+const mascotTimers = {};
+
 function initMascotScene(sceneEl){
   if(!sceneEl) return;
-  if(mascotWalkTimer){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; }
-  renderMascotScene(sceneEl); mascotStep(sceneEl);
-  mascotWalkTimer = setInterval(()=>mascotStep(sceneEl), 3800);
-}
-function mascotStep(sceneEl){
-  if(!document.body.contains(sceneEl)){ clearInterval(mascotWalkTimer); mascotWalkTimer=null; return; }
-  const w = sceneEl.clientWidth||420; const maxX = Math.max(60,w-72);
-  ROLE_IDS.forEach(id=>{
-    if(!state.agentsEnabled[id] || openMascot===id) return;
-    const cur = mascotState[id];
-    // small, gentle roll — 20-45px per step, not a full-width teleport
-    const stepMin = 20, stepMax = 45;
-    const dir = Math.random()<0.5 ? -1 : 1;
-    let nx = cur.x + dir*(stepMin + Math.random()*(stepMax-stepMin));
-    nx = Math.max(8, Math.min(maxX, nx));
-    const dx = nx - cur.x;
-    const node = document.getElementById('mascot-pos-'+id);
-    const fig = node && node.querySelector('.mascot-figure');
-    if(fig){
-      fig.style.setProperty('--jump-dx', dx+'px');
-      fig.classList.remove('pebble-idle');
-      fig.classList.add('pebble-roll','jumping');
-      fig.addEventListener('animationend', function onEnd(){
-        fig.classList.remove('pebble-roll','jumping');
-        fig.classList.add('pebble-idle');
-        fig.style.transform='';
-        fig.style.removeProperty('--jump-dx');
-        if(node) node.style.left = nx+'px';
-      }, {once:true});
-    }
-    cur.x = nx;
+  
+  // 清除所有舊的個人計時器
+  Object.keys(mascotTimers).forEach(id => {
+    if (mascotTimers[id]) { clearTimeout(mascotTimers[id]); delete mascotTimers[id]; }
   });
+
+  renderMascotScene(sceneEl);
+
+  // ⭕ 讓每個小石頭獨立設定隨機起跑時間與踱步頻率
+  ROLE_IDS.forEach((id, index) => {
+    scheduleNextStep(id, sceneEl, 800 + index * 1200); // 初始起跑時間錯開
+  });
+}
+
+// ⭕ 獨立排程：每隻石頭完成移動後，隨機等待 3 ~ 6 秒才進行下一次踱步
+function scheduleNextStep(id, sceneEl, delayMs){
+  if(mascotTimers[id]) clearTimeout(mascotTimers[id]);
+
+  const waitTime = delayMs || (3000 + Math.random() * 3000); // 隨機 3000ms ~ 6000ms 避開同步
+
+  mascotTimers[id] = setTimeout(() => {
+    if (!document.body.contains(sceneEl)) return;
+    
+    // 只讓指定的角色走一步
+    mascotSingleStep(id, sceneEl);
+
+    // 走完後繼續預約下一次走動
+    scheduleNextStep(id, sceneEl);
+  }, waitTime);
+}
+
+// ⭕ 單一角色的走動邏輯
+function mascotSingleStep(id, sceneEl){
+  if(!state.agentsEnabled[id] || openMascot === id) return;
+
+  const w = sceneEl.clientWidth || 420; 
+  const maxX = Math.max(60, w - 72);
+  const cur = mascotState[id];
+
+  const stepMin = 20, stepMax = 45;
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  let nx = cur.x + dir * (stepMin + Math.random() * (stepMax - stepMin));
+  nx = Math.max(8, Math.min(maxX, nx));
+  const dx = nx - cur.x;
+
+  const node = document.getElementById('mascot-pos-' + id);
+  const fig = node && node.querySelector('.mascot-figure');
+
+  if(fig){
+    fig.style.setProperty('--jump-dx', dx + 'px');
+    fig.classList.remove('pebble-idle');
+    fig.classList.add('pebble-roll', 'jumping');
+    
+    fig.addEventListener('animationend', function onEnd(){
+      fig.classList.remove('pebble-roll', 'jumping');
+      fig.classList.add('pebble-idle');
+      fig.style.transform = '';
+      fig.style.removeProperty('--jump-dx');
+      if(node) node.style.left = nx + 'px';
+    }, {once: true});
+  }
+  cur.x = nx;
 }
 function bubbleContent(id){
   const color = state.theme[id]; const nick = state.nicknames[id];
