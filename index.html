@@ -2024,14 +2024,17 @@ function editSettlementModal(p) {
   return form;
 }
 function projectMiniCalendar(){
-  // ⭕ 1. 確保初始化年月與選取日期：若未指定 selected 則自動對齊 Today
-  const todayDateObj = state.todayISO ? new Date(state.todayISO + "T00:00:00") : new Date();
+  // ⭕ 1. 每次初始化時，確保年月與選取日期一律預設精準對齊「今天」
+  state.todayISO = todayISO(); // 確保日期最新
+  const todayDateObj = new Date(state.todayISO + "T00:00:00");
+
+  // 若月曆年月不存在，或是剛進入頁面，自動預設當前年月
   if (!state.projectCalMonth) {
     state.projectCalMonth = `${todayDateObj.getFullYear()}-${String(todayDateObj.getMonth() + 1).padStart(2, '0')}`;
   }
   
-  // 👈 加上這行：如果沒有選取日期，自動鎖定為今天的日期 (Today)
-  if (!state.projectCalSelected) {
+  // ⭕ 強效鎖定：若未手動點選其他日期，每次進入或重整時一律預設點亮「今天」
+  if (!state.projectCalSelected || state.route === 'projectlog') {
     state.projectCalSelected = state.todayISO;
   }
 
