@@ -2452,29 +2452,76 @@ function refreshStagePanel(p, container){
   const clist = container.querySelector('#clist');
   const addCheckBtn = container.querySelector('#addCheck');
 
-  // 1. 渲染清單列表（含勾選框與刪除按鈕）
+  // ⭕ 渲染確認清單：待處理置頂、已完成項目進入 QA 折疊收納區
   function renderChecklist(){
     clist.innerHTML = '';
-    
-    if (!cur.checklist || !cur.checklist.length) {
+    const checklist = cur.checklist || [];
+
+    if (!checklist.length) {
       clist.appendChild(el(`<div class="text-[12px] placeholder-row" style="color:var(--ink-soft)">尚無確認項目，可在下方直接輸入新增</div>`));
-    } else {
-      cur.checklist.forEach((item, idx) => {
-        const row = el(`<div class="flex items-center gap-2 text-[13px] group py-0.5"></div>`);
-        
-        // 勾選框（使用客製流暢 Checkbox）
-        const cb = checkboxEl(item.done, checked => {
+      return;
+    }
+
+    const todoItems = [];
+    const doneItems = [];
+
+    // 1. 分類項目與記錄原始索引 (索引用於刪除與狀態更新)
+    checklist.forEach((item, idx) => {
+      if (item.done) doneItems.push({ item, idx });
+      else todoItems.push({ item, idx });
+    });
+
+    // 2. 渲染未完成項目 (優先置頂)
+    todoItems.forEach(({ item, idx }) => {
+      const row = el(`<div class="flex items-center gap-2 text-[13px] group py-0.5"></div>`);
+      const cb = checkboxEl(false, checked => {
+        item.done = checked;
+        renderChecklist();
+        saveState();
+      });
+      const span = el(`<span class="flex-1 min-w-0 truncate" style="color:var(--ink);">${item.label}</span>`);
+      const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)" title="刪除">×</button>`);
+      
+      del.addEventListener('click', () => {
+        cur.checklist.splice(idx, 1);
+        renderChecklist();
+        saveState();
+      });
+
+      row.append(cb, span, del);
+      clist.appendChild(row);
+    });
+
+    // 3. 渲染已完成項目的 QA 折疊面板 (若有已完成項目才顯示)
+    if (doneItems.length > 0) {
+      // 記住使用者當前的展開/收合狀態 (預設收合)
+      if (cur.doneAccordionOpen === undefined) cur.doneAccordionOpen = false;
+
+      const accordion = el(`<div class="mt-2 pt-2 border-t" style="border-color:var(--line)">
+        <button type="button" class="done-toggle-btn w-full flex items-center justify-between text-[11px] font-medium py-1 select-none hover:opacity-80 transition-opacity" style="color:var(--ink-soft)">
+          <span class="flex items-center gap-1">
+            <span>已完成項目</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-gray-100 font-mono">${doneItems.length}</span>
+          </span>
+          <span class="chevron transition-transform duration-200" style="transform: rotate(${cur.doneAccordionOpen ? '180deg' : '0deg'})">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5 L6 8 L9.5 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <div class="done-body flex flex-col gap-0.5 mt-1 overflow-hidden transition-all" style="display:${cur.doneAccordionOpen ? 'flex' : 'none'}"></div>
+      </div>`);
+
+      const doneBody = accordion.querySelector('.done-body');
+
+      doneItems.forEach(({ item, idx }) => {
+        const row = el(`<div class="flex items-center gap-2 text-[13px] group py-0.5 opacity-70"></div>`);
+        const cb = checkboxEl(true, checked => {
           item.done = checked;
-          span.style.color = checked ? 'var(--ink-soft)' : 'var(--ink)';
-          span.style.textDecoration = checked ? 'line-through' : 'none';
+          renderChecklist();
           saveState();
         });
-
-        // 內容文字
-        const span = el(`<span class="flex-1 min-w-0 truncate" style="color:${item.done ? 'var(--ink-soft)' : 'var(--ink)'};${item.done ? 'text-decoration:line-through;' : ''}">${item.label}</span>`);
-
-        // 刪除按鈕
+        const span = el(`<span class="flex-1 min-w-0 truncate line-through" style="color:var(--ink-soft);">${item.label}</span>`);
         const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)" title="刪除">×</button>`);
+
         del.addEventListener('click', () => {
           cur.checklist.splice(idx, 1);
           renderChecklist();
@@ -2482,8 +2529,18 @@ function refreshStagePanel(p, container){
         });
 
         row.append(cb, span, del);
-        clist.appendChild(row);
+        doneBody.appendChild(row);
       });
+
+      // 點擊標題切換開合
+      accordion.querySelector('.done-toggle-btn').addEventListener('click', () => {
+        cur.doneAccordionOpen = !cur.doneAccordionOpen;
+        doneBody.style.display = cur.doneAccordionOpen ? 'flex' : 'none';
+        accordion.querySelector('.chevron').style.transform = `rotate(${cur.doneAccordionOpen ? 180 : 0}deg)`;
+        saveState();
+      });
+
+      clist.appendChild(accordion);
     }
   }
 
