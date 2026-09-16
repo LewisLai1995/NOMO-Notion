@@ -652,7 +652,7 @@ function citySkylineSVG(){
     if(h>120){ buildings += `<line x1="${x+w/2}" y1="${y-16}" x2="${x+w/2}" y2="${y-30}" stroke="var(--line)" stroke-width="1"/><circle cx="${x+w/2}" cy="${y-31}" r="1.6" fill="var(--line)"/>`; }
     x += w+6;
   });
-  return `<svg class="city-skyline" viewBox="0 0 ${x+4} ${vbH}" preserveAspectRatio="none" fill="none">
+  return `<svg class="city-skyline w-full h-full absolute inset-0" viewBox="0 0 ${x+4} ${vbH}" preserveAspectRatio="none" fill="none">
     <line x1="0" y1="${baseY}" x2="${x+4}" y2="${baseY}" stroke="var(--line)" stroke-width="1"/>
     ${buildings}
   </svg>`;
@@ -1330,7 +1330,8 @@ function renderToday(){
   if (btnClear) {
     btnClear.addEventListener('click', clearDefaultTemplateData);
   }
-  const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px]">${citySkylineSVG()}</div>`);
+  // ⭕ 加上 overflow-hidden 與 rounded-xl，確保城市天際線右側精準對齊下方卡片
+const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px] relative overflow-hidden rounded-xl border" style="border-color:var(--line); background:var(--paper-deep);">${citySkylineSVG()}</div>`);
   headerRow.append(left,scene); wrap.appendChild(headerRow);
   wrap.appendChild(weekStrip());
 
