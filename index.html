@@ -1331,7 +1331,8 @@ function renderToday(){
     btnClear.addEventListener('click', clearDefaultTemplateData);
   }
   // ⭕ 加上 overflow-hidden 與 rounded-xl，確保城市天際線右側精準對齊下方卡片
-const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px] relative overflow-hidden rounded-xl border" style="border-color:var(--line); background:var(--paper-deep);">${citySkylineSVG()}</div>`);
+// ⭕ 移除 background，只留 overflow-hidden 與 rounded-xl 確保邊界裁切對齊
+const scene = el(`<div id="mascotScene" class="scene-box flex-1 min-w-[280px] h-[180px] relative overflow-hidden rounded-xl border" style="border-color:var(--line);">${citySkylineSVG()}</div>`);
   headerRow.append(left,scene); wrap.appendChild(headerRow);
   wrap.appendChild(weekStrip());
 
