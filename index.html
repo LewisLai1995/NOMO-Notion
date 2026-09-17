@@ -3704,35 +3704,124 @@ function openEditLastReviewModal(){
     openModal(wrap, null, true);
   }
 }
+function planProgressCard(){// ⭕ 計畫性支出進度卡片：改為「使用計畫現金」彈窗扣款/歸零
 function planProgressCard(){
-  const color = state.theme.finance; const F = state.finance;
-  const wrap = el(`<div class="card rounded-xl p-5 mb-6"><div class="text-[13px] font-medium mb-1">計畫性支出進度 · 區塊 C</div><p class="text-[12px] mb-3" style="color:var(--ink-soft)">存款、投資、旅遊基金等計畫達成或款項用掉後，按下「計畫完成」歸零並從畫面移除，下個月就能重新開始新的計畫。</p><div id="planRows" class="flex flex-col gap-2"></div></div>`);
+  const color = state.theme.finance; 
+  const F = state.finance;
+  const wrap = el(`<div class="card rounded-xl p-5 mb-6"><div class="text-[13px] font-medium mb-1">計畫性支出進度 · 區塊 C</div><p class="text-[12px] mb-3" style="color:var(--ink-soft)">存款、投資、旅遊基金等計畫已累積的金額。當需要動用這筆資金時，點擊「使用計畫現金」輸入扣抵金額。</p><div id="planRows" class="flex flex-col gap-2"></div></div>`);
   const rows = wrap.querySelector('#planRows');
+  
   if(!F.plan.length) rows.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">目前沒有計畫性支出項目，可以在「進入盤點模式」裡新增。</div>`));
-F.plan.forEach(item => {
-  // ⭕ 將這個項目在歷來每一個 Period 的有效值（effectiveValue）全部加總
-  const accumulatedTotal = F.periods.reduce((sum, p) => {
-    const val = effectiveValue(item, p.id);
-    return sum + (val || 0);
-  }, 0);
 
-  const row = el(`<div class="flex items-center justify-between gap-3 p-3 rounded-lg" style="background:${hexToRgba(color,0.06)};">
-    <div>
-      <div class="text-[13px] font-medium">${item.label}</div>
-      <div class="text-[11px] font-mono" style="color:var(--ink-soft)">累計 NT$ ${accumulatedTotal.toLocaleString()}</div>
+  F.plan.forEach(item => {
+    // 算這個項目目前總共累積的有效金額
+    const accumulatedTotal = F.periods.reduce((sum, p) => {
+      const val = effectiveValue(item, p.id);
+      return sum + (val || 0);
+    }, 0);
+
+    const row = el(`<div class="flex items-center justify-between gap-3 p-3 rounded-lg" style="background:${hexToRgba(color,0.06)};">
+      <div>
+        <div class="text-[13px] font-medium">${item.label}</div>
+        <div class="text-[11px] font-mono" style="color:var(--ink-soft)">目前累計 NT$ ${accumulatedTotal.toLocaleString()}</div>
+      </div>
+      <button class="use-plan-btn text-[12px] px-3 py-1.5 rounded-lg border shrink-0 font-medium transition-colors hover:bg-white" style="border-color:${color};color:${color}">💸 使用計畫現金</button>
+    </div>`);
+
+    // 點擊開啟使用計畫現金彈窗
+    row.querySelector('.use-plan-btn').addEventListener('click', () => {
+      openUsePlanModal(item, accumulatedTotal);
+    });
+
+    rows.appendChild(row);
+  });
+
+  return wrap;
+}
+
+// ⭕ 使用計畫現金 Modal 彈窗
+function openUsePlanModal(item, accumulatedTotal){
+  const color = state.theme.finance;
+  
+  const form = el(`<div>
+    <div class="font-display font-bold text-[19px] mb-1" style="color:${color}">使用計畫現金</div>
+    <p class="text-[12px] mb-4" style="color:var(--ink-soft)">項目：「${item.label}」 · 目前累計 NT$ <span class="font-mono font-bold" style="color:var(--ink)">${accumulatedTotal.toLocaleString()}</span></p>
+
+    <label class="text-[12px] block mb-2" style="color:var(--ink-soft)">本次使用金額
+      <div class="flex gap-2 mt-1">
+        <input id="useAmtInput" type="number" placeholder="請輸入金額" min="1" max="${accumulatedTotal}" class="flex-1 border rounded-lg px-3 py-2 text-[13px] font-mono" style="border-color:var(--line)"/>
+        <button type="button" id="btnUseAll" class="text-[12px] px-3 py-2 rounded-lg border shrink-0 font-medium transition-colors hover:bg-gray-50" style="border-color:var(--line);color:var(--ink)">全部 (${accumulatedTotal.toLocaleString()})</button>
+      </div>
+    </label>
+
+    <div id="usePlanErr" class="text-[12px] mb-2 hidden" style="color:#B23A3A">請輸入大於 0 的有效金額。</div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="useCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="useSubmit" class="text-[13px] px-4 py-2 rounded-lg font-medium" style="background:${color};color:${contrastText(color)}">確認扣抵</button>
     </div>
-    <button class="text-[12px] px-3 py-1.5 rounded-lg border shrink-0" style="border-color:${color};color:${color}">✅ 計畫完成</button>
   </div>`);
 
-  row.querySelector('button').addEventListener('click', () => {
-    confirmModal(`確定「${item.label}」這筆計畫已經完成或款項已使用了嗎？確定後會從清單中移除。`, () => {
-      state.finance.plan = state.finance.plan.filter(x => x.id !== item.id);
-      commit();
-    }, { okLabel: '確定完成', color });
+  const amtInput = form.querySelector('#useAmtInput');
+  const btnUseAll = form.querySelector('#btnUseAll');
+  const errDiv = form.querySelector('#usePlanErr');
+
+  // 點擊「全部」按鈕，直接將帶有小數或整數的全額填入輸入框
+  btnUseAll.addEventListener('click', () => {
+    amtInput.value = accumulatedTotal;
+    errDiv.classList.add('hidden');
   });
-  rows.appendChild(row);
-});
-  return wrap;
+
+  form.querySelector('#useCancel').addEventListener('click', closeModal);
+
+  form.querySelector('#useSubmit').addEventListener('click', () => {
+    const useVal = parseFloat(amtInput.value);
+    
+    if (isNaN(useVal) || useVal <= 0) {
+      errDiv.textContent = "請輸入大於 0 的有效金額。";
+      errDiv.classList.remove('hidden');
+      return;
+    }
+
+    if (useVal > accumulatedTotal) {
+      errDiv.textContent = `輸入金額不可超過目前累計金額 (NT$ ${accumulatedTotal.toLocaleString()})。`;
+      errDiv.classList.remove('hidden');
+      return;
+    }
+
+    // ⭕ 扣抵邏輯：由最新的 Period 倒扣回來，若全額扣完則刪除項目
+    if (useVal >= accumulatedTotal) {
+      // 扣光：從清單中移除該項目
+      state.finance.plan = state.finance.plan.filter(x => x.id !== item.id);
+    } else {
+      // 部分扣抵：從最後一次的 Period 開始倒扣
+      let remainToDeduct = useVal;
+      const sortedPeriods = [...state.finance.periods].sort((a,b) => new Date(b.firstDate) - new Date(a.firstDate));
+      
+      for (const p of sortedPeriods) {
+        if (remainToDeduct <= 0) break;
+        
+        // 先看第二階段 review，沒有則看第一階段
+        const key = (item.second && item.second[p.id] != null) ? 'second' : 'first';
+        const curVal = item[key][p.id] || 0;
+
+        if (curVal > 0) {
+          if (curVal >= remainToDeduct) {
+            item[key][p.id] = curVal - remainToDeduct;
+            remainToDeduct = 0;
+          } else {
+            remainToDeduct -= curVal;
+            item[key][p.id] = 0;
+          }
+        }
+      }
+    }
+
+    closeModal();
+    commit();
+  });
+
+  openModal(form);
 }
 function openFinanceHistoryModal(){
   const color = state.theme.finance; const F = state.finance;
