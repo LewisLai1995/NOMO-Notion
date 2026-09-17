@@ -3704,7 +3704,8 @@ function openEditLastReviewModal(){
     openModal(wrap, null, true);
   }
 }
-function planProgressCard(){// ⭕ 計畫性支出進度卡片：改為「使用計畫現金」彈窗扣款/歸零
+
+// ⭕ 計畫性支出進度卡片：改為「使用計畫現金」彈窗扣款/歸零
 function planProgressCard(){
   const color = state.theme.finance; 
   const F = state.finance;
@@ -3714,7 +3715,7 @@ function planProgressCard(){
   if(!F.plan.length) rows.appendChild(el(`<div class="text-[12px]" style="color:var(--ink-soft)">目前沒有計畫性支出項目，可以在「進入盤點模式」裡新增。</div>`));
 
   F.plan.forEach(item => {
-    // 算這個項目目前總共累積的有效金額
+    // 計算這個項目目前總共累積的有效金額
     const accumulatedTotal = F.periods.reduce((sum, p) => {
       const val = effectiveValue(item, p.id);
       return sum + (val || 0);
@@ -3766,7 +3767,7 @@ function openUsePlanModal(item, accumulatedTotal){
   const btnUseAll = form.querySelector('#btnUseAll');
   const errDiv = form.querySelector('#usePlanErr');
 
-  // 點擊「全部」按鈕，直接將帶有小數或整數的全額填入輸入框
+  // 點擊「全部」按鈕
   btnUseAll.addEventListener('click', () => {
     amtInput.value = accumulatedTotal;
     errDiv.classList.add('hidden');
@@ -3789,19 +3790,14 @@ function openUsePlanModal(item, accumulatedTotal){
       return;
     }
 
-    // ⭕ 扣抵邏輯：由最新的 Period 倒扣回來，若全額扣完則刪除項目
     if (useVal >= accumulatedTotal) {
-      // 扣光：從清單中移除該項目
       state.finance.plan = state.finance.plan.filter(x => x.id !== item.id);
     } else {
-      // 部分扣抵：從最後一次的 Period 開始倒扣
       let remainToDeduct = useVal;
       const sortedPeriods = [...state.finance.periods].sort((a,b) => new Date(b.firstDate) - new Date(a.firstDate));
       
       for (const p of sortedPeriods) {
         if (remainToDeduct <= 0) break;
-        
-        // 先看第二階段 review，沒有則看第一階段
         const key = (item.second && item.second[p.id] != null) ? 'second' : 'first';
         const curVal = item[key][p.id] || 0;
 
