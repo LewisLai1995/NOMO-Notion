@@ -3722,21 +3722,24 @@ function openEditLastReviewModal(){
       closeModal(); commit();
     });
 
-    window.updateModalLiveCalc = () => {
-      const getGroupSum = (groupName) => {
-        const container = wrap.querySelector(`.section-rows-${groupName}`);
-        if (!container) return 0;
+    // ⭕ 專屬強效計算函式：兼顧原本輸入框與新增的 input
+    const doCalc = () => {
+      const getSum = (group) => {
         let sum = 0;
-        container.querySelectorAll('input[type="number"]').forEach(inp => {
-          const val = parseFloat(inp.value);
-          if (!isNaN(val)) sum += val;
+        // 1. 統計既有名目
+        Object.values(inputs[group] || {}).forEach(inp => {
+          if (inp && inp.value !== '') sum += parseFloat(inp.value) || 0;
+        });
+        // 2. 統計動態新增的名目
+        (pendingNew[group] || []).forEach(entry => {
+          if (entry.input && entry.input.value !== '') sum += parseFloat(entry.input.value) || 0;
         });
         return sum;
       };
 
-      const sumA = getGroupSum('bank');
-      const sumB = getGroupSum('expense');
-      const sumC = getGroupSum('plan');
+      const sumA = getSum('bank');
+      const sumB = getSum('expense');
+      const sumC = getSum('plan');
 
       const availForPlan = sumA - sumB;
       const remainUnallocated = sumA - sumB - sumC;
@@ -3750,10 +3753,18 @@ function openEditLastReviewModal(){
       if (barC) barC.innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
     };
 
-    wrap.addEventListener('input', () => window.updateModalLiveCalc());
+    // 全域註冊讓 buildFinanceSectionEditor 的按鈕也能呼叫
+    window.updateModalLiveCalc = doCalc;
+
+    // 監聽容器內所有 input 的輸入事件
+    wrap.addEventListener('input', doCalc);
+
+    // 開啟 Modal
     openModal(wrap, null, true);
 
-    setTimeout(() => window.updateModalLiveCalc(), 50);
+    // ⭕ 開啟後連續觸發兩次計算，確保舊資料帶入後能第一時間渲染
+    doCalc();
+    requestAnimationFrame(doCalc);
   }
 }
 
