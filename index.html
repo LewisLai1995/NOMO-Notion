@@ -3641,7 +3641,7 @@ function openFirstReviewModal(){
     const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
     state.finance.periods.push(period);
 
-    state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate));
+    state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(a.firstDate));
     ['bank','expense','plan'].forEach(group=>{
       state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[period.id] = parseFloat(inp.value)||0; } });
       pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[period.id]: parseFloat(entry.input.value)||0}, second:{}}); });
@@ -3649,37 +3649,45 @@ function openFirstReviewModal(){
     closeModal(); commit();
   });
 
-  // ⭕ 即時計算統計數字邏輯
+  // ⭕ 全自動動態即時計算邏輯 (通用安全版)
   window.updateModalLiveCalc = () => {
-    const getSum = (group) => {
+    const calcSectionSum = (editorWrap) => {
+      if (!editorWrap) return 0;
       let sum = 0;
-      Object.values(inputs[group]).forEach(inp => { if (inp && inp.value) sum += parseFloat(inp.value) || 0; });
-      pendingNew[group].forEach(entry => { if (entry.input && entry.input.value) sum += parseFloat(entry.input.value) || 0; });
+      const numInputs = editorWrap.querySelectorAll('input[type="number"]');
+      numInputs.forEach(inp => {
+        const val = parseFloat(inp.value);
+        if (!isNaN(val)) sum += val;
+      });
       return sum;
     };
 
-    const sumA = getSum('bank');
-    const sumB = getSum('expense');
-    const sumC = getSum('plan');
+    // 依據區塊 DOM 直接精準抓取該區塊所有輸入框總和
+    const sections = wrap.querySelectorAll('.stat-calc-bar');
+    if (sections.length < 3) return;
+
+    // 抓取每個 section 前後的 input 區域進行即時加總
+    const sumA = calcSectionSum(sections[0].closest('div').nextElementSibling);
+    const sumB = calcSectionSum(sections[1].closest('div').nextElementSibling);
+    const sumC = calcSectionSum(sections[2].closest('div').nextElementSibling);
 
     const availForPlan = sumA - sumB;
     const remainUnallocated = sumA - sumB - sumC;
 
-    const calcBars = wrap.querySelectorAll('.stat-calc-bar');
-    if (calcBars.length >= 3) {
-      calcBars[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
-      calcBars[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
-      calcBars[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
-    }
+    sections[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
+    sections[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
+    sections[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
   };
 
-  // ⭕ 監聽彈窗內所有 input 輸入事件
+  // ⭕ 綁定全域輸入事件與微任務更新
   wrap.addEventListener('input', () => window.updateModalLiveCalc());
   
-  // ⭕ 彈窗開啟時預先計算一次 (載入上次盤點帶入的金額)
-  setTimeout(() => window.updateModalLiveCalc(), 0);
-
   openModal(wrap, null, true);
+
+  // ⭕ 在 Modal 完全渲染進 DOM 後立即執行一次算式
+  requestAnimationFrame(() => {
+    window.updateModalLiveCalc();
+  });
 }
 
 function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inputs, pendingNew){
@@ -3769,7 +3777,6 @@ function openEditLastReviewModal(){
   if(p.secondDate) {
     openSecondReviewModal(p);
   } else {
-    // 重新開啟這次盤點的第一次輸入框，並填入先前已儲存的數值
     const color = state.theme.finance;
     const inputs = {bank:{},expense:{},plan:{}};
     const pendingNew = {bank:[],expense:[],plan:[]};
@@ -3800,37 +3807,41 @@ function openEditLastReviewModal(){
       closeModal(); commit();
     });
 
-    // ⭕ 即時計算統計數字邏輯
+    // ⭕ 全自動動態即時計算邏輯
     window.updateModalLiveCalc = () => {
-      const getSum = (group) => {
+      const calcSectionSum = (editorWrap) => {
+        if (!editorWrap) return 0;
         let sum = 0;
-        Object.values(inputs[group]).forEach(inp => { if (inp && inp.value) sum += parseFloat(inp.value) || 0; });
-        pendingNew[group].forEach(entry => { if (entry.input && entry.input.value) sum += parseFloat(entry.input.value) || 0; });
+        const numInputs = editorWrap.querySelectorAll('input[type="number"]');
+        numInputs.forEach(inp => {
+          const val = parseFloat(inp.value);
+          if (!isNaN(val)) sum += val;
+        });
         return sum;
       };
 
-      const sumA = getSum('bank');
-      const sumB = getSum('expense');
-      const sumC = getSum('plan');
+      const sections = wrap.querySelectorAll('.stat-calc-bar');
+      if (sections.length < 3) return;
+
+      const sumA = calcSectionSum(sections[0].closest('div').nextElementSibling);
+      const sumB = calcSectionSum(sections[1].closest('div').nextElementSibling);
+      const sumC = calcSectionSum(sections[2].closest('div').nextElementSibling);
 
       const availForPlan = sumA - sumB;
       const remainUnallocated = sumA - sumB - sumC;
 
-      const calcBars = wrap.querySelectorAll('.stat-calc-bar');
-      if (calcBars.length >= 3) {
-        calcBars[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
-        calcBars[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
-        calcBars[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
-      }
+      sections[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
+      sections[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
+      sections[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
     };
 
-    // ⭕ 監聽彈窗內所有 input 輸入事件
     wrap.addEventListener('input', () => window.updateModalLiveCalc());
     
-    // ⭕ 彈窗開啟時預先計算一次 (載入先前已填過的金額)
-    setTimeout(() => window.updateModalLiveCalc(), 0);
-
     openModal(wrap, null, true);
+
+    requestAnimationFrame(() => {
+      window.updateModalLiveCalc();
+    });
   }
 }
 
