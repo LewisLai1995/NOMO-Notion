@@ -3522,7 +3522,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       <span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span>
       <button type="button" class="add-btn text-[11px] shrink-0 ml-3 font-medium" style="color:${sColor}">＋ 新增名目</button>
     </div>
-    <!-- ⭕ 即時統計顯示列：加上 data-group 屬性 -->
+    <!-- ⭕ 即時統計顯示列 -->
     <div class="stat-calc-bar stat-bar-${group} text-[11px] font-mono mt-1 px-2.5 py-1 rounded bg-gray-50 border flex items-center justify-between" style="border-color:var(--line); color:var(--ink-soft)">
       <span>計算中...</span>
     </div>
@@ -3531,7 +3531,6 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
   const addBtn = head.querySelector('.add-btn');
   wrap.appendChild(head);
   
-  // ⭕ 為輸入框容器加上 group 專屬 class 方便精準定位
   const rowsWrap = el(`<div class="section-rows-${group}"></div>`); 
   wrap.appendChild(rowsWrap);
 
@@ -3545,7 +3544,13 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       </div>
     </div>`);
     
-    inputs[group][item.id] = row.querySelector('input');
+    const numInput = row.querySelector('input');
+    inputs[group][item.id] = numInput;
+
+    // ⭕ 關鍵修正：既有項目的數字輸入框，也必須即時觸發 updateModalLiveCalc
+    numInput.addEventListener('input', () => {
+      if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
+    });
     
     row.querySelector('button').addEventListener('click', (e) => {
       const btn = e.currentTarget;
@@ -3553,7 +3558,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
         state.finance[group] = state.finance[group].filter(x => x.id !== item.id);
         delete inputs[group][item.id];
         row.remove();
-        if (window.updateModalLiveCalc) window.updateModalLiveCalc();
+        if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
       } else {
         btn.dataset.confirming = "true";
         btn.textContent = "確定？";
@@ -3586,13 +3591,13 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
     pendingNew[group].push(entry);
 
     amountInput.addEventListener('input', () => {
-      if (window.updateModalLiveCalc) window.updateModalLiveCalc();
+      if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
 
     row.querySelector('button').addEventListener('click', () => { 
       pendingNew[group] = pendingNew[group].filter(x => x !== entry); 
       row.remove(); 
-      if (window.updateModalLiveCalc) window.updateModalLiveCalc();
+      if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
     
     rowsWrap.appendChild(row);
@@ -3703,6 +3708,36 @@ function openEditLastReviewModal(){
     const dateInput = el(`<input type="date" value="${p.firstDate}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
     wrap.appendChild(dateInput);
     
+    // 1. 定義計算 logic
+    window.updateModalLiveCalc = () => {
+      const getGroupSum = (groupName) => {
+        const container = wrap.querySelector(`.section-rows-${groupName}`);
+        if (!container) return 0;
+        let sum = 0;
+        container.querySelectorAll('input[type="number"]').forEach(inp => {
+          const val = parseFloat(inp.value);
+          if (!isNaN(val)) sum += val;
+        });
+        return sum;
+      };
+
+      const sumA = getGroupSum('bank');
+      const sumB = getGroupSum('expense');
+      const sumC = getGroupSum('plan');
+
+      const availForPlan = sumA - sumB;
+      const remainUnallocated = sumA - sumB - sumC;
+
+      const barA = wrap.querySelector('.stat-bar-bank');
+      const barB = wrap.querySelector('.stat-bar-expense');
+      const barC = wrap.querySelector('.stat-bar-plan');
+
+      if (barA) barA.innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
+      if (barB) barB.innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
+      if (barC) barC.innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
+    };
+
+    // 2. 建立 Section 編輯器 (這時 window.updateModalLiveCalc 已存在)
     buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=>item.first[p.id]);
     buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,inputs,pendingNew, item=>item.first[p.id]);
     buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',inputs,pendingNew, item=>item.first[p.id]);
@@ -3722,43 +3757,13 @@ function openEditLastReviewModal(){
       closeModal(); commit();
     });
 
-    // ⭕ 通用型 DOM 計算邏輯：直接依據 DOM 中的三區塊 input 現場即時統計
-    window.updateModalLiveCalc = () => {
-      const calcGroupSum = (groupName) => {
-        const container = wrap.querySelector(`.section-rows-${groupName}`);
-        if (!container) return 0;
-        let sum = 0;
-        container.querySelectorAll('input[type="number"]').forEach(inp => {
-          const val = parseFloat(inp.value);
-          if (!isNaN(val)) sum += val;
-        });
-        return sum;
-      };
-
-      const sumA = calcGroupSum('bank');
-      const sumB = calcGroupSum('expense');
-      const sumC = calcGroupSum('plan');
-
-      const availForPlan = sumA - sumB;
-      const remainUnallocated = sumA - sumB - sumC;
-
-      const barA = wrap.querySelector('.stat-bar-bank');
-      const barB = wrap.querySelector('.stat-bar-expense');
-      const barC = wrap.querySelector('.stat-bar-plan');
-
-      if (barA) barA.innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
-      if (barB) barB.innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
-      if (barC) barC.innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
-    };
-
-    // 監聽容器內所有的 input 輸入
     wrap.addEventListener('input', () => window.updateModalLiveCalc());
 
+    // 3. 開啟 Modal 放置入 DOM
     openModal(wrap, null, true);
 
-    // ⭕ 利用 requestAnimationFrame 與 setTimeout 雙重確保 DOM 完全掛載後立刻執行一次算式
-    requestAnimationFrame(() => window.updateModalLiveCalc());
-    setTimeout(() => window.updateModalLiveCalc(), 100);
+    // 4. Modal 掛載完成後第一時間執行初始化計算
+    window.updateModalLiveCalc();
   }
 }
 
