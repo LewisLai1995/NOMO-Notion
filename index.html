@@ -3522,15 +3522,17 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       <span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span>
       <button type="button" class="add-btn text-[11px] shrink-0 ml-3 font-medium" style="color:${sColor}">＋ 新增名目</button>
     </div>
-    <!-- ⭕ 即時統計顯示列 -->
-    <div class="stat-calc-bar text-[11px] font-mono mt-1 px-2.5 py-1 rounded bg-gray-50 border flex items-center justify-between" style="border-color:var(--line); color:var(--ink-soft)">
+    <!-- ⭕ 即時統計顯示列：加上 data-group 屬性 -->
+    <div class="stat-calc-bar stat-bar-${group} text-[11px] font-mono mt-1 px-2.5 py-1 rounded bg-gray-50 border flex items-center justify-between" style="border-color:var(--line); color:var(--ink-soft)">
       <span>計算中...</span>
     </div>
   </div>`);
 
   const addBtn = head.querySelector('.add-btn');
   wrap.appendChild(head);
-  const rowsWrap = el(`<div></div>`); 
+  
+  // ⭕ 為輸入框容器加上 group 專屬 class 方便精準定位
+  const rowsWrap = el(`<div class="section-rows-${group}"></div>`); 
   wrap.appendChild(rowsWrap);
 
   state.finance[group].forEach(item => {
@@ -3545,7 +3547,6 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
     
     inputs[group][item.id] = row.querySelector('input');
     
-    // 行內刪除邏輯
     row.querySelector('button').addEventListener('click', (e) => {
       const btn = e.currentTarget;
       if (btn.dataset.confirming === "true") {
@@ -3641,7 +3642,7 @@ function openFirstReviewModal(){
     const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
     state.finance.periods.push(period);
 
-    state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(a.firstDate));
+    state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate));
     ['bank','expense','plan'].forEach(group=>{
       state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[period.id] = parseFloat(inp.value)||0; } });
       pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[period.id]: parseFloat(entry.input.value)||0}, second:{}}); });
@@ -3649,45 +3650,111 @@ function openFirstReviewModal(){
     closeModal(); commit();
   });
 
-  // ⭕ 全自動動態即時計算邏輯 (通用安全版)
+  // ⭕ 全新精準綁定加總邏輯
   window.updateModalLiveCalc = () => {
-    const calcSectionSum = (editorWrap) => {
-      if (!editorWrap) return 0;
+    const getGroupSum = (groupName) => {
+      const container = wrap.querySelector(`.section-rows-${groupName}`);
+      if (!container) return 0;
       let sum = 0;
-      const numInputs = editorWrap.querySelectorAll('input[type="number"]');
-      numInputs.forEach(inp => {
+      container.querySelectorAll('input[type="number"]').forEach(inp => {
         const val = parseFloat(inp.value);
         if (!isNaN(val)) sum += val;
       });
       return sum;
     };
 
-    // 依據區塊 DOM 直接精準抓取該區塊所有輸入框總和
-    const sections = wrap.querySelectorAll('.stat-calc-bar');
-    if (sections.length < 3) return;
-
-    // 抓取每個 section 前後的 input 區域進行即時加總
-    const sumA = calcSectionSum(sections[0].closest('div').nextElementSibling);
-    const sumB = calcSectionSum(sections[1].closest('div').nextElementSibling);
-    const sumC = calcSectionSum(sections[2].closest('div').nextElementSibling);
+    const sumA = getGroupSum('bank');
+    const sumB = getGroupSum('expense');
+    const sumC = getGroupSum('plan');
 
     const availForPlan = sumA - sumB;
     const remainUnallocated = sumA - sumB - sumC;
 
-    sections[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
-    sections[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
-    sections[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
+    const barA = wrap.querySelector('.stat-bar-bank');
+    const barB = wrap.querySelector('.stat-bar-expense');
+    const barC = wrap.querySelector('.stat-bar-plan');
+
+    if (barA) barA.innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
+    if (barB) barB.innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
+    if (barC) barC.innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
   };
 
-  // ⭕ 綁定全域輸入事件與微任務更新
   wrap.addEventListener('input', () => window.updateModalLiveCalc());
-  
   openModal(wrap, null, true);
 
-  // ⭕ 在 Modal 完全渲染進 DOM 後立即執行一次算式
-  requestAnimationFrame(() => {
-    window.updateModalLiveCalc();
-  });
+  setTimeout(() => window.updateModalLiveCalc(), 50);
+}
+
+function openEditLastReviewModal(){
+  const p = latestPeriod();
+  if(!p){ alertModal('目前還沒有任何盤點紀錄可以修改。'); return; }
+  
+  if(p.secondDate) {
+    openSecondReviewModal(p);
+  } else {
+    const color = state.theme.finance;
+    const inputs = {bank:{},expense:{},plan:{}};
+    const pendingNew = {bank:[],expense:[],plan:[]};
+    const wrap = el(`<div></div>`);
+    
+    wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">修改第一次盤點紀錄</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">送出後會直接覆蓋這筆盤點（${fmt(p.firstDate)}）的資料，不會另外新增一筆。</p>`;
+    wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
+    
+    const dateInput = el(`<input type="date" value="${p.firstDate}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
+    wrap.appendChild(dateInput);
+    
+    buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=>item.first[p.id]);
+    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,inputs,pendingNew, item=>item.first[p.id]);
+    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',inputs,pendingNew, item=>item.first[p.id]);
+    
+    const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel2" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit2" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存修改</button></div>`);
+    wrap.appendChild(footer);
+    
+    footer.querySelector('#rvCancel2').addEventListener('click', closeModal);
+    footer.querySelector('#rvSubmit2').addEventListener('click', ()=>{
+      p.firstDate = dateInput.value || p.firstDate; 
+      p.month = p.firstDate.slice(0,7);
+      
+      ['bank','expense','plan'].forEach(group=>{
+        state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[p.id] = parseFloat(inp.value)||0; } });
+        pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[p.id]: parseFloat(entry.input.value)||0}, second:{}}); });
+      });
+      closeModal(); commit();
+    });
+
+    window.updateModalLiveCalc = () => {
+      const getGroupSum = (groupName) => {
+        const container = wrap.querySelector(`.section-rows-${groupName}`);
+        if (!container) return 0;
+        let sum = 0;
+        container.querySelectorAll('input[type="number"]').forEach(inp => {
+          const val = parseFloat(inp.value);
+          if (!isNaN(val)) sum += val;
+        });
+        return sum;
+      };
+
+      const sumA = getGroupSum('bank');
+      const sumB = getGroupSum('expense');
+      const sumC = getGroupSum('plan');
+
+      const availForPlan = sumA - sumB;
+      const remainUnallocated = sumA - sumB - sumC;
+
+      const barA = wrap.querySelector('.stat-bar-bank');
+      const barB = wrap.querySelector('.stat-bar-expense');
+      const barC = wrap.querySelector('.stat-bar-plan');
+
+      if (barA) barA.innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
+      if (barB) barB.innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
+      if (barC) barC.innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
+    };
+
+    wrap.addEventListener('input', () => window.updateModalLiveCalc());
+    openModal(wrap, null, true);
+
+    setTimeout(() => window.updateModalLiveCalc(), 50);
+  }
 }
 
 function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inputs, pendingNew){
@@ -3768,81 +3835,6 @@ function openSecondReviewModal(period){
     closeModal(); commit();
   });
  openModal(wrap, null, true)
-}
-
-function openEditLastReviewModal(){
-  const p = latestPeriod();
-  if(!p){ alertModal('目前還沒有任何盤點紀錄可以修改。'); return; }
-  
-  if(p.secondDate) {
-    openSecondReviewModal(p);
-  } else {
-    const color = state.theme.finance;
-    const inputs = {bank:{},expense:{},plan:{}};
-    const pendingNew = {bank:[],expense:[],plan:[]};
-    const wrap = el(`<div></div>`);
-    
-    wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">修改第一次盤點紀錄</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">送出後會直接覆蓋這筆盤點（${fmt(p.firstDate)}）的資料，不會另外新增一筆。</p>`;
-    wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">盤點日期</label>`));
-    
-    const dateInput = el(`<input type="date" value="${p.firstDate}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
-    wrap.appendChild(dateInput);
-    
-    buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（薪資、配息等收入）','var(--sage)',inputs,pendingNew, item=>item.first[p.id]);
-    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（卡費、生活費等已知花費）',color,inputs,pendingNew, item=>item.first[p.id]);
-    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)',inputs,pendingNew, item=>item.first[p.id]);
-    
-    const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel2" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit2" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存修改</button></div>`);
-    wrap.appendChild(footer);
-    
-    footer.querySelector('#rvCancel2').addEventListener('click', closeModal);
-    footer.querySelector('#rvSubmit2').addEventListener('click', ()=>{
-      p.firstDate = dateInput.value || p.firstDate; 
-      p.month = p.firstDate.slice(0,7);
-      
-      ['bank','expense','plan'].forEach(group=>{
-        state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[p.id] = parseFloat(inp.value)||0; } });
-        pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[p.id]: parseFloat(entry.input.value)||0}, second:{}}); });
-      });
-      closeModal(); commit();
-    });
-
-    // ⭕ 全自動動態即時計算邏輯
-    window.updateModalLiveCalc = () => {
-      const calcSectionSum = (editorWrap) => {
-        if (!editorWrap) return 0;
-        let sum = 0;
-        const numInputs = editorWrap.querySelectorAll('input[type="number"]');
-        numInputs.forEach(inp => {
-          const val = parseFloat(inp.value);
-          if (!isNaN(val)) sum += val;
-        });
-        return sum;
-      };
-
-      const sections = wrap.querySelectorAll('.stat-calc-bar');
-      if (sections.length < 3) return;
-
-      const sumA = calcSectionSum(sections[0].closest('div').nextElementSibling);
-      const sumB = calcSectionSum(sections[1].closest('div').nextElementSibling);
-      const sumC = calcSectionSum(sections[2].closest('div').nextElementSibling);
-
-      const availForPlan = sumA - sumB;
-      const remainUnallocated = sumA - sumB - sumC;
-
-      sections[0].innerHTML = `<span>現有金流總額 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
-      sections[1].innerHTML = `<span>尚可使用於計畫金額 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${availForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${availForPlan.toLocaleString()}</span>`;
-      sections[2].innerHTML = `<span>剩餘未分配金額 (A − B − C)</span><span class="font-bold font-mono text-[12px]" style="color:${remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${remainUnallocated.toLocaleString()}</span>`;
-    };
-
-    wrap.addEventListener('input', () => window.updateModalLiveCalc());
-    
-    openModal(wrap, null, true);
-
-    requestAnimationFrame(() => {
-      window.updateModalLiveCalc();
-    });
-  }
 }
 
 // ⭕ 計畫性支出進度卡片：改為「使用計畫現金」彈窗扣款/歸零
