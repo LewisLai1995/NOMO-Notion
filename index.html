@@ -3716,19 +3716,19 @@ function openFirstReviewModal(){
 }
 
 
-/* ==================== 2. 第二次盤點 MODAL（繳卡費日：清算加碼） ==================== */
+/* ==================== 第二次盤點 MODAL（你的專屬省錢加碼邏輯） ==================== */
 function openSecondReviewModal(period){
   const color = state.theme.finance;
   const inputs = {bank:{},expense:{},plan:{}};
   const pendingNew = {bank:[],expense:[],plan:[]};
   const wrap = el(`<div style="min-width:340px"></div>`);
-  wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第二次盤點（繳卡費日：清算加碼）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">查看當下真實存款，填入卡費實繳金額（已轉走之還債項照抄）。省下的差額可加碼填入計畫儲蓄。</p>`;
+  wrap.innerHTML = `<div class="font-display font-bold text-[19px] mb-1" style="color:${color}">第二次盤點（檢視實際花費）</div><p class="text-[12px] mb-4" style="color:var(--ink-soft)">填入當下存款與卡費實繳金額。系統會自動計算省下的花費，為你增加可分配的計畫資金！</p>`;
   wrap.appendChild(el(`<label class="text-[12px] block" style="color:var(--ink-soft)">第二次盤點日期</label>`));
   
   const dateInput = el(`<input type="date" value="${period.secondDate || state.todayISO}" class="w-full mt-1 mb-4 border rounded-lg px-3 py-2 text-[13px]" style="border-color:var(--line)"/>`);
   wrap.appendChild(dateInput);
 
-  // ⭕ 第二次盤點專屬計算與差額比對邏輯
+  // ⭕ 完全套用你的公式：A + (第一次B - 第二次B) = 可分配計畫額度
   window.updateModalLiveCalc = () => {
     const getGroupSum = (groupName) => {
       const container = wrap.querySelector(`.section-rows-${groupName}`);
@@ -3741,16 +3741,19 @@ function openSecondReviewModal(period){
       return sum;
     };
 
-    const sumA = getGroupSum('bank');    // 當下實質存款 (不含已還債轉走資金)
-    const sumB = getGroupSum('expense'); // 實際支出總額
-    const sumC = getGroupSum('plan');    // 加碼後總計畫儲蓄
+    const sumA = getGroupSum('bank');    // 當下金流 A
+    const sumB = getGroupSum('expense'); // 第二次實際花費 B
+    const sumC = getGroupSum('plan');    // 計畫金額 C
 
-    // 計算預算與實際差額 (第一次預留總花費 vs 第二次實際花費)
+    // 算第一階段預留的花費
     const firstExpenseSum = itemsInPeriod('expense', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
-    const expenseDiff = firstExpenseSum - sumB; // 正數代表少花/節餘，負數代表超刷
+    const savedMoney = firstExpenseSum - sumB; // (第一次B - 第二次B) = 省下的錢
 
-    const netCash = sumA - sumB;               // 扣除帳單後淨熱錢
-    const remainUnallocated = sumA - sumB - sumC; // 本次最後剩餘自由資金
+    // 你的核心公式：A + (第一次B - 第二次B)
+    const totalAvailForPlan = sumA + savedMoney;
+    
+    // 最後自由零用金 = 總可用額度 - 計畫C
+    const remainUnallocated = totalAvailForPlan - sumC;
 
     const barA = wrap.querySelector('.stat-bar-bank');
     const barB = wrap.querySelector('.stat-bar-expense');
@@ -3758,21 +3761,23 @@ function openSecondReviewModal(period){
 
     if (barA) barA.innerHTML = `<span>當下實質金流 (A)</span><span class="font-bold font-mono text-[12px]" style="color:var(--sage)">NT$ ${sumA.toLocaleString()}</span>`;
     if (barB) {
-      const diffLabel = expenseDiff >= 0 ? `省下 +${expenseDiff.toLocaleString()}` : `超刷 ${expenseDiff.toLocaleString()}`;
-      barB.innerHTML = `<span>實際支出總額 (B)</span><span class="font-bold font-mono text-[12px]" style="color:${expenseDiff >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${sumB.toLocaleString()} (${diffLabel})</span>`;
+      const savedText = savedMoney >= 0 ? `省下 +NT$ ${savedMoney.toLocaleString()}` : `超刷 NT$ ${savedMoney.toLocaleString()}`;
+      barB.innerHTML = `<span>實際花費 (B)</span><span class="font-bold font-mono text-[12px]" style="color:${savedMoney >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${sumB.toLocaleString()} (${savedText})</span>`;
     }
-    if (barC) barC.innerHTML = `<span>扣除帳單後淨熱錢 (A − B)</span><span class="font-bold font-mono text-[12px]" style="color:${netCash >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${netCash.toLocaleString()}</span>`;
+    if (barC) {
+      barC.innerHTML = `<span>可分配計畫資金 [ A + 省下的錢 ]</span><span class="font-bold font-mono text-[12px]" style="color:${totalAvailForPlan >= 0 ? 'var(--ink)' : 'var(--danger)'}">NT$ ${totalAvailForPlan.toLocaleString()}</span>`;
+    }
 
     let summaryCard = wrap.querySelector('#reviewSummaryCard');
     if (!summaryCard) {
       summaryCard = el(`<div id="reviewSummaryCard" class="mt-5 p-3.5 rounded-xl border text-[12px]" style="border-color:var(--line); background:var(--paper-deep);">
-        <div class="text-[11px] font-mono font-bold mb-2 tracking-widest" style="color:var(--ink-soft)">實質結算總結 SECOND REVIEW SUMMARY</div>
+        <div class="text-[11px] font-mono font-bold mb-2 tracking-widest" style="color:var(--ink-soft)">第二次盤點總結 SECOND REVIEW SUMMARY</div>
         <div class="grid grid-cols-2 gap-2 font-mono">
-          <div class="flex justify-between"><span>當下總存款 (A)：</span><span id="smSumA" class="font-bold">NT$ 0</span></div>
-          <div class="flex justify-between"><span>實際總花費 (B)：</span><span id="smSumB" class="font-bold">NT$ 0</span></div>
-          <div class="flex justify-between"><span>花費節餘/差額：</span><span id="smDiffB" class="font-bold">NT$ 0</span></div>
-          <div class="flex justify-between"><span>加碼後計畫儲蓄 (C)：</span><span id="smSumC" class="font-bold">NT$ 0</span></div>
-          <div class="flex justify-between col-span-2 pt-1 border-t" style="border-color:var(--line)"><span>最後剩餘可用自由現金：</span><span id="smRemain" class="font-bold">NT$ 0</span></div>
+          <div class="flex justify-between"><span>當下金流 (A)：</span><span id="smSumA" class="font-bold">NT$ 0</span></div>
+          <div class="flex justify-between"><span>花費省下 (+ΔB)：</span><span id="smSaved" class="font-bold">NT$ 0</span></div>
+          <div class="flex justify-between col-span-2 pt-1 border-t" style="border-color:var(--line)"><span>可分配計畫資金 [A + ΔB]：</span><span id="smAvailPlan" class="font-bold">NT$ 0</span></div>
+          <div class="flex justify-between"><span>計畫儲蓄/投資 (C)：</span><span id="smSumC" class="font-bold">NT$ 0</span></div>
+          <div class="flex justify-between"><span>剩餘自由現金：</span><span id="smRemain" class="font-bold">NT$ 0</span></div>
         </div>
       </div>`);
       const footerEl = wrap.querySelector('.flex.justify-end');
@@ -3781,12 +3786,12 @@ function openSecondReviewModal(period){
     }
 
     summaryCard.querySelector('#smSumA').textContent = `NT$ ${sumA.toLocaleString()}`;
-    summaryCard.querySelector('#smSumB').textContent = `NT$ ${sumB.toLocaleString()}`;
     
-    const smDiffB = summaryCard.querySelector('#smDiffB');
-    smDiffB.textContent = `${expenseDiff >= 0 ? '+' : ''}${expenseDiff.toLocaleString()}`;
-    smDiffB.style.color = expenseDiff >= 0 ? 'var(--good)' : 'var(--danger)';
+    const smSaved = summaryCard.querySelector('#smSaved');
+    smSaved.textContent = `${savedMoney >= 0 ? '+' : ''}NT$ ${savedMoney.toLocaleString()}`;
+    smSaved.style.color = savedMoney >= 0 ? 'var(--good)' : 'var(--danger)';
 
+    summaryCard.querySelector('#smAvailPlan').textContent = `NT$ ${totalAvailForPlan.toLocaleString()}`;
     summaryCard.querySelector('#smSumC').textContent = `NT$ ${sumC.toLocaleString()}`;
     
     const smRemainEl = summaryCard.querySelector('#smRemain');
@@ -3795,8 +3800,8 @@ function openSecondReviewModal(period){
   };
 
   buildSecondReviewSectionEditor(wrap,'bank','A．當下實質金流（開啟銀行 APP 查看之真實存款）','var(--sage)',period,inputs,pendingNew);
-  buildSecondReviewSectionEditor(wrap,'expense','B．實際支出總額（還債照抄，卡費填實繳）',color,period,inputs,pendingNew);
-  buildSecondReviewSectionEditor(wrap,'plan','C．計畫性支出（可將省下的錢加碼填入）','var(--gold)',period,inputs,pendingNew);
+  buildSecondReviewSectionEditor(wrap,'expense','B．實際花費（還債照抄，卡費填實繳）',color,period,inputs,pendingNew);
+  buildSecondReviewSectionEditor(wrap,'plan','C．計畫性支出（填入本次欲投入之總計畫金額）','var(--gold)',period,inputs,pendingNew);
   
   const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第二次盤點</button></div>`);
   wrap.appendChild(footer);
