@@ -4726,11 +4726,28 @@ function renderReserve(){
   }
 
   // ⭕ 1. 計算核心財務指標
-  const bankEff = sumEffective('bank', latest.id);       // 區塊 A：本月總收入
-  const expenseEff = sumEffective('expense', latest.id); // 區塊 B：本月總支出 (一盤為預算，二盤為實繳)
+  // 第一次盤點的 A 區塊總金額 (發薪日總收入)
+  const firstBankSum = itemsInPeriod('bank', latest.id).reduce((s, it) => s + (it.first[latest.id] || 0), 0);
+  
+  // 第二次盤點 A 區塊的額外新收入 (差額 > 0 的部分)
+  let secondExtraIncome = 0;
+  if (latest.secondDate != null) {
+    itemsInPeriod('bank', latest.id).forEach(it => {
+      const f = it.first[latest.id] || 0;
+      const s = it.second[latest.id];
+      if (s != null && s > f) {
+        secondExtraIncome += (s - f); // 累加第二次盤點多出來的收入
+      }
+    });
+  }
+
+  // ⭕ 本月總收入 = 第一次總金額 + 第二次其他新收入
+  const totalIncome = firstBankSum + secondExtraIncome;
+
+  const expenseEff = sumEffective('expense', latest.id); // 區塊 B：本月總支出
   const planEff = sumEffective('plan', latest.id);       // 區塊 C：計畫儲蓄
 
-  // 二盤與差額比對
+  // 二盤與支出差額比對
   const firstExpenseSum = itemsInPeriod('expense', latest.id).reduce((s, it) => s + (it.first[latest.id] || 0), 0);
   const secondExpenseSum = sumPhase('expense', latest.id, 'second');
   const hasSecondReview = latest.secondDate != null;
@@ -4759,13 +4776,15 @@ function renderReserve(){
   const nextDate = nextBiweeklyDate(state.todayISO);
   const countdownDays = diffDays(state.todayISO, nextDate);
 
-  // ⭕ 2. 頂部 4 大卡片 Dashboard (第一張：總收入 / 第二張：總支出)
+  // ⭕ 2. 頂部 4 大卡片 Dashboard
   const dashboard = el(`<div class="grid grid-cols-4 gap-4 mb-6">
-    <!-- 1. 本月總收入 (區塊 A) -->
+    <!-- 1. 本月總收入 (一盤總額 + 二盤新增收入) -->
     <div class="card rounded-xl p-4">
       <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">本月總收入</div>
-      <div class="text-[20px] font-display font-bold">NT$ ${bankEff.toLocaleString()}</div>
-      <div class="text-[10px] mt-1 truncate" style="color:var(--sage)">薪資、配息等收入 (區塊 A)</div>
+      <div class="text-[20px] font-display font-bold">NT$ ${totalIncome.toLocaleString()}</div>
+      <div class="text-[10px] mt-1 truncate" style="color:var(--sage)">
+        ${secondExtraIncome > 0 ? `包含二盤新增 +NT$ ${secondExtraIncome.toLocaleString()}` : '一盤薪資與固定收入總額'}
+      </div>
     </div>
 
     <!-- 2. 本月總支出 (區塊 B：一盤預計/二盤實際) -->
