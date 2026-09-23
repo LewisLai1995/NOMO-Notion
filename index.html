@@ -522,36 +522,50 @@ function isLineConnected() {
   return lineConfig && lineConfig.connected && lineConfig.token;
 }
 
-// ⭕ 2. 發送 LINE Notify 訊息函式 (支援 CORS 代理或直接發送)
 async function sendLineNotification(message) {
   if (!isLineConnected()) {
-    console.log("ℹ️ LINE 通知功能關閉中或未設定 Token，跳過推播。");
+    console.log("ℹ️ LINE 通知功能關閉中或未設定 Messaging API 資訊，跳過推播。");
     return false;
   }
 
   const lineConfig = state.integrations.find(it => it.id === 'line');
   const token = lineConfig.token;
+  const userId = lineConfig.userId;
+
+  const payload = {
+    to: userId,
+    messages: [
+      {
+        type: "text",
+        text: message
+      }
+    ]
+  };
 
   try {
-    // 透過 CORS 代理發送以避免前端瀏覽器跨域限制
-    const res = await fetch("https://corsproxy.io/?" + encodeURIComponent("https://notify-api.line.me/api/notify"), {
+    // ⭕ 嘗試透過通用 CORS 代理轉發至 LINE Push API
+    const targetUrl = "https://api.line.me/v2/bot/message/push";
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+
+    const res = await fetch(proxyUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/json"
       },
-      body: new URLSearchParams({ message: `\n${message}` })
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      console.log("✨ LINE Notify 訊息推播成功！");
+      console.log("✨ LINE Messaging API 訊息推播成功！");
       return true;
     } else {
-      console.error("❌ LINE Notify 推播失敗，請檢查 Token 是否正確。");
+      const errData = await res.json().catch(() => ({}));
+      console.error("❌ Messaging API 推播失敗狀態碼:", res.status, errData);
       return false;
     }
   } catch (err) {
-    console.error("❌ LINE Notify 網路請求發送失敗:", err);
+    console.error("❌ Messaging API 網路請求發送失敗:", err);
     return false;
   }
 }
