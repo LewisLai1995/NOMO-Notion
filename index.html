@@ -25,8 +25,8 @@
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
 
-  // ⭕ 1. 增加 Google Calendar 讀寫權限
-  provider.addScope('https://www.googleapis.com/auth/calendar.events');
+  // ⭕ 請確認這行 Scope 格式完全正確
+provider.addScope('https://www.googleapis.com/auth/calendar.events');
 
   // 掛載至全域
   window.db = db;
