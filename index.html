@@ -3880,7 +3880,6 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       <span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span>
       <button type="button" class="add-btn text-[11px] shrink-0 ml-3 font-medium" style="color:${sColor}">＋ 新增名目</button>
     </div>
-    <!-- ⭕ 即時統計顯示列 -->
     <div class="stat-calc-bar stat-bar-${group} text-[11px] font-mono mt-1 px-2.5 py-1 rounded bg-gray-50 border flex items-center justify-between" style="border-color:var(--line); color:var(--ink-soft)">
       <span>計算中...</span>
     </div>
@@ -3898,19 +3897,20 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       <span style="color:var(--ink-soft)" class="truncate min-w-0 flex-1">${item.label}</span>
       <div class="flex items-center gap-2 shrink-0">
         <input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
-        <button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="刪除名目">×</button>
+        <button type="button" class="del-item-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除名目">×</button>
       </div>
     </div>`);
     
     const numInput = row.querySelector('input');
     inputs[group][item.id] = numInput;
 
-    // ⭕ 關鍵修正：既有項目的數字輸入框，也必須即時觸發 updateModalLiveCalc
     numInput.addEventListener('input', () => {
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
     
-    row.querySelector('button').addEventListener('click', (e) => {
+    // ⭕ 兩階段二次確認刪除按鈕
+    const delBtn = row.querySelector('.del-item-btn');
+    delBtn.addEventListener('click', (e) => {
       const btn = e.currentTarget;
       if (btn.dataset.confirming === "true") {
         state.finance[group] = state.finance[group].filter(x => x.id !== item.id);
@@ -3920,12 +3920,13 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       } else {
         btn.dataset.confirming = "true";
         btn.textContent = "確定？";
-        btn.className = "text-[11px] font-medium px-2 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
+        btn.className = "del-item-btn text-[11px] font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
         setTimeout(() => {
           if (document.body.contains(btn)) {
             btn.dataset.confirming = "false";
             btn.textContent = "×";
-            btn.className = "text-[14px] font-bold px-1 text-[var(--danger)] shrink-0";
+            btn.className = "del-item-btn text-[14px] font-bold px-1 shrink-0";
+            btn.style.color = "var(--danger)";
           }
         }, 3000);
       }
@@ -3939,7 +3940,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
       <div class="flex items-center gap-2 shrink-0">
         <input type="number" value="0" placeholder="金額" class="w-28 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
-        <button type="button" class="text-[14px] font-bold px-1" style="color:var(--danger)" title="移除">×</button>
+        <button type="button" class="del-new-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="移除">×</button>
       </div>
     </div>`);
     
@@ -3952,7 +3953,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
 
-    row.querySelector('button').addEventListener('click', () => { 
+    row.querySelector('.del-new-btn').addEventListener('click', () => { 
       pendingNew[group] = pendingNew[group].filter(x => x !== entry); 
       row.remove(); 
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
@@ -4284,7 +4285,6 @@ function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inpu
       <span class="text-[11px] font-mono tracking-widest" style="color:${sColor}">${title}</span>
       <button type="button" class="add-btn text-[11px] shrink-0 ml-3 font-medium" style="color:${sColor}">＋ 新增名目</button>
     </div>
-    <!-- ⭕ 即時統計顯示列 -->
     <div class="stat-calc-bar stat-bar-${group} text-[11px] font-mono mt-1 px-2.5 py-1 rounded bg-gray-50 border flex items-center justify-between" style="border-color:var(--line); color:var(--ink-soft)">
       <span>計算中...</span>
     </div>
@@ -4293,38 +4293,67 @@ function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inpu
   const addBtn = head.querySelector('.add-btn');
   wrap.appendChild(head);
 
-  const colHead = el(`<div class="flex items-center gap-3 text-[10px] mb-1" style="color:var(--ink-soft)"><span class="flex-1">項目</span><span class="w-20 text-right">第一次</span><span class="w-24 text-right">第二次</span></div>`);
+  const colHead = el(`<div class="flex items-center gap-3 text-[10px] mb-1" style="color:var(--ink-soft)">
+    <span class="flex-1">項目</span>
+    <span class="w-16 text-right">第一次</span>
+    <span class="w-20 text-right">第二次</span>
+    <span class="w-6 text-center"></span>
+  </div>`);
   wrap.appendChild(colHead);
   
-  // ⭕ 補上對應的 Class 供計算邏輯抓取
   const rowsWrap = el(`<div class="section-rows-${group}"></div>`); 
   wrap.appendChild(rowsWrap);
 
   itemsInPeriod(group, period.id).forEach(item => {
     const firstVal = item.first[period.id];
     const secondVal = item.second[period.id];
-    const row = el(`<div class="flex items-center gap-3 text-[12px] mb-1.5">
+    const row = el(`<div class="flex items-center gap-2 text-[12px] mb-1.5">
       <span class="flex-1 min-w-0 truncate" style="color:var(--ink-soft)">${item.label}</span>
-      <span class="w-20 text-right font-mono" style="color:var(--ink-soft)">${firstVal==null?'—':firstVal.toLocaleString()}</span>
-      <input type="number" value="${secondVal==null?0:secondVal}" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+      <span class="w-16 text-right font-mono" style="color:var(--ink-soft)">${firstVal==null?'—':firstVal.toLocaleString()}</span>
+      <input type="number" value="${secondVal==null?0:secondVal}" class="w-20 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+      <button type="button" class="del-item-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除名目">×</button>
     </div>`);
     
     const numInp = row.querySelector('input');
     inputs[group][item.id] = numInp;
     
-    // ⭕ 既有欄位綁定 input 即時計算
     numInp.addEventListener('input', () => {
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
+    });
+
+    // ⭕ 綁定刪除名目按鈕 (兩階段雙重確認)
+    const delBtn = row.querySelector('.del-item-btn');
+    delBtn.addEventListener('click', (e) => {
+      const btn = e.currentTarget;
+      if (btn.dataset.confirming === "true") {
+        state.finance[group] = state.finance[group].filter(x => x.id !== item.id);
+        delete inputs[group][item.id];
+        row.remove();
+        if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
+      } else {
+        btn.dataset.confirming = "true";
+        btn.textContent = "確定？";
+        btn.className = "del-item-btn text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-100 text-red-600 shrink-0";
+        setTimeout(() => {
+          if (document.body.contains(btn)) {
+            btn.dataset.confirming = "false";
+            btn.textContent = "×";
+            btn.className = "del-item-btn text-[14px] font-bold px-1 shrink-0";
+            btn.style.color = "var(--danger)";
+          }
+        }, 3000);
+      }
     });
 
     rowsWrap.appendChild(row);
   });
 
   addBtn.addEventListener('click', () => {
-    const row = el(`<div class="flex items-center gap-3 text-[12px] mb-1.5">
+    const row = el(`<div class="flex items-center gap-2 text-[12px] mb-1.5">
       <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
-      <span class="w-20 text-right font-mono" style="color:var(--line)">—</span>
-      <input type="number" value="0" placeholder="金額" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+      <span class="w-16 text-right font-mono" style="color:var(--line)">—</span>
+      <input type="number" value="0" placeholder="金額" class="w-20 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+      <button type="button" class="del-new-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="移除">×</button>
     </div>`);
     
     const [labelInput, amountInput] = row.querySelectorAll('input');
@@ -4333,6 +4362,12 @@ function buildSecondReviewSectionEditor(wrap, group, title, sColor, period, inpu
     pendingNew[group].push(entry);
 
     amountInput.addEventListener('input', () => {
+      if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
+    });
+
+    row.querySelector('.del-new-btn').addEventListener('click', () => { 
+      pendingNew[group] = pendingNew[group].filter(x => x !== entry); 
+      row.remove(); 
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
 
