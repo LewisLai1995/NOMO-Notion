@@ -313,18 +313,19 @@ async function deleteGoogleCalendarEvent(googleEventId) {
   }
 }
 
-// ⭕ 3. 自動檢查與反向刪除：先檢查開關是否開啟
-async function syncDeletedEventsFromGoogle() {
-  if (!isGoogleCalendarConnected()) return; // 關閉時不自動檢查
+// ⭕ Google 行事曆雙向同步（處理：Google 刪除 ➔ NOMO 刪除 / Google 新增 ➔ NOMO 新增）
+async function syncGoogleCalendarBothWays() {
+  if (typeof isGoogleCalendarConnected === 'function' && !isGoogleCalendarConnected()) return;
 
   const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
   if (!token) return;
 
-  const syncedEvents = state.personaEvents.filter(e => e.googleEventId);
-  if (!syncedEvents.length) return;
-
   let hasChanged = false;
 
+  // -----------------------------------------------------------------
+  // 1. 【反向刪除】檢查 NOMO 上的 Google 行程是否已經在 Google 上被刪除
+  // -----------------------------------------------------------------
+  const syncedEvents = state.personaEvents.filter(e => e.googleEventId);
   for (const evt of syncedEvents) {
     try {
       const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${evt.googleEventId}`, {
@@ -332,13 +333,13 @@ async function syncDeletedEventsFromGoogle() {
       });
 
       if (res.status === 404) {
-        console.log(`🧹 偵測到「${evt.text}」已從 Google Calendar 刪除，自動同步移除...`);
+        console.log(`🧹 偵測到「${evt.text}」已從 Google 刪除，NOMO 自動同步移除...`);
         state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
         hasChanged = true;
       } else if (res.ok) {
         const data = await res.json();
         if (data.status === "cancelled") {
-          console.log(`🧹 偵測到「${evt.text}」已取消/刪除，自動同步移除...`);
+          console.log(`🧹 偵測到「${evt.text}」已取消，NOMO 自動同步移除...`);
           state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
           hasChanged = true;
         }
@@ -348,6 +349,58 @@ async function syncDeletedEventsFromGoogle() {
     }
   }
 
+  // -----------------------------------------------------------------
+  // 2. 【反向新增】讀取 Google 近期行程，若 NOMO 沒有則自動拉回 NOMO
+  // -----------------------------------------------------------------
+  try {
+    // 抓取當前月份前後 1 個月的事件
+    const now = new Date();
+    const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+    const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
+
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const googleItems = data.items || [];
+
+      googleItems.forEach(item => {
+        // 過濾無效或已取消的事件
+        if (item.status === "cancelled" || !item.start) return;
+
+        // 取得事件日期 (全天事件取 date，一般事件取 dateTime)
+        const eventDate = item.start.date || (item.start.dateTime ? item.start.dateTime.slice(0, 10) : null);
+        if (!eventDate) return;
+
+        // 檢查 NOMO 內是否已經有這筆 googleEventId
+        const existsInNomo = state.personaEvents.some(e => e.googleEventId === item.id);
+
+        if (!existsInNomo) {
+          // 清理標題名稱 (若有 [NOMO] 前綴可保留或整理)
+          const title = item.summary || "（未命名 Google 行程）";
+
+          console.log(`📥 偵測到 Google 新增行程「${title}」，自動同步拉回 NOMO...`);
+
+          state.personaEvents.push({
+            id: uid(),
+            text: title.replace(/^[NOMO]\s*/, ''), // 存入 NOMO 的乾淨名稱
+            done: false,
+            date: eventDate,
+            kind: "schedule",
+            googleEventId: item.id // 綁定 Google 回傳的 ID
+          });
+
+          hasChanged = true;
+        }
+      });
+    }
+  } catch (err) {
+    console.error("讀取 Google 近期行程失敗:", err);
+  }
+
+  // ⭕ 若有變動，自動 commit (存檔 + 即時重新渲染)
   if (hasChanged) {
     commit();
   }
@@ -3789,8 +3842,8 @@ function personaTodoCard(){
   return card;
 }
 function renderPersona(){
-  // ⭕ 進入日常頁面時，自動發送比對檢查
-  syncDeletedEventsFromGoogle();
+  // ⭕ 進入日常 Persona 時自動發送雙向檢查
+  syncGoogleCalendarBothWays();
 
   const wrap = el(`<div></div>`);
   wrap.appendChild(agentPageHeader('life','PERSONAL CALENDAR','日常 Persona'));
@@ -4722,6 +4775,28 @@ function renderConnections(){
   wrap.appendChild(grid); 
   return wrap;
 }
+
+/* ============================================================ INIT ============================================================ */
+// ⭕ 確保 loadState 完成並載入雲端資料後，才進行一次性 UI 繪製
+(async function init(){ 
+  await loadState(); 
+})();
+
+ /* ============================================================ AUTO SYNC LISTENERS ============================================================ */
+
+// ⭕ 1. 當使用者切換回 NOMO 分頁時，自動進行雙向拉取與比對
+window.addEventListener('focus', () => {
+  if (state.route === 'persona') {
+    syncGoogleCalendarBothWays();
+  }
+});
+
+// ⭕ 2. 背景定時器：每 30 秒自動默默檢查一次
+setInterval(() => {
+  if (state.route === 'persona' && document.visibilityState === 'visible') {
+    syncGoogleCalendarBothWays();
+  }
+}, 30000);
 
 /* ============================================================ INIT ============================================================ */
 // ⭕ 確保 loadState 完成並載入雲端資料後，才進行一次性 UI 繪製
