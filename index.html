@@ -106,7 +106,7 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
 </script>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>NOMO.notion · 個人全方位 AI 助理平台</title>
+<title>NOMO.notion</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -210,7 +210,7 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
     <div>
       <div class="flex items-center gap-2 px-2 mb-8">
         <svg width="30" height="30" viewBox="0 0 30 30" fill="none"><path d="M15 3 L27 15 L15 27 L3 15 Z" stroke="var(--ink)" stroke-width="1.6"/><circle cx="15" cy="15" r="4" stroke="var(--ink)" stroke-width="1.6"/></svg>
-        <div><div class="font-display font-bold text-[16px] leading-none">NOMO</div><div class="text-[9px] tracking-widest mt-0.5" style="color:var(--ink-soft);">notion</div></div>
+        <div><div class="font-display font-bold text-[16px] leading-none">NOMO.notion</div></div>
       </div>
       <nav class="flex flex-col gap-1" id="nav"></nav>
     </div>
@@ -4414,7 +4414,7 @@ function planProgressCard(){
         <div class="text-[13px] font-medium">${item.label}</div>
         <div class="text-[11px] font-mono" style="color:var(--ink-soft)">目前累計 NT$ ${accumulatedTotal.toLocaleString()}</div>
       </div>
-      <button class="use-plan-btn text-[12px] px-3 py-1.5 rounded-lg border shrink-0 font-medium transition-colors hover:bg-white" style="border-color:${color};color:${color}">💸 使用計畫現金</button>
+      <button class="use-plan-btn text-[12px] px-3 py-1.5 rounded-lg border shrink-0 font-medium transition-colors hover:bg-white" style="border-color:${color};color:${color}">使用計畫現金</button>
     </div>`);
 
     // 點擊開啟使用計畫現金彈窗
@@ -4898,20 +4898,71 @@ function renderReserve(){
   // ⭕ 6. 區塊 C 計畫卡片與趨勢圖表
   wrap.appendChild(planProgressCard());
 
+  // ⭕ 6. 下方圖表：近 8 期「每月收入紀錄」與「每月支出紀錄」
   const chartPeriods = F.periods.slice(-8);
-  const chartBank = chartPeriods.map(p => sumEffective('bank', p.id));
+  
+  // 計算每一期的「總收入 A (一盤總額 + 二盤新增)」與「總支出 B (二盤實繳或一盤預算)」
+  const chartIncome = chartPeriods.map(p => {
+    const firstSum = itemsInPeriod('bank', p.id).reduce((s, it) => s + (it.first[p.id] || 0), 0);
+    let extra = 0;
+    if (p.secondDate != null) {
+      itemsInPeriod('bank', p.id).forEach(it => {
+        const f = it.first[p.id] || 0;
+        const s = it.second[p.id];
+        if (s != null && s > f) extra += (s - f);
+      });
+    }
+    return firstSum + extra;
+  });
+
   const chartExpense = chartPeriods.map(p => sumEffective('expense', p.id));
-  const chartAvail = chartBank.map((b, i) => b - chartExpense[i]);
-  const chartLabels = chartPeriods.map(p => fmt(p.secondDate || p.firstDate));
+  const chartLabels = chartPeriods.map(p => fmt(p.firstDate));
 
   const chartsGrid = el(`<div class="grid grid-cols-2 gap-5 mt-2 mb-6"></div>`);
-  const c1 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">現有可運用現金變化曲線</div><canvas id="chart1" height="160"></canvas></div>`);
-  const c2 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">預留常態性支出 vs 可用流動資金</div><canvas id="chart2" height="160"></canvas></div>`);
+  const c1 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">每月收入紀錄 (區塊 A)</div><canvas id="chart1" height="160"></canvas></div>`);
+  const c2 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">每月支出紀錄 (區塊 B)</div><canvas id="chart2" height="160"></canvas></div>`);
   chartsGrid.append(c1, c2); wrap.appendChild(chartsGrid);
 
   setTimeout(() => {
-    new Chart(c1.querySelector('canvas'), { type: 'line', data: { labels: chartLabels, datasets: [{ label: '現有可運用現金', data: chartBank, borderColor: color, backgroundColor: hexToRgba(color, 0.14), tension: .3, fill: true }] }, options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } } });
-    new Chart(c2.querySelector('canvas'), { type: 'bar', data: { labels: chartLabels, datasets: [{ label: '預留常態性支出', data: chartExpense, backgroundColor: hexToRgba('#B5654A', 0.65) }, { label: '可用流動資金', data: chartAvail, backgroundColor: hexToRgba(color, 0.7) }] }, options: { plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } } });
+    // 左圖：每月收入紀錄 (鼠尾草綠 / 綠色系長條與趨勢線)
+    new Chart(c1.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: '總收入',
+          data: chartIncome,
+          backgroundColor: hexToRgba('#4C8B5C', 0.65),
+          borderColor: '#4C8B5C',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
+      }
+    });
+
+    // 右圖：每月支出紀錄 (磚紅 / 陶土色系長條)
+    new Chart(c2.querySelector('canvas'), {
+      type: 'bar',
+      data: {
+        labels: chartLabels,
+        datasets: [{
+          label: '總支出',
+          data: chartExpense,
+          backgroundColor: hexToRgba('#B5654A', 0.65),
+          borderColor: '#B5654A',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } }
+      }
+    });
   }, 0);
 
   wrap.appendChild(financeReviewSettingsCard());
