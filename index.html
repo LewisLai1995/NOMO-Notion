@@ -304,7 +304,6 @@ function generateRecurringDates(startDateISO, recurrenceType, untilISO) {
 
   return dates;
 }
-// ⭕ 發送事件至使用者真實的 Google 行事曆
 async function syncEventToGoogleCalendar(title, dateISO) {
   const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
   
@@ -313,15 +312,14 @@ async function syncEventToGoogleCalendar(title, dateISO) {
     return null;
   }
 
-  // ⭕ 計算隔天日期，符合 Google Calendar API 全天事件規範
-const nextDayISO = addDays(dateISO, 1);
+  const nextDayISO = addDays(dateISO, 1);
 
-const eventPayload = {
-  summary: `[🌝NOMO] ${title}`,
-  description: "由 NOMO.notion 平台自動同步建立",
-  start: { date: dateISO },
-  end: { date: nextDayISO } // ⭕ 修改為隔天日期
-};
+  const eventPayload = {
+    summary: `[NOMO] ${title}`,
+    description: "由 NOMO.notion 平台自動同步建立",
+    start: { date: dateISO },
+    end: { date: nextDayISO }
+  };
 
   try {
     const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
@@ -336,7 +334,7 @@ const eventPayload = {
     if (res.ok) {
       const data = await res.json();
       console.log("✨ 成功同步至 Google Calendar！Event ID:", data.id);
-      return data.id;
+      return data.id; // ⭕ 關鍵：一定要把 data.id 回傳出來！
     } else {
       const errData = await res.json();
       console.error("❌ Google Calendar API 同步失敗:", errData);
@@ -346,31 +344,6 @@ const eventPayload = {
     console.error("❌ 網路請求失敗:", err);
     return null;
   }
-
-  // ⭕ 從 Google 行事曆刪除特定事件
-async function deleteGoogleCalendarEvent(googleEventId) {
-  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
-  
-  if (!token || !googleEventId) return;
-
-  try {
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    if (res.ok) {
-      console.log("🗑️ 已成功從 Google Calendar 刪除事件！ID:", googleEventId);
-    } else {
-      const errData = await res.json();
-      console.error("❌ Google Calendar API 刪除失敗:", errData);
-    }
-  } catch (err) {
-    console.error("❌ 網路請求失敗:", err);
-  }
-}
 }
 /* ============================================================ STATE ============================================================ */
 let state = {
