@@ -543,11 +543,11 @@ async function sendLineNotification(message) {
   };
 
   try {
-    // ⭕ 嘗試透過通用 CORS 代理轉發至 LINE Push API
+    // ⭕ 改用相容性更高的 api.allorigins.win 或替代代理轉發，避開 403 封鎖
     const targetUrl = "https://api.line.me/v2/bot/message/push";
-    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
-
-    const res = await fetch(proxyUrl, {
+    
+    // 使用目前最穩定的跨域中繼轉發服務
+    const res = await fetch("https://thingproxy.freeboard.io/fetch/" + targetUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -560,8 +560,8 @@ async function sendLineNotification(message) {
       console.log("✨ LINE Messaging API 訊息推播成功！");
       return true;
     } else {
-      const errData = await res.json().catch(() => ({}));
-      console.error("❌ Messaging API 推播失敗狀態碼:", res.status, errData);
+      const errText = await res.text();
+      console.error("❌ Messaging API 推播失敗 code:", res.status, errText);
       return false;
     }
   } catch (err) {
