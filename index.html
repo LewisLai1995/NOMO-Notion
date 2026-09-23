@@ -3583,7 +3583,27 @@ function projectDetailCalendar(p){
 
   trackWrap.appendChild(table);
   wrap.appendChild(trackWrap);
+
+  // ⭕ 自動計算「今天」的位置，並在渲染後將畫面捲動至「今天位於中間」
+  requestAnimationFrame(() => {
+    const todayIndex = dateList.findIndex(d => d === state.todayISO);
+    if (todayIndex !== -1) {
+      const cellWidth = 36; // 每個日期格子的寬度 (px)
+      const leftHeaderWidth = 192; // 左側固定標頭的寬度 (px)
+      
+      // 計算「今天」這個格子相對於表格左側的總距離 (包含中間點偏移)
+      const todayLeftPos = leftHeaderWidth + (todayIndex * cellWidth) + (cellWidth / 2);
+      
+      // 計算滾動容器可視區域的一半寬度
+      const containerHalfWidth = trackWrap.clientWidth / 2;
+      
+      // 設定滑動位置 = 今天的位置 - 可視區域一半
+      trackWrap.scrollLeft = Math.max(0, todayLeftPos - containerHalfWidth);
+    }
+  });
+
   return wrap;
+}
 }
 
 /* ============================================================ PERSONA ============================================================ */
