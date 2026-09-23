@@ -4839,9 +4839,8 @@ function renderReserve() {
   <table class="w-full min-w-[460px]"><thead><tr><th class="text-left pb-2 text-[11px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第一次預估</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第二次實繳</th><th class="text-right pb-2 text-[11px]" style="color:var(--ink-soft)">差額 / 省下</th></tr></thead><tbody>
     ${sectionRows('A．可運用現金流（薪資、配息等收入）', 'var(--sage)', 'bank')}
     ${sectionRows('B．預留常態性支出（還債等已轉走 + 卡費預估）', color, 'expense')}
-    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">可用流動資金 (A−B)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${color}">${availEff.toLocaleString()}</td></tr>
     ${sectionRows('C．計畫性支出（存款、投資、旅遊基金等）', 'var(--gold)', 'plan')}
-    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">本次預留自由零用金 (A−B−C)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right">${(bankEff - expenseEff - planEff).toLocaleString()}</td></tr>
+   
   </tbody></table>`;
   wrap.appendChild(table);
 
