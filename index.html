@@ -313,12 +313,15 @@ async function syncEventToGoogleCalendar(title, dateISO) {
     return null;
   }
 
-  const eventPayload = {
-    summary: `[NOMO] ${title}`,
-    description: "由 NOMO.notion 平台自動同步建立",
-    start: { date: dateISO },
-    end: { date: dateISO }
-  };
+  // ⭕ 計算隔天日期，符合 Google Calendar API 全天事件規範
+const nextDayISO = addDays(dateISO, 1);
+
+const eventPayload = {
+  summary: `[NOMO] ${title}`,
+  description: "由 NOMO.notion 平台自動同步建立",
+  start: { date: dateISO },
+  end: { date: nextDayISO } // ⭕ 修改為隔天日期
+};
 
   try {
     const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
