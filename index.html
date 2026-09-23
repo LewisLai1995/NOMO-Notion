@@ -556,27 +556,33 @@ async function sendLineNotification(message) {
   }
 }
 
-// ⭕ 3. 設定 LINE Notify Token 彈窗
+// ⭕ 設定 Messaging API Token 與 User ID 彈窗（兩欄式）
 function openLineTokenModal() {
   const lineConfig = state.integrations.find(it => it.id === 'line');
   const currentToken = lineConfig.token || '';
+  const currentUserId = lineConfig.userId || '';
 
   const wrap = el(`<div>
-    <div class="font-display font-bold text-[19px] mb-2" style="color:var(--ink)">設定 LINE Notify 權杖 Token</div>
-    <p class="text-[12px] mb-4" style="color:var(--ink-soft)">
-      1. 請至 <a href="https://notify-bot.line.me/my/" target="_blank" class="underline text-blue-600 font-medium">LINE Notify 個人頁面</a> 登入。<br/>
-      2. 點擊「發行權杖 (Generate token)」。<br/>
-      3. 權杖名稱填寫 <span class="font-mono font-bold">NOMO.notion</span>，接收聊天室選擇「透過1對1接收LINE Notify通知」。<br/>
-      4. 複製發行的權杖字串，貼入下方輸入框中。
+    <div class="font-display font-bold text-[19px] mb-2" style="color:var(--ink)">設定 LINE Messaging API</div>
+    <p class="text-[12px] mb-4 leading-relaxed" style="color:var(--ink-soft)">
+      1. 在 LINE Developers Console 的 <span class="font-bold">Messaging API</span> 頁籤最下方點擊 <span class="font-mono bg-gray-100 px-1 py-0.5 rounded">Issue</span> 取得第一個 Token。<br/>
+      2. 在 <span class="font-bold">Basic settings</span> 頁籤複製你的 <span class="font-mono bg-gray-100 px-1 py-0.5 rounded">Your user ID</span>（U 開頭字串）。<br/>
+      3. 記得用手機 LINE 掃描 Messaging API 頁面的 QR Code 加機器人為好友！
     </p>
 
-    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">LINE Notify Token
-      <input id="lineTokenInput" type="text" value="${currentToken}" placeholder="請貼上 e.g. 43a1b2c3..." class="w-full mt-1 border rounded-lg px-3 py-2 text-[13px] font-mono" style="border-color:var(--line)"/>
+    <!-- ⭕ 欄位 1：Channel Access Token -->
+    <label class="text-[12px] block mb-2" style="color:var(--ink-soft)">1. Channel Access Token (長串金鑰)
+      <textarea id="lineTokenInput" placeholder="貼上 Messaging API 最下方的長串 Token..." class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[11px] font-mono h-16 resize-none" style="border-color:var(--line)">${currentToken}</textarea>
+    </label>
+
+    <!-- ⭕ 欄位 2：Your User ID -->
+    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">2. Your User ID (U 開頭字串)
+      <input id="lineUserIdInput" type="text" value="${currentUserId}" placeholder="貼上 Basic settings 裡面的 Your user ID (例: U123456...)" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[12px] font-mono" style="border-color:var(--line)"/>
     </label>
 
     <div id="lineTokenMsg" class="text-[12px] mb-3 hidden"></div>
 
-    <div class="flex justify-between items-center mt-5">
+    <div class="flex justify-between items-center mt-4">
       <button type="button" id="btnTestLine" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style="border-color:var(--line)">
         🧪 發送測試推播
       </button>
@@ -588,45 +594,50 @@ function openLineTokenModal() {
     </div>
   </div>`);
 
-  const input = wrap.querySelector('#lineTokenInput');
+  const tokenInput = wrap.querySelector('#lineTokenInput');
+  const userIdInput = wrap.querySelector('#lineUserIdInput');
   const msg = wrap.querySelector('#lineTokenMsg');
 
   // 測試發送
   wrap.querySelector('#btnTestLine').addEventListener('click', async () => {
-    const testToken = input.value.trim();
-    if (!testToken) {
-      msg.textContent = "⚠️ 請先輸入 Token 再測試。";
+    const testToken = tokenInput.value.trim();
+    const testUserId = userIdInput.value.trim();
+
+    if (!testToken || !testUserId) {
+      msg.textContent = "⚠️ 請完整填寫 Channel Access Token 與 User ID 後再測試。";
       msg.className = "text-[12px] mb-3 text-red-600 font-medium";
       msg.classList.remove('hidden');
       return;
     }
 
-    msg.textContent = "⏳ 測試發送中...";
+    msg.textContent = "⏳ 測試推播發送中...";
     msg.className = "text-[12px] mb-3 text-gray-500 font-medium";
     msg.classList.remove('hidden');
 
-    // 暫存進行推播測試
     lineConfig.token = testToken;
+    lineConfig.userId = testUserId;
     lineConfig.connected = true;
 
-    const success = await sendLineNotification("🎉 NOMO.notion LINE 通知連動測試成功！當前夥伴提醒已就緒。");
+    const success = await sendLineNotification("🎉 NOMO.notion Messaging API 測試成功！個人 AI 助理已成功與你的官方帳號連線。");
 
     if (success) {
-      msg.textContent = "✨ 測試推播成功！請檢查你的 LINE 訊息。";
+      msg.textContent = "✨ 測試推播成功！請檢查你的 LINE 機器人聊天室。";
       msg.className = "text-[12px] mb-3 text-emerald-600 font-medium";
     } else {
-      msg.textContent = "❌ 發送失敗，請確認 Token 字串是否正確。";
+      msg.textContent = "❌ 發送失敗，請確認 Token、User ID 是否正確，並確認已加機器人好友。";
       msg.className = "text-[12px] mb-3 text-red-600 font-medium";
     }
   });
 
   wrap.querySelector('#btnCancelLine').addEventListener('click', closeModal);
 
-  // 儲存
+  // 儲存設定
   wrap.querySelector('#btnSaveLine').addEventListener('click', () => {
-    const v = input.value.trim();
-    lineConfig.token = v;
-    lineConfig.connected = !!v;
+    const t = tokenInput.value.trim();
+    const u = userIdInput.value.trim();
+    lineConfig.token = t;
+    lineConfig.userId = u;
+    lineConfig.connected = !!(t && u);
     closeModal();
     commit();
   });
