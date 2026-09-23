@@ -733,35 +733,7 @@ function openLineTokenModal() {
     }
   });
 
-  wrap.querySelector('#btnCancelLine').addEventListener('click', closeModal);
-
-  // 儲存偏好與 API 設定
-  wrap.querySelector('#btnSaveLine').addEventListener('click', () => {
-    // 1. 儲存 API Token
-    const t = tokenInput.value.trim();
-    const u = userIdInput.value.trim();
-    lineConfig.token = t;
-    lineConfig.userId = u;
-    lineConfig.connected = !!(t && u);
-
-    // 2. 儲存通知偏好設定
-    lineConfig.notifySettings = {
-      projectReminder: wrap.querySelector('#chkProject').checked,
-      projectDaysBefore: parseInt(wrap.querySelector('#selProjectDays').value, 10),
-      
-      lifeReminder: wrap.querySelector('#chkLife').checked,
-      lifeDaysBefore: parseInt(wrap.querySelector('#selLifeDays').value, 10),
-      
-      financeReminder: wrap.querySelector('#chkFinance').checked,
-      financeDaysBefore: parseInt(wrap.querySelector('#selFinanceDays').value, 10)
-    };
-
-    closeModal();
-    commit();
-  });
-
-  openModal(wrap);
-}
+  openLineTokenModal()
   
 /* ============================================================ STATE ============================================================ */
 let state = {
