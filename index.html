@@ -4664,99 +4664,174 @@ function financeReviewSettingsCard(){
 
   openModal(wrap, null, true); // 鎖定背景，防止點擊外框關閉
 }
-function renderReserve(){
+/* ============================================================ RESERVE (REFACTORED) ============================================================ */
+
+function renderReserve() {
   const color = state.theme.finance;
   const wrap = el(`<div></div>`);
-  wrap.appendChild(agentPageHeader('finance','BI-WEEKLY REVIEW','資產 Reserve'));
-
-  const btnRow = el(`<div class="flex flex-wrap gap-2 mb-6"></div>`);
-  const enterBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium flex items-center gap-2" style="background:${color};color:${contrastText(color)};">＋ 進入盤點模式</button>`);
-  enterBtn.addEventListener('click', openReviewModal);
-  const editLastBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:${color};color:${color};">修改上一次盤點紀錄</button>`);
-  editLastBtn.addEventListener('click', openEditLastReviewModal);
-  const histBtn = el(`<button class="rounded-lg px-4 py-2.5 text-[13px] font-medium border" style="border-color:var(--line);color:var(--ink-soft);">🕘 歷史紀錄</button>`);
-  histBtn.addEventListener('click', openFinanceHistoryModal);
-  btnRow.append(enterBtn, editLastBtn, histBtn);
-  wrap.appendChild(btnRow);
+  wrap.appendChild(agentPageHeader('finance', 'BI-WEEKLY REVIEW', '資產 Reserve'));
 
   const F = state.finance;
   const latest = latestPeriod();
 
- if (!latest) {
-  const initCard = el(`
-    <div class="card rounded-xl p-8 mb-6 text-center flex flex-col items-center">
-      <div class="text-[15px] font-medium mb-2">👋 歡迎使用資產盤點系統</div>
-      <div class="text-[13px] mb-5 max-w-[420px]" style="color:var(--ink-soft)">
-        在開始例行雙週盤點前，請先建立你的初始資產基線（例如將手邊已有的預存計畫金額、現有帳戶餘額填入），讓後續盤點能順暢帶入資料。
+  // 若完全沒有盤點資料，引導建立初始基線
+  if (!latest) {
+    const initCard = el(`
+      <div class="card rounded-xl p-8 mb-6 text-center flex flex-col items-center">
+        <div class="text-[15px] font-medium mb-2">👋 歡迎使用資產盤點系統</div>
+        <div class="text-[13px] mb-5 max-w-[420px]" style="color:var(--ink-soft)">
+          在開始例行雙週盤點前，請先建立你的初始資產基線（例如將手邊已有的預存計畫金額、現有帳戶餘額填入），讓後續盤點能順暢帶入資料。
+        </div>
+        <button id="btnInitSetup" class="rounded-lg px-5 py-2.5 text-[13px] font-medium" style="background:${color};color:${contrastText(color)};">
+          ⚙️ 設定初始資產與名目
+        </button>
       </div>
-      <button id="btnInitSetup" class="rounded-lg px-5 py-2.5 text-[13px] font-medium" style="background:${color};color:${contrastText(color)};">
-        ⚙️ 設定 initial 初始資產與項目
-      </button>
-    </div>
-  `);
+    `);
 
-  initCard.querySelector('#btnInitSetup').addEventListener('click', openInitialSetupModal);
-  wrap.appendChild(initCard);
-  return wrap;
-}
+    initCard.querySelector('#btnInitSetup').addEventListener('click', openInitialSetupModal);
+    wrap.appendChild(initCard);
+    return wrap;
+  }
 
+  // 1. 計算核心財務指標
   const bankEff = sumEffective('bank', latest.id);
   const expenseEff = sumEffective('expense', latest.id);
   const planEff = sumEffective('plan', latest.id);
   const availEff = bankEff - expenseEff;
-  const remainingCash = bankEff - expenseEff - planEff;
+  const netWorth = bankEff + planEff - expenseEff; // 淨資產概算
 
+  // 2. 算下一次盤點倒數天數
+  const nextDate = nextBiweeklyDate(state.todayISO);
+  const countdownDays = diffDays(state.todayISO, nextDate);
+
+  // ⭕ 頂部關鍵數據儀表板 (Dashboard)
+  const dashboard = el(`<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">總淨資產概算</div>
+      <div class="text-[20px] font-display font-bold">NT$ ${netWorth.toLocaleString()}</div>
+      <div class="text-[10px] mt-1" style="color:var(--sage)">包含存款與區塊 C 累計計畫</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">當前可運用金流 (A)</div>
+      <div class="text-[20px] font-display font-bold">NT$ ${bankEff.toLocaleString()}</div>
+      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">帳戶實質現金總額</div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">可用流動資金 (A − B)</div>
+      <div class="text-[20px] font-display font-bold" style="color:${color}">NT$ ${availEff.toLocaleString()}</div>
+      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">扣除預留/卡費後餘額</div>
+    </div>
+    <div class="card rounded-xl p-4 flex flex-col justify-between">
+      <div>
+        <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">下次盤點倒數</div>
+        <div class="text-[20px] font-display font-bold">${countdownDays === 0 ? '🎉 今天是盤點日！' : `${countdownDays} 天`}</div>
+      </div>
+      <div class="text-[10px]" style="color:var(--ink-soft)">預計盤點日：${fmt(nextDate)}</div>
+    </div>
+  </div>`);
+  wrap.appendChild(dashboard);
+
+  // ⭕ 兩大 Hero 主要操作按鈕區
+  const open = findOpenPeriod();
+  const heroBtnRow = el(`<div class="grid grid-cols-2 gap-4 mb-6">
+    <button id="heroFirstBtn" class="card rounded-xl p-5 text-left transition-all hover:shadow-md flex items-center justify-between border-l-4" style="border-left-color:var(--sage)">
+      <div>
+        <div class="text-[11px] font-mono tracking-widest mb-1" style="color:var(--sage)">① 月初發薪日盤點</div>
+        <div class="text-[15px] font-bold mb-1">💰 發薪預算劃撥</div>
+        <div class="text-[12px]" style="color:var(--ink-soft)">填入薪資收入 A、預留卡費 B，劃撥存款 C</div>
+      </div>
+      <span class="text-[18px]">➔</span>
+    </button>
+
+    <button id="heroSecondBtn" class="card rounded-xl p-5 text-left transition-all hover:shadow-md flex items-center justify-between border-l-4 ${!open ? 'opacity-50 cursor-not-allowed' : ''}" style="border-left-color:${color}">
+      <div>
+        <div class="text-[11px] font-mono tracking-widest mb-1" style="color:${color}">② 每月 18 號結算盤點</div>
+        <div class="text-[15px] font-bold mb-1">💳 卡費實繳與餘額加碼</div>
+        <div class="text-[12px]" style="color:var(--ink-soft)">${open ? `針對「${fmt(open.firstDate)}」核對卡費實繳，將省下的錢二次加碼投資` : '目前尚無需要第二次結算的週期'}</div>
+      </div>
+      <span class="text-[18px]">➔</span>
+    </button>
+  </div>`);
+
+  heroBtnRow.querySelector('#heroFirstBtn').addEventListener('click', openFirstReviewModal);
+  if (open) {
+    heroBtnRow.querySelector('#heroSecondBtn').addEventListener('click', () => openSecondReviewModal(open));
+  }
+  wrap.appendChild(heroBtnRow);
+
+  // ⭕ 輔助功能條 (修改上次紀錄、歷史紀錄)
+  const subBtnRow = el(`<div class="flex items-center justify-between mb-6">
+    <div class="text-[12px] font-mono text-gray-500">
+      上次盤點於：${fmt(latest.firstDate)} ${latest.secondDate ? `(已於 ${fmt(latest.secondDate)} 完成二盤)` : '(等待二盤中)'}
+    </div>
+    <div class="flex gap-2">
+      <button id="editLastBtn" class="rounded-lg px-3 py-1.5 text-[12px] font-medium border" style="border-color:${color};color:${color}">修改上一次盤點紀錄</button>
+      <button id="histBtn" class="rounded-lg px-3 py-1.5 text-[12px] font-medium border" style="border-color:var(--line);color:var(--ink-soft)">🕘 歷史紀錄</button>
+    </div>
+  </div>`);
+
+  subBtnRow.querySelector('#editLastBtn').addEventListener('click', openEditLastReviewModal);
+  subBtnRow.querySelector('#histBtn').addEventListener('click', openFinanceHistoryModal);
+  wrap.appendChild(subBtnRow);
+
+  // ⭕ 本次盤點數據明細表
   const table = el(`<div class="card rounded-xl p-5 mb-6 overflow-x-auto scrollbar-thin"></div>`);
-  function sectionRows(title,c,group){
+  function sectionRows(title, c, group) {
     const items = itemsInPeriod(group, latest.id);
     const diffFn = FINANCE_DIFF_FORMULA[group];
     let rows = `<tr><td colspan="4" class="pt-4 pb-1 text-[11px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
-    let sumF=0, sumS=0, hasSecond=false;
-    items.forEach(item=>{
+    let sumF = 0, sumS = 0, hasSecond = false;
+
+    items.forEach(item => {
       const f = item.first[latest.id], s = item.second[latest.id];
-      sumF += f||0; if(s!=null){ sumS += s; hasSecond=true; }
-      const diff = (f!=null && s!=null) ? diffFn(f,s) : null;
-      rows += `<tr><td class="py-1 text-[12px] pr-4" style="color:var(--ink-soft)">${item.label}</td>
-        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${f==null?'color:var(--line)':''}">${f==null?'—':f.toLocaleString()}</td>
-        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${s==null?'color:var(--line)':''}">${s==null?'—':s.toLocaleString()}</td>
-        <td class="py-1 text-[12px] font-mono text-right" style="color:${diff==null?'var(--line)':(diff>=0?'var(--good)':'var(--danger)')}">${diff==null?'—':(diff>0?'+':'')+diff.toLocaleString()}</td></tr>`;
+      sumF += f || 0;
+      if (s != null) { sumS += s; hasSecond = true; }
+      const diff = (f != null && s != null) ? diffFn(f, s) : null;
+      rows += `<tr>
+        <td class="py-1 text-[12px] pr-4" style="color:var(--ink-soft)">${item.label}</td>
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${f == null ? 'color:var(--line)' : ''}">${f == null ? '—' : f.toLocaleString()}</td>
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${s == null ? 'color:var(--line)' : ''}">${s == null ? '—' : s.toLocaleString()}</td>
+        <td class="py-1 text-[12px] font-mono text-right" style="color:${diff == null ? 'var(--line)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')}">${diff == null ? '—' : (diff > 0 ? '+' : '') + diff.toLocaleString()}</td>
+      </tr>`;
     });
-    const sumDiff = hasSecond ? diffFn(sumF,sumS) : null;
+
+    const sumDiff = hasSecond ? diffFn(sumF, sumS) : null;
     rows += `<tr class="border-t" style="border-color:var(--line)"><td class="py-1.5 text-[12px] font-semibold pr-4">小計</td>
       <td class="py-1.5 text-[12px] font-mono font-semibold text-right pr-4">${sumF.toLocaleString()}</td>
-      <td class="py-1.5 text-[12px] font-mono font-semibold text-right pr-4">${hasSecond?sumS.toLocaleString():'—'}</td>
-      <td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${sumDiff==null?'var(--ink-soft)':(sumDiff>=0?'var(--good)':'var(--danger)')}">${sumDiff==null?'—':(sumDiff>0?'+':'')+sumDiff.toLocaleString()}</td></tr>`;
+      <td class="py-1.5 text-[12px] font-mono font-semibold text-right pr-4">${hasSecond ? sumS.toLocaleString() : '—'}</td>
+      <td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${sumDiff == null ? 'var(--ink-soft)' : (sumDiff >= 0 ? 'var(--good)' : 'var(--danger)')}">${sumDiff == null ? '—' : (sumDiff > 0 ? '+' : '') + sumDiff.toLocaleString()}</td></tr>`;
     return rows;
   }
-  table.innerHTML = `<div class="text-[11px] font-mono mb-2" style="color:var(--ink-soft)">本次盤點 · 第一次 ${fmt(latest.firstDate)}${latest.secondDate?` · 第二次 ${fmt(latest.secondDate)}`:'（尚未第二次盤點）'}</div>
-  <table class="w-full min-w-[460px]"><thead><tr><th class="text-left pb-2 text-[11px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-2 text-[11px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
-    ${sectionRows('A．可運用現金流（薪資、配息等收入）','var(--sage)','bank')}
-    ${sectionRows('B．預留常態性支出（卡費、生活費等已知花費）',color,'expense')}
+
+  table.innerHTML = `
+  <table class="w-full min-w-[460px]"><thead><tr><th class="text-left pb-2 text-[11px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第一次預估</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第二次實繳</th><th class="text-right pb-2 text-[11px]" style="color:var(--ink-soft)">差額 / 省下</th></tr></thead><tbody>
+    ${sectionRows('A．可運用現金流（薪資、配息等收入）', 'var(--sage)', 'bank')}
+    ${sectionRows('B．預留常態性支出（還債等已轉走 + 卡費預估）', color, 'expense')}
     <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">可用流動資金 (A−B)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${color}">${availEff.toLocaleString()}</td></tr>
-    ${sectionRows('C．計畫性支出（存款、投資、旅遊基金等）','var(--gold)','plan')}
-    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">本次剩餘可用現金 (A−B−C)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right">${remainingCash.toLocaleString()}</td></tr>
+    ${sectionRows('C．計畫性支出（存款、投資、旅遊基金等）', 'var(--gold)', 'plan')}
+    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">本次預留自由零用金 (A−B−C)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right">${(bankEff - expenseEff - planEff).toLocaleString()}</td></tr>
   </tbody></table>`;
   wrap.appendChild(table);
 
+  // ⭕ 區塊 C 計畫卡片與圖表
   wrap.appendChild(planProgressCard());
 
-  // charts use a wider trailing window of periods than just the latest one, so the trend line
-  // is actually readable, not just a single dot. Each point uses the "effective" figure
-  // (second review if done, else first) for that period.
   const chartPeriods = F.periods.slice(-8);
-  const chartBank = chartPeriods.map(p=>sumEffective('bank',p.id));
-  const chartExpense = chartPeriods.map(p=>sumEffective('expense',p.id));
-  const chartAvail = chartBank.map((b,i)=>b-chartExpense[i]);
-  const chartLabels = chartPeriods.map(p=>fmt(p.secondDate||p.firstDate));
+  const chartBank = chartPeriods.map(p => sumEffective('bank', p.id));
+  const chartExpense = chartPeriods.map(p => sumEffective('expense', p.id));
+  const chartAvail = chartBank.map((b, i) => b - chartExpense[i]);
+  const chartLabels = chartPeriods.map(p => fmt(p.secondDate || p.firstDate));
 
   const chartsGrid = el(`<div class="grid grid-cols-2 gap-5 mt-2 mb-6"></div>`);
   const c1 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">現有可運用現金變化曲線</div><canvas id="chart1" height="160"></canvas></div>`);
   const c2 = el(`<div class="card rounded-xl p-5"><div class="text-[13px] font-medium mb-3">預留常態性支出 vs 可用流動資金</div><canvas id="chart2" height="160"></canvas></div>`);
-  chartsGrid.append(c1,c2); wrap.appendChild(chartsGrid);
-  setTimeout(()=>{
-    new Chart(c1.querySelector('canvas'), {type:'line', data:{labels:chartLabels, datasets:[{label:'現有可運用現金', data:chartBank, borderColor:color, backgroundColor:hexToRgba(color,0.14), tension:.3, fill:true}]}, options:{plugins:{legend:{display:false}}, scales:{y:{ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
-    new Chart(c2.querySelector('canvas'), {type:'bar', data:{labels:chartLabels, datasets:[{label:'預留常態性支出',data:chartExpense,backgroundColor:hexToRgba('#B5654A',0.65)},{label:'可用流動資金',data:chartAvail,backgroundColor:hexToRgba(color,0.7)}]}, options:{plugins:{legend:{labels:{font:{size:10}}}}, scales:{y:{ticks:{font:{size:10}}}, x:{ticks:{font:{size:10}}}}}});
-  },0);
+  chartsGrid.append(c1, c2); wrap.appendChild(chartsGrid);
+
+  setTimeout(() => {
+    new Chart(c1.querySelector('canvas'), { type: 'line', data: { labels: chartLabels, datasets: [{ label: '現有可運用現金', data: chartBank, borderColor: color, backgroundColor: hexToRgba(color, 0.14), tension: .3, fill: true }] }, options: { plugins: { legend: { display: false } }, scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } } });
+    new Chart(c2.querySelector('canvas'), { type: 'bar', data: { labels: chartLabels, datasets: [{ label: '預留常態性支出', data: chartExpense, backgroundColor: hexToRgba('#B5654A', 0.65) }, { label: '可用流動資金', data: chartAvail, backgroundColor: hexToRgba(color, 0.7) }] }, options: { plugins: { legend: { labels: { font: { size: 10 } } } }, scales: { y: { ticks: { font: { size: 10 } } }, x: { ticks: { font: { size: 10 } } } } } });
+  }, 0);
+
   wrap.appendChild(financeReviewSettingsCard());
   return wrap;
 }
