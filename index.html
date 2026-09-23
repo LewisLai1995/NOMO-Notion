@@ -4725,25 +4725,18 @@ function renderReserve(){
     return wrap;
   }
 
-  // ⭕ 1. 計算全新的 4 大指標 (統一在此宣告，避免重複 identifier 報錯)
-  const bankEff = sumEffective('bank', latest.id);       // 現有金流 A
-  const expenseEff = sumEffective('expense', latest.id); // 實際/預留花費 B
-  const planEff = sumEffective('plan', latest.id);       // 計畫儲蓄 C
+  // ⭕ 1. 計算核心財務指標
+  const bankEff = sumEffective('bank', latest.id);       // 區塊 A：本月總收入
+  const expenseEff = sumEffective('expense', latest.id); // 區塊 B：本月總支出 (一盤為預算，二盤為實繳)
+  const planEff = sumEffective('plan', latest.id);       // 區塊 C：計畫儲蓄
 
-  // 算第一階段預留的花費與第二階段實繳的差額 (省下的錢)
+  // 二盤與差額比對
   const firstExpenseSum = itemsInPeriod('expense', latest.id).reduce((s, it) => s + (it.first[latest.id] || 0), 0);
   const secondExpenseSum = sumPhase('expense', latest.id, 'second');
   const hasSecondReview = latest.secondDate != null;
 
-  // 指標 2：剩餘自由資金 (Modal 中的剩餘金額)
+  // 算省下的錢 (一盤時為 0)
   const savedMoney = hasSecondReview ? (firstExpenseSum - secondExpenseSum) : 0;
-  const freeCash = bankEff + savedMoney - planEff;
-
-  // 指標 1：總淨值概算 (所有區塊 C 累計投入 + 剩餘自由資金)
-  const totalAccumulatedPlan = F.plan.reduce((total, item) => {
-    return total + F.periods.reduce((sum, p) => sum + (effectiveValue(item, p.id) || 0), 0);
-  }, 0);
-  const totalNetWorth = totalAccumulatedPlan + freeCash;
 
   // 指標 3：本月預算損益 (區塊 B 花費結果)
   let pnlValueText = `NT$ ${expenseEff.toLocaleString()}`;
@@ -4766,26 +4759,32 @@ function renderReserve(){
   const nextDate = nextBiweeklyDate(state.todayISO);
   const countdownDays = diffDays(state.todayISO, nextDate);
 
-  // ⭕ 2. 頂部 4 大卡片 Dashboard
+  // ⭕ 2. 頂部 4 大卡片 Dashboard (第一張：總收入 / 第二張：總支出)
   const dashboard = el(`<div class="grid grid-cols-4 gap-4 mb-6">
+    <!-- 1. 本月總收入 (區塊 A) -->
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">總淨值概算</div>
-      <div class="text-[20px] font-display font-bold">NT$ ${totalNetWorth.toLocaleString()}</div>
-      <div class="text-[10px] mt-1 truncate" style="color:var(--sage)">所有區塊 C 累計 + 剩餘自由資金</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">本月總收入</div>
+      <div class="text-[20px] font-display font-bold">NT$ ${bankEff.toLocaleString()}</div>
+      <div class="text-[10px] mt-1 truncate" style="color:var(--sage)">薪資、配息等收入 (區塊 A)</div>
     </div>
 
+    <!-- 2. 本月總支出 (區塊 B：一盤預計/二盤實際) -->
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">剩餘自由資金</div>
-      <div class="text-[20px] font-display font-bold" style="color:${freeCash >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${freeCash.toLocaleString()}</div>
-      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">Modal 扣除劃撥後自由零用金</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">本月總支出</div>
+      <div class="text-[20px] font-display font-bold" style="color:${color}">NT$ ${expenseEff.toLocaleString()}</div>
+      <div class="text-[10px] mt-1 truncate" style="color:var(--ink-soft)">
+        ${hasSecondReview ? '二盤實際扣款金額 (區塊 B)' : '一盤預計常態支出 (區塊 B)'}
+      </div>
     </div>
 
+    <!-- 3. 本月預算損益 -->
     <div class="card rounded-xl p-4">
       <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">本月預算損益 (區塊 B)</div>
       <div class="text-[20px] font-display font-bold" style="color:${pnlColor}">${pnlValueText}</div>
       <div class="text-[10px] mt-1 truncate" style="color:var(--ink-soft)">${pnlSubText}</div>
     </div>
 
+    <!-- 4. 倒數下一次盤點天數 -->
     <div class="card rounded-xl p-4 flex flex-col justify-between">
       <div>
         <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">下一次盤點倒數</div>
@@ -4839,7 +4838,7 @@ function renderReserve(){
   subBtnRow.querySelector('#histBtn').addEventListener('click', openFinanceHistoryModal);
   wrap.appendChild(subBtnRow);
 
-  // ⭕ 5. 本次盤點數據明細表
+  // ⭕ 5. 本次盤點數據明細表 (刪除多餘試算行)
   const table = el(`<div class="card rounded-xl p-5 mb-6 overflow-x-auto scrollbar-thin"></div>`);
   function sectionRows(title, c, group) {
     const items = itemsInPeriod(group, latest.id);
@@ -4868,13 +4867,12 @@ function renderReserve(){
     return rows;
   }
 
+  // ⭕ 移除掉可流動資金 (A-B) 與 本次預留自由零用金 (A-B-C) 兩行，維持乾淨的名目與小計
   table.innerHTML = `
   <table class="w-full min-w-[460px]"><thead><tr><th class="text-left pb-2 text-[11px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第一次預估</th><th class="text-right pb-2 pr-4 text-[11px]" style="color:var(--ink-soft)">第二次實繳</th><th class="text-right pb-2 text-[11px]" style="color:var(--ink-soft)">差額 / 省下</th></tr></thead><tbody>
     ${sectionRows('A．可運用現金流（薪資、配息等收入）', 'var(--sage)', 'bank')}
     ${sectionRows('B．預留常態性支出（還債等已轉走 + 卡費預估）', color, 'expense')}
-    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">可用流動資金 (A−B)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right" style="color:${color}">${(bankEff - expenseEff).toLocaleString()}</td></tr>
     ${sectionRows('C．計畫性支出（存款、投資、旅遊基金等）', 'var(--gold)', 'plan')}
-    <tr class="border-t-2" style="border-color:var(--ink)"><td class="py-1.5 text-[12px] font-semibold pr-4" colspan="3">本次預留自由零用金 (A−B−C)</td><td class="py-1.5 text-[12px] font-mono font-semibold text-right">${freeCash.toLocaleString()}</td></tr>
   </tbody></table>`;
   wrap.appendChild(table);
 
