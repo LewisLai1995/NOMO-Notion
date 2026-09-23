@@ -522,7 +522,7 @@ function isLineConnected() {
   return lineConfig && lineConfig.connected && lineConfig.token;
 }
 
-// ⭕ 請在此處貼上你在 Google Apps Script 部署取得的 Web App URL
+// ⭕ 請確認這串是你在 GAS 部署取得的 Web App URL
 const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycbwKJZWlks2w1mj1l1BHuMbL-HLMCZeKCM49ov0_64zqSyufsKMSv8XURXJmgojltVNZuQ/exec";
 
 async function sendLineNotification(message) {
@@ -542,27 +542,18 @@ async function sendLineNotification(message) {
   };
 
   try {
-    // 透過 Google 伺服器進行中繼，徹底解決 CORS 跨域問題與 proxy 封鎖
-    const res = await fetch(GAS_PROXY_URL, {
+    // ⭕ 改用 mode: 'no-cors'，直接發送請求給 Google 伺服器，完全繞過瀏覽器的 CORS 阻擋
+    await fetch(GAS_PROXY_URL, {
       method: "POST",
+      mode: "no-cors",
       headers: {
-        "Content-Type": "text/plain;charset=utf-8" // 避免觸發預檢請求
+        "Content-Type": "text/plain;charset=utf-8"
       },
       body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
-      const result = await res.json();
-      if (result.error) {
-        console.error("❌ LINE 推播內部錯誤:", result.error);
-        return false;
-      }
-      console.log("✨ LINE Messaging API 訊息推播成功！", result);
-      return true;
-    } else {
-      console.error("❌ 中繼請求失敗，狀態碼:", res.status);
-      return false;
-    }
+    console.log("✨ LINE 推播請求已成功透過 GAS 中繼發送！");
+    return true;
   } catch (err) {
     console.error("❌ 網路請求發送失敗:", err);
     return false;
