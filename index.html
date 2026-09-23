@@ -3395,14 +3395,27 @@ function personaMonthCalendar(){
   const head = el(`<div class="flex items-center justify-between mb-3"></div>`); 
   head.innerHTML = `<div class="text-[13px] font-medium">日常行事曆</div>`;
 
+  // ⭕ 導覽控制項：加入「今天」按鈕
   const nav = el(`<div class="flex items-center gap-2"></div>`);
-  const prev = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹</button>`);
-  const label = el(`<span class="text-[12px] font-mono w-16 text-center">${y}/${String(mo).padStart(2,'0')}</span>`);
-  const next = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">›</button>`);
+  const prev = el(`<button class="text-[12px] px-2 py-1 rounded border hover:bg-gray-100 transition-colors" style="border-color:var(--line)" title="上個月">‹</button>`);
+  const label = el(`<span class="text-[12px] font-mono w-16 text-center font-bold">${y}/${String(mo).padStart(2,'0')}</span>`);
+  const next = el(`<button class="text-[12px] px-2 py-1 rounded border hover:bg-gray-100 transition-colors" style="border-color:var(--line)" title="下個月">›</button>`);
+  const todayBtn = el(`<button class="text-[12px] px-2.5 py-1 rounded border font-medium transition-colors hover:bg-[color:var(--paper-deep)]" style="border-color:var(--ink);background:#fff;color:var(--ink)">今天</button>`);
 
   prev.addEventListener('click', ()=>{ const d=new Date(y,mo-2,1); state.personaCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
   next.addEventListener('click', ()=>{ const d=new Date(y,mo,1); state.personaCalMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; render(); });
-  nav.append(prev,label,next); head.appendChild(nav); wrap.appendChild(head);
+  
+  // ⭕ 點擊「今天」按鈕：切換至當前年月，並將選取日期設為今天
+  todayBtn.addEventListener('click', ()=>{
+    const now = new Date();
+    state.personaCalMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    state.personaSelectedDate = state.todayISO;
+    render();
+  });
+
+  nav.append(prev, label, next, todayBtn); 
+  head.appendChild(nav); 
+  wrap.appendChild(head);
 
   const grid = el(`<div class="grid grid-cols-7 gap-1" id="personaGrid"></div>`);
   ["日","一","二","三","四","五","六"].forEach(w => grid.appendChild(el(`<div class="text-[9px] text-center pb-1" style="color:var(--ink-soft)">${w}</div>`)));
@@ -3422,7 +3435,7 @@ function personaMonthCalendar(){
       ${n ? `<span class="w-1 h-1 rounded-full mt-0.5" style="background:${color}"></span>` : ''}
     </button>`);
 
-    // ⭕ 點擊日期：切換高亮、同步右側輸入框日期、並刷新底下預定行程
+    // 點擊日期：切換高亮、同步右側輸入框日期、並刷新底下預定行程
     cell.addEventListener('click', ()=>{
       state.personaSelectedDate = iso;
       grid.querySelectorAll('[data-date]').forEach(c => { 
@@ -3474,10 +3487,10 @@ function personaMonthCalendar(){
     }
     dayWrap.appendChild(schedList);
 
-    // ⭕ 預設預推 3 個月後的迄點日期
+    // 預設預推 3 個月後的迄點日期
     const defaultEndISO = addDays(dateISO, 90);
 
-    // ⭕ 支援起訖點與預設單次（不重複）的行程新增介面
+    // 支援起訖點與預設單次（不重複）的行程新增介面
     const schedAddRow = el(`<div class="flex flex-col gap-2 pt-2 border-t" style="border-color:var(--line)">
       <div class="flex gap-1.5">
         <input id="newEvt" type="text" placeholder="新增 ${fmt(dateISO)} 行程（時間/地點）…" class="flex-1 text-[13px] border rounded-lg px-3 py-1.5" style="border-color:var(--line)"/>
@@ -3502,7 +3515,6 @@ function personaMonthCalendar(){
     const recSelect = schedAddRow.querySelector('#evtRecurrence');
     const untilWrap = schedAddRow.querySelector('#untilWrap');
 
-    // 切換週期選單時，控制「重複至」日期欄位顯示/隱藏
     recSelect.addEventListener('change', () => {
       if (recSelect.value === 'none') {
         untilWrap.classList.add('hidden');
@@ -3521,7 +3533,6 @@ function personaMonthCalendar(){
       const untilISO = untilInput ? untilInput.value : defaultEndISO;
 
       if(v){ 
-        // 帶入起點與自訂訖點生成日期陣列
         const targetDates = generateRecurringDates(dateISO, recType, untilISO);
 
         targetDates.forEach(d => {
@@ -3535,7 +3546,7 @@ function personaMonthCalendar(){
           }); 
         });
 
-        commit(); // 儲存並即時重新渲染全頁
+        commit();
       } 
     };
 
