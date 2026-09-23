@@ -346,6 +346,31 @@ const eventPayload = {
     console.error("❌ 網路請求失敗:", err);
     return null;
   }
+
+  // ⭕ 從 Google 行事曆刪除特定事件
+async function deleteGoogleCalendarEvent(googleEventId) {
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  
+  if (!token || !googleEventId) return;
+
+  try {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (res.ok) {
+      console.log("🗑️ 已成功從 Google Calendar 刪除事件！ID:", googleEventId);
+    } else {
+      const errData = await res.json();
+      console.error("❌ Google Calendar API 刪除失敗:", errData);
+    }
+  } catch (err) {
+    console.error("❌ 網路請求失敗:", err);
+  }
+}
 }
 /* ============================================================ STATE ============================================================ */
 let state = {
