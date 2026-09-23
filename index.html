@@ -237,58 +237,23 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
 <script>
 /* ============================================================ UTILS ============================================================ */
 
-  // ⭕ 自動檢查並清理已被使用者從 Google Calendar 刪除的行程
-async function syncDeletedEventsFromGoogle() {
-  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
-  if (!token) return;
-
-  // 抓出所有含有 googleEventId 的本地行程
-  const syncedEvents = state.personaEvents.filter(e => e.googleEventId);
-  if (!syncedEvents.length) return;
-
-  let hasChanged = false;
-
-  for (const evt of syncedEvents) {
-    try {
-      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${evt.googleEventId}`, {
-        headers: { "Authorization": `Bearer ${token}` }
-      });
-
-      if (res.status === 404) {
-        // 404 代表事件已在 Google Calendar 被刪除
-        console.log(`🧹 偵測到「${evt.text}」已從 Google Calendar 刪除，同步移除 NOMO 資料...`);
-        state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
-        hasChanged = true;
-      } else if (res.ok) {
-        const data = await res.json();
-        if (data.status === "cancelled") {
-          console.log(`🧹 偵測到「${evt.text}」已取消/刪除，同步移除 NOMO 資料...`);
-          state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
-          hasChanged = true;
-        }
-      }
-    } catch (err) {
-      console.error("檢查 Google 事件狀態失敗:", err);
-    }
-  }
-
-  // 若有刪除過期的行程，重新存檔並渲染畫面
-  if (hasChanged) {
-    commit();
-  }
+ // 輔助函式：檢查使用者是否在「系統 Connections」開啟了 Google Calendar 連動
+function isGoogleCalendarConnected() {
+  const gcalConfig = state.integrations.find(it => it.id === 'gcal');
+  return gcalConfig ? gcalConfig.connected : false;
 }
 
-// ⭕ 1. 發送事件至 Google 行事曆 (建立全天事件並回傳 Event ID)
+// ⭕ 1. 新增同步：先檢查開關是否開啟
 async function syncEventToGoogleCalendar(title, dateISO) {
-  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
-  
-  if (!token) {
-    console.warn("⚠️ 未取得 Google Calendar Token，僅儲存於本地/雲端資料庫。");
+  if (!isGoogleCalendarConnected()) {
+    console.log("ℹ️ Google Calendar 連動功能已關閉，跳過 Google API 新增。");
     return null;
   }
 
-  const nextDayISO = addDays(dateISO, 1);
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  if (!token) return null;
 
+  const nextDayISO = addDays(dateISO, 1);
   const eventPayload = {
     summary: `[NOMO] ${title}`,
     description: "由 NOMO.notion 平台自動同步建立",
@@ -309,7 +274,7 @@ async function syncEventToGoogleCalendar(title, dateISO) {
     if (res.ok) {
       const data = await res.json();
       console.log("✨ 成功同步至 Google Calendar！Event ID:", data.id);
-      return data.id; // ⭕ 務必回傳 ID
+      return data.id;
     } else {
       const errData = await res.json();
       console.error("❌ Google Calendar API 同步失敗:", errData);
@@ -321,21 +286,20 @@ async function syncEventToGoogleCalendar(title, dateISO) {
   }
 }
 
-// ⭕ 2. 從 Google 行事曆刪除特定事件 (請確保這個函式有被完整複製貼上)
+// ⭕ 2. 刪除同步：先檢查開關是否開啟
 async function deleteGoogleCalendarEvent(googleEventId) {
-  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
-  
-  if (!token || !googleEventId) {
-    console.warn("⚠️ 缺少 Token 或 Google Event ID，無法執行 Google Calendar 刪除。");
+  if (!isGoogleCalendarConnected()) {
+    console.log("ℹ️ Google Calendar 連動功能已關閉，跳過 Google API 刪除。");
     return;
   }
+
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  if (!token || !googleEventId) return;
 
   try {
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
       method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
+      headers: { "Authorization": `Bearer ${token}` }
     });
 
     if (res.ok || res.status === 204) {
@@ -346,6 +310,46 @@ async function deleteGoogleCalendarEvent(googleEventId) {
     }
   } catch (err) {
     console.error("❌ 網路請求失敗:", err);
+  }
+}
+
+// ⭕ 3. 自動檢查與反向刪除：先檢查開關是否開啟
+async function syncDeletedEventsFromGoogle() {
+  if (!isGoogleCalendarConnected()) return; // 關閉時不自動檢查
+
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  if (!token) return;
+
+  const syncedEvents = state.personaEvents.filter(e => e.googleEventId);
+  if (!syncedEvents.length) return;
+
+  let hasChanged = false;
+
+  for (const evt of syncedEvents) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${evt.googleEventId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.status === 404) {
+        console.log(`🧹 偵測到「${evt.text}」已從 Google Calendar 刪除，自動同步移除...`);
+        state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
+        hasChanged = true;
+      } else if (res.ok) {
+        const data = await res.json();
+        if (data.status === "cancelled") {
+          console.log(`🧹 偵測到「${evt.text}」已取消/刪除，自動同步移除...`);
+          state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
+          hasChanged = true;
+        }
+      }
+    } catch (err) {
+      console.error("檢查 Google 事件狀態失敗:", err);
+    }
+  }
+
+  if (hasChanged) {
+    commit();
   }
 }
 const STAGES = ["洽談需求","提案","得標","結構設計與調整","結構定稿","平面進稿","平面設計與調整","平面定稿","發包","施工","交場","展期","撤場","結案","結款"];
@@ -4690,12 +4694,26 @@ function renderConnections(){
   const wrap = el(`<div>${pageHead('INTEGRATION HUB','系統 Connections．測試中','管理外部服務的連線狀態')}</div>`);
   const grid = el(`<div class="grid grid-cols-2 gap-4"></div>`);
   state.integrations.forEach(it=>{
-    const card = el(`<div class="card rounded-xl p-5 flex items-center justify-between"><div><div class="font-medium text-[14px] mb-1">${it.name}</div><div class="text-[12px]" style="color:var(--ink-soft)">${it.desc}</div></div>
-      <button class="text-[12px] rounded-full px-3 py-1.5" style="background:${it.connected?'#E7EBE2':'var(--paper-deep)'};color:${it.connected?'var(--sage)':'var(--ink-soft)'}">${it.connected?'● 已連接':'○ 未連接'}</button></div>`);
-    card.querySelector('button').addEventListener('click', ()=>{ it.connected=!it.connected; commit(); });
+    const card = el(`<div class="card rounded-xl p-5 flex items-center justify-between">
+      <div>
+        <div class="font-medium text-[14px] mb-1">${it.name}</div>
+        <div class="text-[12px]" style="color:var(--ink-soft)">${it.desc}</div>
+      </div>
+      <button class="text-[12px] rounded-full px-3 py-1.5 transition-colors" style="background:${it.connected?'#E7EBE2':'var(--paper-deep)'};color:${it.connected?'var(--sage)':'var(--ink-soft)'}">
+        ${it.connected?'● 已連接':'○ 未連接'}
+      </button>
+    </div>`);
+
+    // ⭕ 點擊切換狀態並調用 commit() 存檔與刷新
+    card.querySelector('button').addEventListener('click', ()=>{ 
+      it.connected = !it.connected; 
+      commit(); // 儲存並重新繪製畫面
+    });
+
     grid.appendChild(card);
   });
-  wrap.appendChild(grid); return wrap;
+  wrap.appendChild(grid); 
+  return wrap;
 }
 
 /* ============================================================ INIT ============================================================ */
