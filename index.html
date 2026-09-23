@@ -4970,43 +4970,126 @@ function renderReserve(){
 }
 
 /* ============================================================ FELLOWS ============================================================ */
-function renderFellows(){
+/* ============================================================ FELLOWS (BANNER CAROUSEL) ============================================================ */
+
+function renderFellows() {
   const wrap = el(`<div>${pageHead('AGENT HUB','夥伴 Fellows','自由指定 NOMO Blob 人格、暱稱與主題色，一切即時同步到全站')}</div>`);
   const grid = el(`<div class="grid grid-cols-3 gap-4"></div>`);
-  ROLE_IDS.forEach(roleId=>{
-    const color = state.theme[roleId]; const nick = state.nicknames[roleId]; const enabled = state.agentsEnabled[roleId];
-    const card = el(`<div class="card rounded-xl p-5" style="opacity:${enabled?1:0.55}"></div>`);
-    const top = el(`<div class="flex items-center justify-between mb-3"></div>`);
+
+  const animalKeys = Object.keys(ANIMAL_TEMPLATES); // ["architect", "sprout", "stacked", "catear", "shiba", "scholar"]
+  const totalAnimals = animalKeys.length; // 6 種石頭型態
+
+  ROLE_IDS.forEach(roleId => {
+    const color = state.theme[roleId];
+    const nick = state.nicknames[roleId];
+    const enabled = state.agentsEnabled[roleId];
+
+    const card = el(`<div class="card rounded-xl p-5 flex flex-col justify-between" style="opacity:${enabled ? 1 : 0.55}"></div>`);
+    
+    // 1. 頂部標頭與開關
+    const top = el(`<div class="flex items-center justify-between mb-2"></div>`);
     top.innerHTML = `<div class="text-[11px] font-mono tracking-widest" style="color:var(--ink-soft)">${ROLE_META[roleId].label} · ${ROLE_META[roleId].desc}</div>`;
-    const toggle = el(`<div class="toggle ${enabled?'on':''}"><div class="knob"></div></div>`);
-    toggle.addEventListener('click', ()=>{ state.agentsEnabled[roleId] = !state.agentsEnabled[roleId]; if(!state.agentsEnabled[roleId] && state.route===ROLE_META[roleId].route){ state.route='today'; } commit(); });
-    top.appendChild(toggle); card.appendChild(top);
-    const avatar = el(`<div class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-3 overflow-hidden" style="background:${hexToRgba(color,0.14)};">${roleSVG(roleId,color,58,53)}</div>`);
-    card.appendChild(avatar);
-    const nickInput = el(`<input type="text" value="${nick}" class="w-full text-center font-display font-semibold text-[16px] border-b bg-transparent outline-none mb-4 pb-1" style="border-color:var(--line)"/>`);
-    nickInput.addEventListener('change', e=>{ state.nicknames[roleId] = e.target.value.trim()||nick; commit(); });
-    card.appendChild(nickInput);
-    const animalRow = el(`<div class="mb-4"><div class="text-[10px] font-mono tracking-widest mb-1.5" style="color:var(--ink-soft)">選擇 NOMO Blob 人格</div><div class="grid grid-cols-3 gap-1.5" id="animalGrid"></div></div>`);
-    const aGrid = animalRow.querySelector('#animalGrid');
-    Object.keys(ANIMAL_TEMPLATES).forEach(key=>{
-      const isSel = state.roles[roleId]===key;
-      const b = el(`<button class="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border" style="border-color:${isSel?color:'var(--line)'};background:${isSel?hexToRgba(color,0.12):'transparent'};color:${color}">
-        <span style="display:inline-flex;">${nomoBlobSVG(key,22,20)}</span>
-        <span class="text-[10px]" style="color:var(--ink)">${ANIMAL_LABEL[key]}</span></button>`);
-      b.addEventListener('click', ()=>{ state.roles[roleId]=key; commit(); });
-      aGrid.appendChild(b);
+    
+    const toggle = el(`<div class="toggle ${enabled ? 'on' : ''}"><div class="knob"></div></div>`);
+    toggle.addEventListener('click', () => { 
+      state.agentsEnabled[roleId] = !state.agentsEnabled[roleId]; 
+      if (!state.agentsEnabled[roleId] && state.route === ROLE_META[roleId].route) { 
+        state.route = 'today'; 
+      } 
+      commit(); 
     });
-    card.appendChild(animalRow);
+    top.appendChild(toggle); 
+    card.appendChild(top);
+
+    // 2. 角色大頭像
+    const avatar = el(`<div class="w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-2 overflow-hidden shadow-inner" style="background:${hexToRgba(color, 0.14)};">${roleSVG(roleId, color, 58, 53)}</div>`);
+    card.appendChild(avatar);
+
+    // 3. 暱稱編輯輸入框
+    const nickInput = el(`<input type="text" value="${nick}" class="w-full text-center font-display font-semibold text-[16px] border-b bg-transparent outline-none mb-3 pb-1" style="border-color:var(--line)"/>`);
+    nickInput.addEventListener('change', e => { 
+      state.nicknames[roleId] = e.target.value.trim() || nick; 
+      commit(); 
+    });
+    card.appendChild(nickInput);
+
+    // ⭕ 4. 左右 Banner 輪播卡片選擇器 (具備無限循環邏輯)
+    const carouselBox = el(`<div class="mb-3">
+      <div class="text-[10px] font-mono tracking-widest mb-1.5" style="color:var(--ink-soft)">選擇 NOMO BLOB 人格</div>
+      
+      <div class="relative flex items-center justify-between rounded-xl p-2 border overflow-hidden" style="border-color:var(--line); background:var(--paper-deep);">
+        <!-- 向左按鈕 -->
+        <button type="button" class="btn-prev-blob w-7 h-7 rounded-lg flex items-center justify-center bg-white shadow-sm hover:bg-gray-100 shrink-0 text-[12px] font-bold z-10" style="color:var(--ink)">
+          ‹
+        </button>
+
+        <!-- 中央 Banner 展示區域 -->
+        <div class="blob-banner-content flex flex-col items-center justify-center flex-1 px-2 py-1 select-none">
+          <!-- 動態繪製與文字會在 refreshBanner() 處理 -->
+        </div>
+
+        <!-- 向右按鈕 -->
+        <button type="button" class="btn-next-blob w-7 h-7 rounded-lg flex items-center justify-center bg-white shadow-sm hover:bg-gray-100 shrink-0 text-[12px] font-bold z-10" style="color:var(--ink)">
+          ›
+        </button>
+      </div>
+    </div>`);
+
+    // 取得當前角色套用的石頭 Key 索引
+    let currentKey = state.roles[roleId] || 'sprout';
+    let currentIdx = animalKeys.indexOf(currentKey);
+    if (currentIdx === -1) currentIdx = 0;
+
+    const bannerContent = carouselBox.querySelector('.blob-banner-content');
+    const btnPrev = carouselBox.querySelector('.btn-prev-blob');
+    const btnNext = carouselBox.querySelector('.btn-next-blob');
+
+    // 渲染 Banner 卡片內容與底部頁碼指示器
+    const refreshBanner = () => {
+      const activeKey = animalKeys[currentIdx];
+      bannerContent.innerHTML = `
+        <div class="flex items-center justify-center h-10 mb-1 transition-all transform hover:scale-105" style="color:${color}">
+          ${nomoBlobSVG(activeKey, 38, 34)}
+        </div>
+        <div class="text-[12px] font-medium leading-none mb-1" style="color:var(--ink)">${ANIMAL_LABEL[activeKey]}</div>
+        <div class="text-[9px] font-mono tracking-widest" style="color:var(--ink-soft)">${currentIdx + 1} / ${totalAnimals}</div>
+      `;
+    };
+
+    // ⭕ 無限循環切換邏輯
+    btnPrev.addEventListener('click', () => {
+      currentIdx = (currentIdx - 1 + totalAnimals) % totalAnimals; // 第 1 個的前一個自動回到第 6 個
+      state.roles[roleId] = animalKeys[currentIdx];
+      refreshBanner();
+      commit();
+    });
+
+    btnNext.addEventListener('click', () => {
+      currentIdx = (currentIdx + 1) % totalAnimals; // 第 6 個的下一個自動回到第 1 個
+      state.roles[roleId] = animalKeys[currentIdx];
+      refreshBanner();
+      commit();
+    });
+
+    refreshBanner(); // 第一次初始化繪製
+    card.appendChild(carouselBox);
+
+    // 5. 主題色選擇 Swatch
     const colorRow = el(`<div><div class="text-[10px] font-mono tracking-widest mb-1.5" style="color:var(--ink-soft)">主題色</div><div class="grid grid-cols-6 gap-1.5" id="swGrid"></div></div>`);
     const swGrid = colorRow.querySelector('#swGrid');
-    PALETTE.forEach(hex=>{
-      const sw = el(`<div class="swatch ${color.toLowerCase()===hex.toLowerCase()?'sel':''}" style="background:${hex};" title="${PALETTE_NAMES[hex]}"></div>`);
-      sw.addEventListener('click', ()=>{ state.theme[roleId]=hex; commit(); });
+    PALETTE.forEach(hex => {
+      const sw = el(`<div class="swatch ${color.toLowerCase() === hex.toLowerCase() ? 'sel' : ''}" style="background:${hex};" title="${PALETTE_NAMES[hex]}"></div>`);
+      sw.addEventListener('click', () => { 
+        state.theme[roleId] = hex; 
+        commit(); 
+      });
       swGrid.appendChild(sw);
     });
     card.appendChild(colorRow);
+
     grid.appendChild(card);
   });
+
   wrap.appendChild(grid);
   return wrap;
 }
