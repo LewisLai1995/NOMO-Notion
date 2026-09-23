@@ -4062,8 +4062,25 @@ function openFirstReviewModal(){
 
     state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate));
     ['bank','expense','plan'].forEach(group=>{
-      state.finance[group].forEach(item=>{ const inp = inputs[group][item.id]; if(inp && inp.value!==''){ item.first[period.id] = parseFloat(inp.value)||0; } });
-      pendingNew[group].forEach(entry=>{ if(!entry.label) return; state.finance[group].push({id:'x'+uid(), label:entry.label, first:{[period.id]: parseFloat(entry.input.value)||0}, second:{}}); });
+      // ⭕ 1. 更新既有名目的第二次盤點數值 (寫入 period.id)
+      state.finance[group].forEach(item=>{ 
+        const inp = inputs[group][item.id]; 
+        if(inp && inp.value!==''){ 
+          item.second[period.id] = parseFloat(inp.value) || 0; 
+        } 
+      });
+
+      // ⭕ 2. 若有新增名目，同時寫入 first 與 second
+      pendingNew[group].forEach(entry=>{ 
+        if(!entry.label) return; 
+        const val = parseFloat(entry.input.value) || 0;
+        state.finance[group].push({
+          id: 'x' + uid(), 
+          label: entry.label, 
+          first: { [period.id]: val }, // 避免 first 為空
+          second: { [period.id]: val }
+        }); 
+      });
     });
     closeModal(); commit();
   });
@@ -4515,19 +4532,34 @@ function openFinanceHistoryModal(){
       }, {okLabel:'確定刪除', color:'var(--danger)'});
     });
     head.appendChild(delBtn); box.appendChild(head);
-    function sectionRows(title,c,group){
-      const items = itemsInPeriod(group, p.id);
-      if(!items.length) return '';
-      const diffFn = FINANCE_DIFF_FORMULA[group];
-      let rows = `<tr><td colspan="4" class="pt-2 pb-1 text-[10px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
-      items.forEach(item=>{
-        const f = item.first[p.id], s = item.second[p.id];
-        const diff = (f!=null && s!=null) ? diffFn(f,s) : null;
-        rows += `<tr><td class="py-0.5 text-[12px] pr-3" style="color:var(--ink-soft)">${item.label}</td>
-          <td class="py-0.5 text-[12px] font-mono text-right pr-3">${f==null?'—':f.toLocaleString()}</td>
-          <td class="py-0.5 text-[12px] font-mono text-right pr-3">${s==null?'—':s.toLocaleString()}</td>
-          <td class="py-0.5 text-[12px] font-mono text-right" style="color:${diff==null?'var(--ink-soft)':(diff>=0?'var(--good)':'var(--danger)')}">${diff==null?'—':(diff>0?'+':'')+diff.toLocaleString()}</td></tr>`;
-      });
+    function sectionRows(title, c, group) {
+    const items = itemsInPeriod(group, latest.id);
+    const diffFn = FINANCE_DIFF_FORMULA[group];
+    let rows = `<tr><td colspan="4" class="pt-4 pb-1 text-[11px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
+    let sumF = 0, sumS = 0, hasSecond = false;
+
+    items.forEach(item => {
+      // ⭕ 確定 f 取 first，s 取 second
+      const f = item.first[latest.id];
+      const s = item.second[latest.id];
+
+      sumF += f || 0;
+      if (s != null) { 
+        sumS += s; 
+        hasSecond = true; 
+      }
+
+      const diff = (f != null && s != null) ? diffFn(f, s) : null;
+
+      rows += `<tr>
+        <td class="py-1 text-[12px] pr-4" style="color:var(--ink-soft)">${item.label}</td>
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${f == null ? 'color:var(--line)' : ''}">${f == null ? '—' : f.toLocaleString()}</td>
+        <!-- ⭕ 第二次顯示欄位應帶入 s -->
+        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${s == null ? 'color:var(--line)' : ''}">${s == null ? '—' : s.toLocaleString()}</td>
+        <td class="py-1 text-[12px] font-mono text-right" style="color:${diff == null ? 'var(--line)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')}">${diff == null ? '—' : (diff > 0 ? '+' : '') + diff.toLocaleString()}</td>
+      </tr>`;
+    });
+    // ... 後續邏輯保持不變
       return rows;
     }
     const tableHtml = `<table class="w-full min-w-[380px]"><thead><tr><th class="text-left pb-1 text-[10px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-1 text-[10px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
