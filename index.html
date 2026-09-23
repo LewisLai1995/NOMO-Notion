@@ -236,6 +236,77 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
 </div>
 <script>
 /* ============================================================ UTILS ============================================================ */
+
+// ⭕ 1. 發送事件至 Google 行事曆 (建立全天事件並回傳 Event ID)
+async function syncEventToGoogleCalendar(title, dateISO) {
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  
+  if (!token) {
+    console.warn("⚠️ 未取得 Google Calendar Token，僅儲存於本地/雲端資料庫。");
+    return null;
+  }
+
+  const nextDayISO = addDays(dateISO, 1);
+
+  const eventPayload = {
+    summary: `[NOMO] ${title}`,
+    description: "由 NOMO.notion 平台自動同步建立",
+    start: { date: dateISO },
+    end: { date: nextDayISO }
+  };
+
+  try {
+    const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(eventPayload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log("✨ 成功同步至 Google Calendar！Event ID:", data.id);
+      return data.id; // ⭕ 務必回傳 ID
+    } else {
+      const errData = await res.json();
+      console.error("❌ Google Calendar API 同步失敗:", errData);
+      return null;
+    }
+  } catch (err) {
+    console.error("❌ 網路請求失敗:", err);
+    return null;
+  }
+}
+
+// ⭕ 2. 從 Google 行事曆刪除特定事件 (請確保這個函式有被完整複製貼上)
+async function deleteGoogleCalendarEvent(googleEventId) {
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  
+  if (!token || !googleEventId) {
+    console.warn("⚠️ 缺少 Token 或 Google Event ID，無法執行 Google Calendar 刪除。");
+    return;
+  }
+
+  try {
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+      method: "DELETE",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (res.ok || res.status === 204) {
+      console.log("🗑️ 已成功從 Google Calendar 刪除事件！ID:", googleEventId);
+    } else {
+      const errData = await res.json();
+      console.error("❌ Google Calendar API 刪除失敗:", errData);
+    }
+  } catch (err) {
+    console.error("❌ 網路請求失敗:", err);
+  }
+}
 const STAGES = ["洽談需求","提案","得標","結構設計與調整","結構定稿","平面進稿","平面設計與調整","平面定稿","發包","施工","交場","展期","撤場","結案","結款"];
 const STAGE_OFFSETS = [-60,-52,-45,-38,-30,-24,-18,-12,-7,0,7,21,28,35,42];
 function pad2(n){ return String(n).padStart(2,'0'); }
