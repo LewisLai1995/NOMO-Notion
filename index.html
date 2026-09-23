@@ -4736,27 +4736,79 @@ function renderReserve() {
   const nextDate = nextBiweeklyDate(state.todayISO);
   const countdownDays = diffDays(state.todayISO, nextDate);
 
+  // 1. 計算全新的 4 大指標
+  // 區塊 A / B / C 的最新有效總額
+  const bankEff = sumEffective('bank', latest.id);       // 現有金流 A
+  const expenseEff = sumEffective('expense', latest.id); // 實際/預留花費 B
+  const planEff = sumEffective('plan', latest.id);       // 計畫儲蓄 C
+
+  // 算第一階段預留的花費與第二階段實繳的差額 (省下的錢)
+  const firstExpenseSum = itemsInPeriod('expense', latest.id).reduce((s, it) => s + (it.first[latest.id] || 0), 0);
+  const secondExpenseSum = sumPhase('expense', latest.id, 'second');
+  const hasSecondReview = latest.secondDate != null;
+
+  // 指標 2：剩餘自由資金 (Modal 中的剩餘金額：A - B - C)
+  // 若有二盤，算式為 [A + (第一B - 第二B) - C]；若僅一盤則為 [A - 第一B - C]
+  const savedMoney = hasSecondReview ? (firstExpenseSum - secondExpenseSum) : 0;
+  const freeCash = bankEff + savedMoney - planEff;
+
+  // 指標 1：總淨值概算 (所有區塊 C 累計投入 + 剩餘自由資金)
+  // 計算全歷史所有週期在區塊 C 累積的總金額
+  const totalAccumulatedPlan = F.plan.reduce((total, item) => {
+    return total + F.periods.reduce((sum, p) => sum + (effectiveValue(item, p.id) || 0), 0);
+  }, 0);
+  const totalNetWorth = totalAccumulatedPlan + freeCash;
+
+  // 指標 3：本月預算損益 (區塊 B 花費結果)
+  // 一盤顯示預留總額；二盤比對「預估 vs 實繳」算出省下(餘裕)或超支
+  let pnlValueText = `NT$ ${expenseEff.toLocaleString()}`;
+  let pnlSubText = "第一階段預留常態支出";
+  let pnlColor = "var(--ink)";
+
+  if (hasSecondReview) {
+    if (savedMoney >= 0) {
+      pnlValueText = `+NT$ ${savedMoney.toLocaleString()}`;
+      pnlSubText = "🎉 本期花費有餘裕 (少花)";
+      pnlColor = "var(--good)";
+    } else {
+      pnlValueText = `-NT$ ${Math.abs(savedMoney).toLocaleString()}`;
+      pnlSubText = "⚠️ 本期卡費/支出超支";
+      pnlColor = "var(--danger)";
+    }
+  }
+
+  // 指標 4：下一次盤點倒數天數
+  const nextDate = nextBiweeklyDate(state.todayISO);
+  const countdownDays = diffDays(state.todayISO, nextDate);
+
   // ⭕ 頂部關鍵數據儀表板 (Dashboard)
   const dashboard = el(`<div class="grid grid-cols-4 gap-4 mb-6">
+    <!-- 1. 總淨值概算 -->
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">總淨資產概算</div>
-      <div class="text-[20px] font-display font-bold">NT$ ${netWorth.toLocaleString()}</div>
-      <div class="text-[10px] mt-1" style="color:var(--sage)">包含存款與區塊 C 累計計畫</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">總淨值概算</div>
+      <div class="text-[20px] font-display font-bold">NT$ ${totalNetWorth.toLocaleString()}</div>
+      <div class="text-[10px] mt-1 truncate" style="color:var(--sage)">所有區塊 C 累計 + 剩餘自由資金</div>
     </div>
+
+    <!-- 2. 剩餘自由資金 -->
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">當前可運用金流 (A)</div>
-      <div class="text-[20px] font-display font-bold">NT$ ${bankEff.toLocaleString()}</div>
-      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">帳戶實質現金總額</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">剩餘自由資金</div>
+      <div class="text-[20px] font-display font-bold" style="color:${freeCash >= 0 ? 'var(--good)' : 'var(--danger)'}">NT$ ${freeCash.toLocaleString()}</div>
+      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">Modal 扣除劃撥後自由零用金</div>
     </div>
+
+    <!-- 3. 本月預算損益 -->
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">可用流動資金 (A − B)</div>
-      <div class="text-[20px] font-display font-bold" style="color:${color}">NT$ ${availEff.toLocaleString()}</div>
-      <div class="text-[10px] mt-1" style="color:var(--ink-soft)">扣除預留/卡費後餘額</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">本月預算損益 (區塊 B)</div>
+      <div class="text-[20px] font-display font-bold" style="color:${pnlColor}">${pnlValueText}</div>
+      <div class="text-[10px] mt-1 truncate" style="color:var(--ink-soft)">${pnlSubText}</div>
     </div>
+
+    <!-- 4. 倒數下一次盤點天數 -->
     <div class="card rounded-xl p-4 flex flex-col justify-between">
       <div>
-        <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">下次盤點倒數</div>
-        <div class="text-[20px] font-display font-bold">${countdownDays === 0 ? '🎉 今天是盤點日！' : `${countdownDays} 天`}</div>
+        <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">下一次盤點倒數</div>
+        <div class="text-[20px] font-display font-bold" style="color:${color}">${countdownDays === 0 ? '🎉 今天是盤點日！' : `${countdownDays} 天`}</div>
       </div>
       <div class="text-[10px]" style="color:var(--ink-soft)">預計盤點日：${fmt(nextDate)}</div>
     </div>
