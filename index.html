@@ -3712,9 +3712,16 @@ function personaMonthCalendar(){
       if(v){ 
         const targetDates = generateRecurringDates(dateISO, recType, untilISO);
 
-        // ⭕ 逐一建立行程，並等待取得 Google 傳回的 Event ID
+        // ⭕ 逐一建立行程：只有在連動開啟時，才發送 Google API 並儲存 googleEventId
         for (const d of targetDates) {
-          const gEventId = await syncEventToGoogleCalendar(v, d);
+          let gEventId = null;
+
+          // ⭕ 關鍵：先檢查「系統 Connections」中的開關狀態
+          if (typeof isGoogleCalendarConnected === 'function' && isGoogleCalendarConnected()) {
+            gEventId = await syncEventToGoogleCalendar(v, d);
+          } else {
+            console.log("ℹ️ Google Calendar 連動關閉中，僅存於本地/雲端資料庫。");
+          }
 
           state.personaEvents.push({ 
             id: uid(), 
@@ -3723,7 +3730,7 @@ function personaMonthCalendar(){
             date: d, 
             kind: "schedule",
             recurrence: recType !== 'none' ? recType : null,
-            googleEventId: gEventId // ⭕ 將 Google Event ID 存入此筆行程資料中
+            googleEventId: gEventId // 若關閉則為 null
           }); 
         }
 
