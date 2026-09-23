@@ -3532,7 +3532,13 @@ function personaMonthCalendar(){
         const row = el(`<div class="flex items-center gap-2 group"></div>`);
         const txt = el(`<span class="flex-1 text-[13px]" style="color:var(--ink)">・${t.text || '（未命名）'}</span>`);
         const del = el(`<button class="text-[13px] leading-none opacity-0 group-hover:opacity-100 transition-opacity shrink-0 px-1" style="color:var(--ink-soft)">×</button>`);
-        del.addEventListener('click', ()=>{ 
+        del.addEventListener('click', async () => { 
+          // ⭕ 若該行程帶有 googleEventId，發送刪除請求給 Google Calendar
+          if (t.googleEventId) {
+            console.log("準備同步刪除 Google 行事曆事件，ID:", t.googleEventId);
+            await deleteGoogleCalendarEvent(t.googleEventId);
+          }
+
           state.personaEvents = state.personaEvents.filter(x => x.id !== t.id); 
           commit(); 
         });
@@ -3590,19 +3596,19 @@ function personaMonthCalendar(){
       if(v){ 
         const targetDates = generateRecurringDates(dateISO, recType, untilISO);
 
-        // ⭕ 逐一建立行程並發送同步給 Google Calendar
+        // ⭕ 逐一建立行程，並等待取得 Google 傳回的 Event ID
         for (const d of targetDates) {
+          const gEventId = await syncEventToGoogleCalendar(v, d);
+
           state.personaEvents.push({ 
             id: uid(), 
             text: v, 
             done: false, 
             date: d, 
             kind: "schedule",
-            recurrence: recType !== 'none' ? recType : null
+            recurrence: recType !== 'none' ? recType : null,
+            googleEventId: gEventId // ⭕ 將 Google Event ID 存入此筆行程資料中
           }); 
-
-          // 非同步發送到 Google Calendar
-          syncEventToGoogleCalendar(v, d);
         }
 
         commit(); // 儲存並即時重新渲染全頁
