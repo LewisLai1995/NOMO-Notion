@@ -560,88 +560,202 @@ async function sendLineNotification(message) {
   }
 }
 
-// ⭕ 設定 Messaging API Token 與 User ID 彈窗（兩欄式）
+/* ============================================================ LINE SETTINGS MODAL (TABBED) ============================================================ */
+
 function openLineTokenModal() {
   const lineConfig = state.integrations.find(it => it.id === 'line');
+  if (!lineConfig.notifySettings) {
+    lineConfig.notifySettings = {
+      projectReminder: true, projectDaysBefore: 3,
+      lifeReminder: true, lifeDaysBefore: 1,
+      financeReminder: true, financeDaysBefore: 1
+    };
+  }
+
+  const ns = lineConfig.notifySettings;
   const currentToken = lineConfig.token || '';
   const currentUserId = lineConfig.userId || '';
 
   const wrap = el(`<div>
-    <div class="font-display font-bold text-[19px] mb-2" style="color:var(--ink)">設定 LINE Messaging API</div>
-    <p class="text-[12px] mb-4 leading-relaxed" style="color:var(--ink-soft)">
-      1. 在 LINE Developers Console 的 <span class="font-bold">Messaging API</span> 頁籤最下方點擊 <span class="font-mono bg-gray-100 px-1 py-0.5 rounded">Issue</span> 取得第一個 Token。<br/>
-      2. 在 <span class="font-bold">Basic settings</span> 頁籤複製你的 <span class="font-mono bg-gray-100 px-1 py-0.5 rounded">Your user ID</span>（U 開頭字串）。<br/>
-      3. 記得用手機 LINE 掃描 Messaging API 頁面的 QR Code 加機器人為好友！
-    </p>
+    <div class="font-display font-bold text-[19px] mb-3" style="color:var(--ink)">LINE 通知偏好與連動設定</div>
 
-    <!-- ⭕ 欄位 1：Channel Access Token -->
-    <label class="text-[12px] block mb-2" style="color:var(--ink-soft)">1. Channel Access Token (長串金鑰)
-      <textarea id="lineTokenInput" placeholder="貼上 Messaging API 最下方的長串 Token..." class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[11px] font-mono h-16 resize-none" style="border-color:var(--line)">${currentToken}</textarea>
-    </label>
-
-    <!-- ⭕ 欄位 2：Your User ID -->
-    <label class="text-[12px] block mb-3" style="color:var(--ink-soft)">2. Your User ID (U 開頭字串)
-      <input id="lineUserIdInput" type="text" value="${currentUserId}" placeholder="貼上 Basic settings 裡面的 Your user ID (例: U123456...)" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[12px] font-mono" style="border-color:var(--line)"/>
-    </label>
-
-    <div id="lineTokenMsg" class="text-[12px] mb-3 hidden"></div>
-
-    <div class="flex justify-between items-center mt-4">
-      <button type="button" id="btnTestLine" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style="border-color:var(--line)">
-        🧪 發送測試推播
+    <!-- ⭕ 頂部頁籤切換 (Tabs) -->
+    <div class="flex border-b mb-4" style="border-color:var(--line)">
+      <button type="button" id="tabBtnNotify" class="px-4 py-2 text-[13px] font-medium border-b-2 transition-colors -mb-px" style="border-color:var(--ink); color:var(--ink)">
+        🔔 提醒項目設定
       </button>
+      <button type="button" id="tabBtnApi" class="px-4 py-2 text-[13px] font-medium border-b-2 border-transparent transition-colors -mb-px" style="color:var(--ink-soft)">
+        🔑 Messaging API 金鑰
+      </button>
+    </div>
 
-      <div class="flex gap-2">
-        <button type="button" id="btnCancelLine" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
-        <button type="button" id="btnSaveLine" class="text-[13px] px-4 py-2 rounded-lg bg-[color:var(--ink)] text-white font-medium">儲存設定</button>
+    <!-- ⭕ 分頁 1：提醒項目勾選 (Notification Items) -->
+    <div id="tabContentNotify" class="space-y-4 py-1">
+      <!-- 1. 專案時程 -->
+      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
+        <div class="flex items-center justify-between mb-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="chkProject" ${ns.projectReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-amber-600"/>
+            <span class="text-[13px] font-medium" style="color:var(--ink)">🏗️ 坦坦專案時程提醒</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
+          <span>於展期或關鍵節點前</span>
+          <select id="selProjectDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+            <option value="1" ${ns.projectDaysBefore == 1 ? 'selected' : ''}>1</option>
+            <option value="2" ${ns.projectDaysBefore == 2 ? 'selected' : ''}>2</option>
+            <option value="3" ${ns.projectDaysBefore == 3 ? 'selected' : ''}>3</option>
+            <option value="5" ${ns.projectDaysBefore == 5 ? 'selected' : ''}>5</option>
+          </select>
+          <span>天主動發送 LINE 推播提醒</span>
+        </div>
       </div>
+
+      <!-- 2. 生活行程 -->
+      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
+        <div class="flex items-center justify-between mb-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="chkLife" ${ns.lifeReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
+            <span class="text-[13px] font-medium" style="color:var(--ink)">🌿 露米日常行程提醒</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
+          <span>於預定行程開始前</span>
+          <select id="selLifeDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+            <option value="0" ${ns.lifeDaysBefore == 0 ? 'selected' : ''}>當天早晨</option>
+            <option value="1" ${ns.lifeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
+            <option value="2" ${ns.lifeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
+          </select>
+          <span>發送每日行程摘要推播</span>
+        </div>
+      </div>
+
+      <!-- 3. 資產盤點 -->
+      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
+        <div class="flex items-center justify-between mb-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="chkFinance" ${ns.financeReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600"/>
+            <span class="text-[13px] font-medium" style="color:var(--ink)">💰 諾米雙週資產盤點提醒</span>
+          </label>
+        </div>
+        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
+          <span>於雙週發薪/結算盤點前</span>
+          <select id="selFinanceDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+            <option value="0" ${ns.financeDaysBefore == 0 ? 'selected' : ''}>當天</option>
+            <option value="1" ${ns.financeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
+            <option value="2" ${ns.financeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
+          </select>
+          <span>提醒進行預算劃撥與卡費實繳</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⭕ 分頁 2：API 金鑰設定 (API Token Settings) -->
+    <div id="tabContentApi" class="hidden space-y-3 py-1">
+      <p class="text-[12px] leading-relaxed" style="color:var(--ink-soft)">
+        設定完成後，訊息將透過 LINE Official Account 推播至你的手機。
+      </p>
+
+      <label class="text-[12px] block" style="color:var(--ink-soft)">Channel Access Token
+        <textarea id="lineTokenInput" placeholder="貼上 Messaging API 最下方的長串 Token..." class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[11px] font-mono h-16 resize-none" style="border-color:var(--line)">${currentToken}</textarea>
+      </label>
+
+      <label class="text-[12px] block" style="color:var(--ink-soft)">Your User ID
+        <input id="lineUserIdInput" type="text" value="${currentUserId}" placeholder="貼上 Basic settings 裡面的 Your user ID (例: U123456...)" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[12px] font-mono" style="border-color:var(--line)"/>
+      </label>
+
+      <div id="lineTokenMsg" class="text-[12px] hidden"></div>
+
+      <div class="pt-2">
+        <button type="button" id="btnTestLine" class="text-[12px] px-3 py-1.5 rounded-lg border font-medium hover:bg-gray-50" style="border-color:var(--line)">
+          🧪 發送測試推播
+        </button>
+      </div>
+    </div>
+
+    <!-- ⭕ 底部按鈕區 -->
+    <div class="flex justify-end gap-2 mt-6 pt-3 border-t" style="border-color:var(--line)">
+      <button type="button" id="btnCancelLine" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button type="button" id="btnSaveLine" class="text-[13px] px-4 py-2 rounded-lg bg-[color:var(--ink)] text-white font-medium">儲存偏好設定</button>
     </div>
   </div>`);
 
+  // 分頁切換邏輯
+  const tabNotify = wrap.querySelector('#tabBtnNotify');
+  const tabApi = wrap.querySelector('#tabBtnApi');
+  const contentNotify = wrap.querySelector('#tabContentNotify');
+  const contentApi = wrap.querySelector('#tabContentApi');
+
+  tabNotify.addEventListener('click', () => {
+    tabNotify.style.borderColor = 'var(--ink)'; tabNotify.style.color = 'var(--ink)';
+    tabApi.style.borderColor = 'transparent'; tabApi.style.color = 'var(--ink-soft)';
+    contentNotify.classList.remove('hidden'); contentApi.classList.add('hidden');
+  });
+
+  tabApi.addEventListener('click', () => {
+    tabApi.style.borderColor = 'var(--ink)'; tabApi.style.color = 'var(--ink)';
+    tabNotify.style.borderColor = 'transparent'; tabNotify.style.color = 'var(--ink-soft)';
+    contentApi.classList.remove('hidden'); contentNotify.classList.add('hidden');
+  });
+
+  // 測試發送邏輯
   const tokenInput = wrap.querySelector('#lineTokenInput');
   const userIdInput = wrap.querySelector('#lineUserIdInput');
   const msg = wrap.querySelector('#lineTokenMsg');
 
-  // 測試發送
   wrap.querySelector('#btnTestLine').addEventListener('click', async () => {
     const testToken = tokenInput.value.trim();
     const testUserId = userIdInput.value.trim();
 
     if (!testToken || !testUserId) {
       msg.textContent = "⚠️ 請完整填寫 Channel Access Token 與 User ID 後再測試。";
-      msg.className = "text-[12px] mb-3 text-red-600 font-medium";
+      msg.className = "text-[12px] my-2 text-red-600 font-medium";
       msg.classList.remove('hidden');
       return;
     }
 
     msg.textContent = "⏳ 測試推播發送中...";
-    msg.className = "text-[12px] mb-3 text-gray-500 font-medium";
+    msg.className = "text-[12px] my-2 text-gray-500 font-medium";
     msg.classList.remove('hidden');
 
     lineConfig.token = testToken;
     lineConfig.userId = testUserId;
     lineConfig.connected = true;
 
-    const success = await sendLineNotification("🎉 NOMO.notion Messaging API 測試成功！個人 AI 助理已成功與你的官方帳號連線。");
+    const success = await sendLineNotification("🎉 NOMO.notion LINE 通知連動測試成功！提醒設定已保存。");
 
     if (success) {
       msg.textContent = "✨ 測試推播成功！請檢查你的 LINE 機器人聊天室。";
-      msg.className = "text-[12px] mb-3 text-emerald-600 font-medium";
+      msg.className = "text-[12px] my-2 text-emerald-600 font-medium";
     } else {
-      msg.textContent = "❌ 發送失敗，請確認 Token、User ID 是否正確，並確認已加機器人好友。";
-      msg.className = "text-[12px] mb-3 text-red-600 font-medium";
+      msg.textContent = "❌ 發送失敗，請確認 Token 與 User ID 是否正確。";
+      msg.className = "text-[12px] my-2 text-red-600 font-medium";
     }
   });
 
   wrap.querySelector('#btnCancelLine').addEventListener('click', closeModal);
 
-  // 儲存設定
+  // 儲存偏好與 API 設定
   wrap.querySelector('#btnSaveLine').addEventListener('click', () => {
+    // 1. 儲存 API Token
     const t = tokenInput.value.trim();
     const u = userIdInput.value.trim();
     lineConfig.token = t;
     lineConfig.userId = u;
     lineConfig.connected = !!(t && u);
+
+    // 2. 儲存通知偏好設定
+    lineConfig.notifySettings = {
+      projectReminder: wrap.querySelector('#chkProject').checked,
+      projectDaysBefore: parseInt(wrap.querySelector('#selProjectDays').value, 10),
+      
+      lifeReminder: wrap.querySelector('#chkLife').checked,
+      lifeDaysBefore: parseInt(wrap.querySelector('#selLifeDays').value, 10),
+      
+      financeReminder: wrap.querySelector('#chkFinance').checked,
+      financeDaysBefore: parseInt(wrap.querySelector('#selFinanceDays').value, 10)
+    };
+
     closeModal();
     commit();
   });
@@ -677,7 +791,31 @@ let state = {
   },
   integrations:[
     {id:"gcal", name:"Google Calendar", desc:"雙向同步展覽節點與個人行程", connected:true},
-    {id:"line", name:"LINE 通知", desc:"重要階段與盤點日推播提醒", connected:false},
+    // 尋找此段 state 初始化區域：
+state = {
+  // ... 其他 state 設定 ...
+  integrations: [
+    { id: 'gcal', name: 'Google Calendar', desc: '...', connected: false },
+    { 
+      id: 'line', 
+      name: 'LINE 通知', 
+      desc: '透過 Messaging API 自動推播行程、專案與資產盤點提醒', 
+      connected: false, 
+      token: '', 
+      userId: '',
+      
+      // 👈 【請將 notifySettings 補在 line 物件的這裡】
+      notifySettings: {
+        projectReminder: true,      // 專案時程提醒
+        projectDaysBefore: 3,       // 專案前 X 天
+        
+        lifeReminder: true,         // 生活行程提醒
+        lifeDaysBefore: 1,          // 行程前 X 天
+        
+        financeReminder: true,      // 資產雙週盤點提醒
+        financeDaysBefore: 1        // 盤點前 X 天
+      }
+    },
     {id:"bank", name:"銀行帳戶匯入", desc:"自動帶入帳戶餘額（唯讀）", connected:false},
     {id:"drive", name:"雲端硬碟", desc:"同步展覽圖檔與發包文件", connected:true},
   ]
