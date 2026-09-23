@@ -522,6 +522,9 @@ function isLineConnected() {
   return lineConfig && lineConfig.connected && lineConfig.token;
 }
 
+// ⭕ 請在此處貼上你在 Google Apps Script 部署取得的 Web App URL
+const GAS_PROXY_URL = "https://script.google.com/macros/s/AKfycbwKJZWlks2w1mj1l1BHuMbL-HLMCZeKCM49ov0_64zqSyufsKMSv8XURXJmgojltVNZuQ/exec";
+
 async function sendLineNotification(message) {
   if (!isLineConnected()) {
     console.log("ℹ️ LINE 通知功能關閉中或未設定 Messaging API 資訊，跳過推播。");
@@ -533,39 +536,35 @@ async function sendLineNotification(message) {
   const userId = lineConfig.userId;
 
   const payload = {
-    to: userId,
-    messages: [
-      {
-        type: "text",
-        text: message
-      }
-    ]
+    token: token,
+    userId: userId,
+    message: message
   };
 
   try {
-    // ⭕ 改用相容性更高的 api.allorigins.win 或替代代理轉發，避開 403 封鎖
-    const targetUrl = "https://api.line.me/v2/bot/message/push";
-    
-    // 使用目前最穩定的跨域中繼轉發服務
-    const res = await fetch("https://thingproxy.freeboard.io/fetch/" + targetUrl, {
+    // 透過 Google 伺服器進行中繼，徹底解決 CORS 跨域問題與 proxy 封鎖
+    const res = await fetch(GAS_PROXY_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "text/plain;charset=utf-8" // 避免觸發預檢請求
       },
       body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      console.log("✨ LINE Messaging API 訊息推播成功！");
+      const result = await res.json();
+      if (result.error) {
+        console.error("❌ LINE 推播內部錯誤:", result.error);
+        return false;
+      }
+      console.log("✨ LINE Messaging API 訊息推播成功！", result);
       return true;
     } else {
-      const errText = await res.text();
-      console.error("❌ Messaging API 推播失敗 code:", res.status, errText);
+      console.error("❌ 中繼請求失敗，狀態碼:", res.status);
       return false;
     }
   } catch (err) {
-    console.error("❌ Messaging API 網路請求發送失敗:", err);
+    console.error("❌ 網路請求發送失敗:", err);
     return false;
   }
 }
