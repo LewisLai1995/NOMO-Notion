@@ -24,6 +24,9 @@
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
 
+  // ⭕ 1. 增加 Google Calendar 讀寫權限
+  provider.addScope('https://www.googleapis.com/auth/calendar.events');
+
   // 掛載至全域
   window.db = db;
   window.doc = doc;
@@ -32,55 +35,72 @@
   window.onSnapshot = onSnapshot;
   window.auth = auth;
   window.currentUser = null;
+  window.googleAccessToken = null; // ⭕ 儲存 Google API Access Token
 
-  // Google 登入與登出函式
+  // Google 登入函式：取得 Access Token
   window.loginWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      // ⭕ 從登入結果中抓取 Access Token
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential) {
+        window.googleAccessToken = credential.accessToken;
+        sessionStorage.setItem("g_access_token", credential.accessToken);
+      }
     } catch (e) {
       console.error("登入失敗:", e);
     }
   };
 
   window.logout = async () => {
+    sessionStorage.removeItem("g_access_token");
     await signOut(auth);
     location.reload();
   };
 
-onAuthStateChanged(auth, async (user) => {
-  const loginBtn = document.getElementById("login-btn");
-  const userInfo = document.getElementById("user-info");
-  const userName = document.getElementById("user-name");
-  const mainContainer = document.querySelector("main");
-  const loadingOverlay = document.getElementById("auth-loading-overlay");
+  onAuthStateChanged(auth, async (user) => {
+    // 試著從 sessionStorage 拿回 Token
+    window.googleAccessToken = sessionStorage.getItem("g_access_token");
+    
+    const loginBtn = document.getElementById("login-btn");
+    const userInfo = document.getElementById("user-info");
+    const userName = document.getElementById("user-name");
+    const mainContainer = document.querySelector("main");
+    const loadingOverlay = document.getElementById("auth-loading-overlay");
 
-  if (user) {
-    window.currentUser = user;
-    if (loginBtn) loginBtn.style.display = "none";
-    if (userInfo) userInfo.style.display = "flex";
-    if (userName) userName.textContent = `${user.displayName}`;
+    if (user) {
+      window.currentUser = user;
+      if (loginBtn) loginBtn.style.display = "none";
+      if (userInfo) userInfo.style.display = "flex";
+      if (userName) userName.textContent = `${user.displayName}`;
 
-    if (mainContainer) {
-      mainContainer.classList.remove("app-locked");
-      mainContainer.onclick = null;
+      if (mainContainer) {
+        mainContainer.classList.remove("app-locked");
+        mainContainer.onclick = null;
+      }
+
+      if (typeof loadState === "function") await loadState();
+    } else {
+      window.currentUser = null;
+      if (loginBtn) loginBtn.style.display = "inline-block";
+      if (userInfo) userInfo.style.display = "none";
+
+      if (mainContainer) {
+        mainContainer.classList.add("app-locked");
+        mainContainer.onclick = () => {
+          if (typeof window.loginWithGoogle === "function") {
+            window.loginWithGoogle();
+          }
+        };
+      }
+      if (typeof loadState === "function") await loadState();
     }
 
-    if (typeof loadState === "function") await loadState();
-  } else {
-    window.currentUser = null;
-    if (loginBtn) loginBtn.style.display = "inline-block";
-    if (userInfo) userInfo.style.display = "none";
-
-    if (mainContainer) {
-      mainContainer.classList.add("app-locked");
-      mainContainer.onclick = () => {
-        if (typeof window.loginWithGoogle === "function") {
-          window.loginWithGoogle();
-        }
-      };
+    if (loadingOverlay) {
+      loadingOverlay.style.opacity = "0";
+      setTimeout(() => loadingOverlay.remove(), 250);
     }
-    if (typeof loadState === "function") await loadState();
-  }
+  });
 
   // ⭕ Firebase Auth 判定與資料載入完畢，平滑淡出並移除 Loading 遮罩
   if (loadingOverlay) {
@@ -289,7 +309,46 @@ function generateRecurringDates(startDateISO, recurrenceType, untilISO) {
 
   return dates;
 }
+// ⭕ 發送事件至使用者真實的 Google 行事曆
+async function syncEventToGoogleCalendar(title, dateISO) {
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  
+  if (!token) {
+    console.warn("⚠️ 未取得 Google Calendar Token，僅儲存於本地/雲端資料庫。");
+    return null;
+  }
 
+  const eventPayload = {
+    summary: `[NOMO] ${title}`,
+    description: "由 NOMO.notion 平台自動同步建立",
+    start: { date: dateISO },
+    end: { date: dateISO }
+  };
+
+  try {
+    const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(eventPayload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log("✨ 成功同步至 Google Calendar！Event ID:", data.id);
+      return data.id;
+    } else {
+      const errData = await res.json();
+      console.error("❌ Google Calendar API 同步失敗:", errData);
+      return null;
+    }
+  } catch (err) {
+    console.error("❌ 網路請求失敗:", err);
+    return null;
+  }
+}
 /* ============================================================ STATE ============================================================ */
 let state = {
   route:"today", detailProjectId:null, detailTab:"main", todayISO: todayISO(),
@@ -3525,7 +3584,7 @@ function personaMonthCalendar(){
       }
     });
 
-    const submitSched = () => { 
+    const submitSched = async () => { 
       const input = schedAddRow.querySelector('#newEvt');
       const untilInput = schedAddRow.querySelector('#evtUntilDate');
       const v = input.value.trim(); 
@@ -3535,7 +3594,8 @@ function personaMonthCalendar(){
       if(v){ 
         const targetDates = generateRecurringDates(dateISO, recType, untilISO);
 
-        targetDates.forEach(d => {
+        // ⭕ 逐一建立行程並發送同步給 Google Calendar
+        for (const d of targetDates) {
           state.personaEvents.push({ 
             id: uid(), 
             text: v, 
@@ -3544,9 +3604,12 @@ function personaMonthCalendar(){
             kind: "schedule",
             recurrence: recType !== 'none' ? recType : null
           }); 
-        });
 
-        commit();
+          // 非同步發送到 Google Calendar
+          syncEventToGoogleCalendar(v, d);
+        }
+
+        commit(); // 儲存並即時重新渲染全頁
       } 
     };
 
