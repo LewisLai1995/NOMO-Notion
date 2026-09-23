@@ -237,6 +237,47 @@ provider.addScope('https://www.googleapis.com/auth/calendar.events');
 <script>
 /* ============================================================ UTILS ============================================================ */
 
+  // ⭕ 自動檢查並清理已被使用者從 Google Calendar 刪除的行程
+async function syncDeletedEventsFromGoogle() {
+  const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
+  if (!token) return;
+
+  // 抓出所有含有 googleEventId 的本地行程
+  const syncedEvents = state.personaEvents.filter(e => e.googleEventId);
+  if (!syncedEvents.length) return;
+
+  let hasChanged = false;
+
+  for (const evt of syncedEvents) {
+    try {
+      const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${evt.googleEventId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (res.status === 404) {
+        // 404 代表事件已在 Google Calendar 被刪除
+        console.log(`🧹 偵測到「${evt.text}」已從 Google Calendar 刪除，同步移除 NOMO 資料...`);
+        state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
+        hasChanged = true;
+      } else if (res.ok) {
+        const data = await res.json();
+        if (data.status === "cancelled") {
+          console.log(`🧹 偵測到「${evt.text}」已取消/刪除，同步移除 NOMO 資料...`);
+          state.personaEvents = state.personaEvents.filter(x => x.id !== evt.id);
+          hasChanged = true;
+        }
+      }
+    } catch (err) {
+      console.error("檢查 Google 事件狀態失敗:", err);
+    }
+  }
+
+  // 若有刪除過期的行程，重新存檔並渲染畫面
+  if (hasChanged) {
+    commit();
+  }
+}
+
 // ⭕ 1. 發送事件至 Google 行事曆 (建立全天事件並回傳 Event ID)
 async function syncEventToGoogleCalendar(title, dateISO) {
   const token = window.googleAccessToken || sessionStorage.getItem("g_access_token");
@@ -3737,6 +3778,9 @@ function personaTodoCard(){
   return card;
 }
 function renderPersona(){
+  // ⭕ 進入日常頁面時，自動發送比對檢查
+  syncDeletedEventsFromGoogle();
+
   const wrap = el(`<div></div>`);
   wrap.appendChild(agentPageHeader('life','PERSONAL CALENDAR','日常 Persona'));
   wrap.appendChild(upcoming10Strip());
