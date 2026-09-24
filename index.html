@@ -4924,7 +4924,7 @@ function renderVendors() {
 
   } else {
    // -------------------------------------------------------------
-    // 頁籤 2：詢價比價資料庫區 (最新結構化卡片)
+    // 頁籤 2：詢價比價資料庫區 (安全語法修復版)
     // -------------------------------------------------------------
     const list = el(`<div class="space-y-4"></div>`);
     if (!inquiries.length) {
@@ -4934,8 +4934,35 @@ function renderVendors() {
     } else {
       inquiries.forEach(iq => {
         const hasWinner = iq.winnerIndex !== undefined && iq.winnerIndex !== "" && iq.quotes && iq.quotes[iq.winnerIndex];
-        const winnerQuote = hasWinner ? iq.quotes[iq.winnerIndex] : null;
 
+        // ⭕ 1. 先將廠商卡片的 HTML 拆出來組合，避免範本字串嵌套語法錯誤
+        let quotesHtml = "";
+        (iq.quotes || []).forEach((q, idx) => {
+          const isWinner = hasWinner && String(iq.winnerIndex) === String(idx);
+          const qty = q.qty || 1;
+          const uPrice = q.unitPrice || 0;
+          const total = q.totalPrice || (qty * uPrice);
+
+          quotesHtml += `
+            <div class="p-2.5 rounded-lg border text-[12px] ${isWinner ? 'bg-amber-50/60 border-amber-300' : 'bg-gray-50/50 border-gray-200'}">
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-bold truncate" style="color:var(--ink)">${q.vendorName || '廠商 ' + (idx + 1)}</span>
+                ${isWinner ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold shrink-0">得標選用</span>' : ''}
+              </div>
+              ${q.phone ? '<div class="text-[10px] font-mono text-gray-400 mb-1">📞 ' + q.phone + '</div>' : ''}
+              
+              <div class="text-[11px] font-medium text-gray-700 mt-1">${q.itemSpec || '通用規格'}</div>
+              <div class="text-[10px] text-gray-500 mb-1.5 truncate">${q.specDetail || '無特殊說明'}</div>
+
+              <div class="pt-1.5 border-t border-gray-200 flex items-baseline justify-between font-mono">
+                <span class="text-[10px] text-gray-400">${qty} 件 @ NT$ ${uPrice.toLocaleString()}</span>
+                <span class="text-[13px] font-bold" style="color:${color}">NT$ ${total.toLocaleString()}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        // ⭕ 2. 組合外層卡片
         const card = el(`<div class="card rounded-xl p-4 hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">
             <div>
@@ -4952,29 +4979,9 @@ function renderVendors() {
             </div>
           </div>
 
-          <!-- 比價卡片網格 -->
+          <!-- 廠商比價卡片網格 -->
           <div class="grid grid-cols-3 gap-2.5 my-3">
-            ${(iq.quotes || []).map((q, idx) => {
-              const isWinner = hasWinner && String(iq.winnerIndex) === String(idx);
-              const total = q.totalPrice || (q.qty * q.unitPrice) || 0;
-
-              return `
-              <div class="p-2.5 rounded-lg border text-[12px] ${isWinner ? 'bg-amber-50/60 border-amber-300' : 'bg-gray-50/50 border-gray-200'}">
-                <div class="flex items-center justify-between mb-1">
-                  <span class="font-bold truncate" style="color:var(--ink)">${q.vendorName || `廠商 ${idx+1}`}</span>
-                  ${isWinner ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold shrink-0">得標選用</span>` : ''}
-                </div>
-                ${q.phone ? `<div class="text-[10px] font-mono text-gray-400 mb-1">📞 ${q.phone}</div>` : ''}
-                
-                <div class="text-[11px] font-medium text-gray-700 mt-1">${q.itemSpec || '通用規格'}</div>
-                <div class="text-[10px] text-gray-500 mb-1.5 truncate">${q.specDetail || '無特殊說明'}</div>
-
-                <div class="pt-1.5 border-t border-gray-200 flex items-baseline justify-between font-mono">
-                  <span class="text-[10px] text-gray-400">${q.qty \vert{}\vert{} 1 件 @ $${(q.unitPrice || 0).toLocaleString()}</span>
-                  <span class="text-[13px] font-bold" style="color:${color}">NT$ ${total.toLocaleString()}</span>
-                </div>
-              </div>
-            `}).join('')}
+            ${quotesHtml}
           </div>
 
           <!-- 決策心得備註 -->
