@@ -4923,16 +4923,16 @@ function vendorCard(v) {
   const color = state.theme.vendor || "#3B4A5A";
 
   // ⭕ 全新 4 階標籤樣式與對應內容
-  let tagClass = "bg-gray-50 text-gray-700 border-gray-200";
-  let tagText = "🥉 合作關係";
+  let tagClass = "bg-sky-50 text-sky-800 border-sky-300 font-bold";
+  let tagText = "🥈 優質夥伴";
 
   if (v.tag === 'gold') {
     tagClass = "bg-amber-50 text-amber-800 border-amber-300 font-bold";
     tagText = "🥇 金牌廠商";
-  } else if (v.tag === 'silver' || v.tag === 'star') {
-    tagClass = "bg-sky-50 text-sky-800 border-sky-300 font-bold";
-    tagText = "🥈 優質夥伴";
-  } else if (v.tag === 'black' || v.tag === 'warning') {
+  } else if (v.tag === 'normal') {
+    tagClass = "bg-gray-50 text-gray-700 border-gray-200";
+    tagText = "🥉 合作關係";
+  } else if (v.tag === 'black') {
     tagClass = "bg-gray-900 text-white border-gray-900 font-bold";
     tagText = "📔 死亡筆記";
   }
@@ -4989,7 +4989,7 @@ function vendorCard(v) {
 
 function renderVendors() {
   const color = state.theme.vendor || "#3B4A5A";
-  if (!state.vendorTab) state.vendorTab = "list"; 
+  if (!state.vendorTab) state.vendorTab = "inquiries";
   if (!state.vendorFilterCategory) state.vendorCategoryFilter = "ALL";
   if (!state.vendorSearchQuery) state.vendorSearchQuery = "";
 
@@ -5000,7 +5000,7 @@ function renderVendors() {
   const inquiries = state.vendorInquiries || [];
 
   // 1. 頂部 Dashboards
-  const starCount = vendors.filter(v => v.tag === 'star').length;
+  const starCount = vendors.filter(v => v.tag === 'gold').length;
 
   const dashboard = el(`<div class="grid grid-cols-3 gap-4 mb-5">
     <div class="card rounded-xl p-4">
