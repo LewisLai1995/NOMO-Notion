@@ -2215,23 +2215,28 @@ function projectCard(p){
   return card;
 }
 
-/* ==================== 合作廠商 MODAL (共用類別 + 全新 4 階標籤) ==================== */
+/* ==================== 合作廠商 MODAL (含地區欄位) ==================== */
 
 function openVendorModal(vToEdit = null) {
   const color = state.theme.vendor || "#3B4A5A";
   const isEdit = !!vToEdit;
-  const v = vToEdit || { name: "", trade: state.vendorCategories[0] || "🎁 贈品製作", contact: "", phone: "", tag: "normal", note: "" };
+  const v = vToEdit || { name: "", location: "", trade: state.vendorCategories[0] || "🎁 贈品製作", contact: "", phone: "", tag: "normal", note: "" };
+  const currentTag = isEdit ? v.tag : "normal";
 
   const wrap = el(`<div>
     <div class="font-display font-bold text-[19px] mb-3" style="color:${color}">${isEdit ? '編輯廠商資料' : '新增合作廠商'}</div>
     
     <div class="flex flex-col gap-3">
-      <label class="text-[12px]" style="color:var(--ink-soft)">廠商/公司名稱 <span style="color:#B23A3A">*</span>
-        <input id="vName" type="text" value="${v.name}" placeholder="例如：陳師傅木作工程" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
-      </label>
+      <div class="grid grid-cols-3 gap-2">
+        <label class="text-[12px] col-span-2" style="color:var(--ink-soft)">廠商/公司名稱 <span style="color:#B23A3A">*</span>
+          <input id="vName" type="text" value="${v.name}" placeholder="例如：陳師傅木作工程" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">地區
+          <input id="vLocation" type="text" value="${v.location || ''}" placeholder="例如：台北 / 全台" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
 
       <div class="grid grid-cols-2 gap-2.5">
-        <!-- ⭕ 共用品項類別選單 + 管理按鈕 -->
         <div>
           <div class="flex items-center justify-between mb-1">
             <span class="text-[12px]" style="color:var(--ink-soft)">主要品項類別 <span style="color:#B23A3A">*</span></span>
@@ -2240,13 +2245,12 @@ function openVendorModal(vToEdit = null) {
           <select id="vTrade" class="w-full border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)"></select>
         </div>
 
-        <!-- ⭕ 全新 4 階標籤 -->
         <label class="text-[12px]" style="color:var(--ink-soft)">合作評價標籤
           <select id="vTag" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)">
-            <option value="gold" ${v.tag === 'gold' ? 'selected' : ''}>🥇 金牌廠商</option>
-            <option value="silver" ${v.tag === 'silver' ? 'selected' : ''}>🥈 優質夥伴</option>
-            <option value="normal" ${v.tag === 'normal' || !v.tag ? 'selected' : ''}>🥉 合作關係</option>
-            <option value="black" ${v.tag === 'black' || v.tag === 'warning' ? 'selected' : ''}>📔 死亡筆記</option>
+            <option value="gold" ${currentTag === 'gold' ? 'selected' : ''}>🥇 金牌廠商</option>
+            <option value="silver" ${currentTag === 'silver' ? 'selected' : ''}>🥈 優質夥伴</option>
+            <option value="normal" ${currentTag === 'normal' ? 'selected' : ''}>🥉 合作關係</option>
+            <option value="black" ${currentTag === 'black' || currentTag === 'warning' ? 'selected' : ''}>📔 死亡筆記</option>
           </select>
         </label>
       </div>
@@ -2271,18 +2275,17 @@ function openVendorModal(vToEdit = null) {
     </div>
   </div>`);
 
-  // 刷新類別下拉選項
   const refreshTradeSelect = () => {
     const sel = wrap.querySelector('#vTrade');
     const currentVal = sel.value || v.trade;
     sel.innerHTML = state.vendorCategories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
   };
 
-  // 管理類別按鈕綁定 (返回時保留草稿)
   wrap.querySelector('#btnManageVendorCat').addEventListener('click', () => {
     const draft = {
       ...v,
       name: wrap.querySelector('#vName').value.trim(),
+      location: wrap.querySelector('#vLocation').value.trim(),
       trade: wrap.querySelector('#vTrade').value,
       tag: wrap.querySelector('#vTag').value,
       contact: wrap.querySelector('#vContact').value.trim(),
@@ -2303,6 +2306,7 @@ function openVendorModal(vToEdit = null) {
 
     const payload = {
       name,
+      location: wrap.querySelector('#vLocation').value.trim(),
       trade: wrap.querySelector('#vTrade').value,
       tag: wrap.querySelector('#vTag').value,
       contact: wrap.querySelector('#vContact').value.trim(),
@@ -4917,57 +4921,80 @@ function renderPersona(){
 }
 
 
-/* ==================== 廠商卡片 UI (兩排新版面 + 4 階標籤) ==================== */
+/* ==================== 廠商卡片 UI (依合作等級動態變色版) ==================== */
 
 function vendorCard(v) {
-  const color = state.theme.vendor || "#3B4A5A";
+  const defaultThemeColor = state.theme.vendor || "#3B4A5A";
 
-  // ⭕ 全新 4 階標籤樣式與對應內容
-  let tagClass = "bg-sky-50 text-sky-800 border-sky-300 font-bold";
-  let tagText = "🥈 優質夥伴";
+  // ⭕ 依等級定義卡片整體主題風格 (頂條顏色、背景色、文字顏色、評價標籤)
+  let borderTopColor = defaultThemeColor;
+  let cardBgStyle = "background: var(--paper, #ffffff); color: var(--ink); border-color: var(--line);";
+  let tagClass = "bg-gray-100 text-gray-700 border-gray-300";
+  let tagText = "🥉 合作關係";
+  let subTextColor = "color: var(--ink-soft);";
+  let noteBgStyle = "background: var(--paper-deep, #f3f4f6); color: var(--ink-soft);";
 
   if (v.tag === 'gold') {
-    tagClass = "bg-amber-50 text-amber-800 border-amber-300 font-bold";
+    // 🥇 金牌廠商：暖金質感
+    borderTopColor = "#D97706";
+    cardBgStyle = "background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); color: #78350F; border-color: #FCD34D;";
+    tagClass = "bg-amber-500 text-white border-amber-600 font-bold shadow-sm";
     tagText = "🥇 金牌廠商";
-  } else if (v.tag === 'normal') {
-    tagClass = "bg-gray-50 text-gray-700 border-gray-200";
-    tagText = "🥉 合作關係";
-  } else if (v.tag === 'black') {
-    tagClass = "bg-gray-900 text-white border-gray-900 font-bold";
+    subTextColor = "color: #B45309;";
+    noteBgStyle = "background: rgba(251, 191, 36, 0.2); color: #92400E;";
+
+  } else if (v.tag === 'silver' || v.tag === 'star') {
+    // 🥈 優質夥伴：銀藍質感
+    borderTopColor = "#0284C7";
+    cardBgStyle = "background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%); color: #0C4A6E; border-color: #7DD3FC;";
+    tagClass = "bg-sky-600 text-white border-sky-700 font-bold shadow-sm";
+    tagText = "🥈 優質夥伴";
+    subTextColor = "color: #0369A1;";
+    noteBgStyle = "background: rgba(56, 189, 248, 0.2); color: #075985;";
+
+  } else if (v.tag === 'black' || v.tag === 'warning') {
+    // 📔 死亡筆記：警示酷黑質感
+    borderTopColor = "#111827";
+    cardBgStyle = "background: #1F2937; color: #F9FAFB; border-color: #374151;";
+    tagClass = "bg-rose-600 text-white border-rose-700 font-bold shadow-sm";
     tagText = "📔 死亡筆記";
+    subTextColor = "color: #9CA3AF;";
+    noteBgStyle = "background: #111827; color: #D1D5DB; border: 1px solid #374151;";
   }
 
-  const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-md transition-shadow" style="border-top:3px solid ${color};">
+  const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-lg transition-all" style="border-top: 4px solid ${borderTopColor}; ${cardBgStyle}">
     <div>
-      <!-- 📌 第一排：類別齊左，編輯與刪除叉叉齊右 -->
+      <!-- 📌 第一排：類別齊左，齒輪圖示與刪除叉叉齊右 -->
       <div class="flex items-center justify-between mb-3">
-        <span class="tag font-mono font-medium" style="border-color:${color};color:${color}">${v.trade || '未指定類別'}</span>
+        <span class="tag font-mono font-medium" style="border-color:${borderTopColor}; color:${borderTopColor}">${v.trade || '未指定類別'}</span>
         
-        <div class="flex items-center gap-1.5">
-          <button type="button" class="btn-edit-vendor text-[11px] px-2.5 py-0.5 rounded border hover:bg-gray-50" style="border-color:var(--line);color:var(--ink)">編輯</button>
-          <button type="button" class="btn-del-vendor text-[14px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除廠商">×</button>
+        <div class="flex items-center gap-1">
+          <button type="button" class="btn-edit-vendor text-[13px] px-1.5 py-0.5 rounded opacity-70 hover:opacity-100 hover:bg-black/10 transition-colors" title="編輯廠商資料">⚙️</button>
+          <button type="button" class="btn-del-vendor text-[14px] font-bold px-1 opacity-60 hover:opacity-100 hover:text-red-500 transition-colors" title="刪除廠商">×</button>
         </div>
       </div>
 
-      <!-- 📌 第二排：廠商名稱齊左，評價標籤齊右 -->
+      <!-- 📌 第二排：地區標籤前置 + 廠商名稱齊左，評價標籤齊右 -->
       <div class="flex items-center justify-between gap-2 mb-2">
-        <div class="font-display font-bold text-[16px] truncate leading-tight" style="color:var(--ink)">${v.name}</div>
+        <div class="font-display font-bold text-[16px] flex items-center gap-1.5 truncate leading-tight">
+          ${v.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded border shrink-0 ${v.tag === 'black' ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-white/80 text-gray-700 border-gray-300'}">📍 ${v.location}</span>` : ''}
+          <span class="truncate">${v.name}</span>
+        </div>
         <span class="text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${tagClass}">${tagText}</span>
       </div>
 
       <!-- 聯絡資訊 -->
-      <div class="text-[12px] flex items-center gap-2 mb-3" style="color:var(--ink-soft)">
+      <div class="text-[12px] flex items-center gap-2 mb-3 opacity-90" style="${subTextColor}">
         <span>👤 ${v.contact || '未留聯絡人'}</span>
         <span>•</span>
         <span class="font-mono">${v.phone || '無電話'}</span>
       </div>
 
       <!-- 備註短評 -->
-      ${v.note ? `<div class="text-[11px] p-2.5 rounded-lg leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft)">${v.note}</div>` : ''}
+      ${v.note ? `<div class="text-[11px] p-2.5 rounded-lg leading-relaxed" style="${noteBgStyle}">${v.note}</div>` : ''}
     </div>
   </div>`);
 
-  // 事件綁定
   card.querySelector('.btn-edit-vendor').addEventListener('click', (e) => {
     e.stopPropagation();
     openVendorModal(v);
@@ -4985,13 +5012,17 @@ function vendorCard(v) {
 }
 
 
-/* ==================== VENDORS PAGE (TABBED + SEARCH & FILTER) ==================== */
+/* ==================== VENDORS PAGE (COMPLETE INTEGRATED VERSION) ==================== */
 
 function renderVendors() {
   const color = state.theme.vendor || "#3B4A5A";
-  if (!state.vendorTab) state.vendorTab = "inquiries";
-  if (!state.vendorFilterCategory) state.vendorCategoryFilter = "ALL";
+  
+  // 預設切換至「inquiries (詢價歷史資料庫)」
+  if (!state.vendorTab) state.vendorTab = "inquiries"; 
+  if (!state.vendorCategoryFilter) state.vendorCategoryFilter = "ALL";
   if (!state.vendorSearchQuery) state.vendorSearchQuery = "";
+  if (!state.vendorListCategoryFilter) state.vendorListCategoryFilter = "ALL";
+  if (!state.vendorListSearchQuery) state.vendorListSearchQuery = "";
 
   const wrap = el(`<div></div>`);
   wrap.appendChild(agentPageHeader('vendor', 'PROCUREMENT & VENDORS', '廠商 Vendors'));
@@ -4999,8 +5030,8 @@ function renderVendors() {
   const vendors = state.vendors || [];
   const inquiries = state.vendorInquiries || [];
 
-  // 1. 頂部 Dashboards
-  const starCount = vendors.filter(v => v.tag === 'gold').length;
+  // 1. 頂部 Dashboards (採計金牌廠商與優質夥伴)
+  const starCount = vendors.filter(v => v.tag === 'gold' || v.tag === 'silver' || v.tag === 'star').length;
 
   const dashboard = el(`<div class="grid grid-cols-3 gap-4 mb-5">
     <div class="card rounded-xl p-4">
@@ -5008,7 +5039,7 @@ function renderVendors() {
       <div class="text-[22px] font-display font-bold">${vendors.length} <span class="text-[12px] font-sans font-normal text-gray-400">家</span></div>
     </div>
     <div class="card rounded-xl p-4">
-      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">⭐ 推薦 / 優質廠商</div>
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">🥇/🥈 優質合作廠商</div>
       <div class="text-[22px] font-display font-bold" style="color:var(--good)">${starCount} <span class="text-[12px] font-sans font-normal text-gray-400">家</span></div>
     </div>
     <div class="card rounded-xl p-4">
@@ -5018,61 +5049,47 @@ function renderVendors() {
   </div>`);
   wrap.appendChild(dashboard);
 
-  // 2. 雙頁籤切換列 (Tabs)
-  const isListTab = state.vendorTab === 'list';
+  // 2. 雙頁籤切換列 (預設詢價歷史資料庫置左)
+  const isInquiriesTab = state.vendorTab === 'inquiries';
   const tabRow = el(`<div class="flex items-center justify-between border-b mb-5" style="border-color:var(--line)">
     <div class="flex gap-2 -mb-px">
-      <button id="tabVendorInquiries" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${!isListTab ? color : 'transparent'}; color:${!isListTab ? color : 'var(--ink-soft)'}">
+      <button id="tabVendorInquiries" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${isInquiriesTab ? color : 'transparent'}; color:${isInquiriesTab ? color : 'var(--ink-soft)'}">
         📊 詢價歷史資料庫 (${inquiries.length})
       </button>
-      <button id="tabVendorList" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${isListTab ? color : 'transparent'}; color:${isListTab ? color : 'var(--ink-soft)'}">
+      <button id="tabVendorList" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${!isInquiriesTab ? color : 'transparent'}; color:${!isInquiriesTab ? color : 'var(--ink-soft)'}">
         🏢 合作廠商列表 (${vendors.length})
       </button>
     </div>
 
-    <!-- ⭕ 按鈕更名為：新增詢價紀錄 -->
     <div class="pb-2">
-      ${isListTab ? `
-        <button id="btnAddVendor" class="rounded-lg px-3.5 py-1.5 text-[12px] font-medium border flex items-center gap-1.5 hover:bg-white" style="border-color:${color};color:${color}">
-          ＋ 新增合作廠商
+      ${isInquiriesTab ? `
+        <button id="btnAddInquiry" class="rounded-lg px-3.5 py-1.5 text-[12px] font-medium border flex items-center gap-1.5 hover:bg-white transition-colors" style="border-color:${color};color:${color}">
+          ＋ 新增詢價紀錄
         </button>
       ` : `
-        <button id="btnAddInquiry" class="rounded-lg px-3.5 py-1.5 text-[12px] font-medium border flex items-center gap-1.5 hover:bg-white" style="border-color:${color};color:${color}">
-          ＋ 新增詢價紀錄
+        <button id="btnAddVendor" class="rounded-lg px-3.5 py-1.5 text-[12px] font-medium border flex items-center gap-1.5 hover:bg-white transition-colors" style="border-color:${color};color:${color}">
+          ＋ 新增合作廠商
         </button>
       `}
     </div>
   </div>`);
 
-  tabRow.querySelector('#tabVendorList').addEventListener('click', () => { state.vendorTab = 'list'; render(); });
   tabRow.querySelector('#tabVendorInquiries').addEventListener('click', () => { state.vendorTab = 'inquiries'; render(); });
-
-  const btnAddV = tabRow.querySelector('#btnAddVendor');
-  if (btnAddV) btnAddV.addEventListener('click', () => openVendorModal());
+  tabRow.querySelector('#tabVendorList').addEventListener('click', () => { state.vendorTab = 'list'; render(); });
 
   const btnAddI = tabRow.querySelector('#btnAddInquiry');
   if (btnAddI) btnAddI.addEventListener('click', () => openInquiryModal());
 
+  const btnAddV = tabRow.querySelector('#btnAddVendor');
+  if (btnAddV) btnAddV.addEventListener('click', () => openVendorModal());
+
   wrap.appendChild(tabRow);
 
   // 3. 頁籤內容渲染
-  if (isListTab) {
-    const grid = el(`<div class="grid grid-cols-3 gap-4"></div>`);
-    if (!vendors.length) {
-      grid.appendChild(el(`<div class="col-span-3 card rounded-xl p-8 text-center text-[13px]" style="color:var(--ink-soft)">
-        目前尚未收錄任何廠商。點擊右上角「＋ 新增合作廠商」建立你的第一個廠商檔案庫！
-      </div>`));
-    } else {
-      vendors.forEach(v => grid.appendChild(vendorCard(v)));
-    }
-    wrap.appendChild(grid);
-
-  } else {
+  if (isInquiriesTab) {
     // -------------------------------------------------------------
-    // 頁籤 2：詢價歷史資料庫區 (含類別選單、搜尋框與表格呈現)
+    // 頁籤 1 (預設)：詢價歷史資料庫區 (含類別選單、搜尋框與表格呈現)
     // -------------------------------------------------------------
-    
-    // ⭕ 搜尋與篩選列
     const currentCatFilter = state.vendorCategoryFilter || "ALL";
     const currentQuery = state.vendorSearchQuery || "";
 
@@ -5091,36 +5108,18 @@ function renderVendors() {
       </div>
     </div>`);
 
-    // 關鍵字與篩選監聽
-    filterBar.querySelector('#iqSearchInput').addEventListener('input', (e) => {
-      state.vendorSearchQuery = e.target.value.trim().toLowerCase();
-      renderInquiryList();
-    });
-
-    filterBar.querySelector('#iqCategoryFilterSelect').addEventListener('change', (e) => {
-      state.vendorCategoryFilter = e.target.value;
-      renderInquiryList();
-    });
-
-    wrap.appendChild(filterBar);
-
     const listContainer = el(`<div id="inquiryListContainer" class="space-y-4"></div>`);
-    wrap.appendChild(listContainer);
 
-    // 即時過濾與渲染清單
     const renderInquiryList = () => {
       listContainer.innerHTML = '';
       const qLower = (state.vendorSearchQuery || "").toLowerCase();
       const catFilter = state.vendorCategoryFilter || "ALL";
 
-      // 進行資料過濾
       const filteredInquiries = inquiries.filter(iq => {
-        // 1. 類別過濾
         if (catFilter !== "ALL" && iq.category !== catFilter) return false;
 
-        // 2. 關鍵字比對 (地區、廠商名、窗口、筆記、品項名、規格)
         if (qLower) {
-          const locationMatch = (iq.location || "").toLowerCase().includes(qLower); // ⭕ 新增地區比對
+          const locationMatch = (iq.location || "").toLowerCase().includes(qLower);
           const vNameMatch = (iq.vendorName || "").toLowerCase().includes(qLower);
           const contactMatch = (iq.contact || "").toLowerCase().includes(qLower);
           const noteMatch = (iq.vendorNote || "").toLowerCase().includes(qLower);
@@ -5144,7 +5143,6 @@ function renderVendors() {
       }
 
       filteredInquiries.forEach(iq => {
-        // ⭕ 3. 將品項渲染為標準表格式 (品名 | 規格 | 數量 | 單價 | 總價 | 稅別 | 備註)
         let tableRowsHtml = "";
         (iq.items || []).forEach(it => {
           const qty = it.qty || 1;
@@ -5172,9 +5170,10 @@ function renderVendors() {
                 <span class="text-[11px] font-mono text-gray-400">更新於 ${fmt(iq.date)}</span>
               </div>
               <div class="font-display font-bold text-[17px] flex items-center gap-2" style="color:var(--ink)">
-  ${iq.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200 shrink-0">📍 ${iq.location}</span>` : ''}
-  <span>${iq.vendorName}</span>${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">${[iq.contact, iq.phone].filter(Boolean).join(' • ')}</span>` : ''}
-</div>
+                ${iq.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200 shrink-0">📍 ${iq.location}</span>` : ''}
+                <span>${iq.vendorName}</span>
+                ${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">(${[iq.contact, iq.phone].filter(Boolean).join(' • ')})</span>` : ''}
+              </div>
             </div>
 
             <div class="flex items-center gap-2">
@@ -5183,7 +5182,7 @@ function renderVendors() {
             </div>
           </div>
 
-          <!-- ⭕ 表格式品項對照表 -->
+          <!-- 表格式品項對照表 -->
           <div class="overflow-x-auto scrollbar-thin my-3 border rounded-lg" style="border-color:var(--line)">
             <table class="w-full text-left border-collapse">
               <thead>
@@ -5224,7 +5223,87 @@ function renderVendors() {
       });
     };
 
+    filterBar.querySelector('#iqSearchInput').addEventListener('input', (e) => {
+      state.vendorSearchQuery = e.target.value.trim().toLowerCase();
+      renderInquiryList();
+    });
+
+    filterBar.querySelector('#iqCategoryFilterSelect').addEventListener('change', (e) => {
+      state.vendorCategoryFilter = e.target.value;
+      renderInquiryList();
+    });
+
+    wrap.appendChild(filterBar);
+    wrap.appendChild(listContainer);
     renderInquiryList();
+
+  } else {
+    // -------------------------------------------------------------
+    // 頁籤 2：合作廠商列表 (含搜尋與類別篩選列)
+    // -------------------------------------------------------------
+    const currentCatFilter = state.vendorListCategoryFilter || "ALL";
+    const currentQuery = state.vendorListSearchQuery || "";
+
+    const filterBar = el(`<div class="card rounded-xl p-3 mb-4 flex items-center justify-between gap-3 flex-wrap bg-white">
+      <div class="flex items-center gap-2 flex-1 min-w-[240px]">
+        <span class="text-[12px] text-gray-500 shrink-0">🔍 搜尋廠商：</span>
+        <input id="vSearchInput" type="text" value="${currentQuery}" placeholder="搜尋廠商名稱、地區 (如台北)、窗口或備註..." class="w-full border rounded-lg px-3 py-1.5 text-[12px] outline-none focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="text-[12px] text-gray-500">🏷️ 類別篩選：</span>
+        <select id="vCategoryFilterSelect" class="border rounded-lg px-2.5 py-1.5 text-[12px] bg-white outline-none" style="border-color:var(--line)">
+          <option value="ALL" ${currentCatFilter === 'ALL' ? 'selected' : ''}>全部類別 (${vendors.length})</option>
+          ${state.vendorCategories.map(c => `<option value="${c}" ${currentCatFilter === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>`);
+
+    const gridContainer = el(`<div id="vendorGridContainer" class="grid grid-cols-3 gap-4"></div>`);
+
+    const renderVendorGrid = () => {
+      gridContainer.innerHTML = '';
+      const qLower = (state.vendorListSearchQuery || "").toLowerCase();
+      const catFilter = state.vendorListCategoryFilter || "ALL";
+
+      const filteredVendors = vendors.filter(v => {
+        if (catFilter !== "ALL" && v.trade !== catFilter) return false;
+
+        if (qLower) {
+          const vNameMatch = (v.name || "").toLowerCase().includes(qLower);
+          const locMatch = (v.location || "").toLowerCase().includes(qLower);
+          const contactMatch = (v.contact || "").toLowerCase().includes(qLower);
+          const noteMatch = (v.note || "").toLowerCase().includes(qLower);
+
+          if (!vNameMatch && !locMatch && !contactMatch && !noteMatch) return false;
+        }
+
+        return true;
+      });
+
+      if (!filteredVendors.length) {
+        gridContainer.appendChild(el(`<div class="col-span-3 card rounded-xl p-8 text-center text-[13px]" style="color:var(--ink-soft)">
+          ${vendors.length ? '找不到符合條件的廠商。' : '目前尚未收錄任何廠商。點擊右上角「＋ 新增合作廠商」建立你的第一個廠商檔案庫！'}
+        </div>`));
+        return;
+      }
+
+      filteredVendors.forEach(v => gridContainer.appendChild(vendorCard(v)));
+    };
+
+    filterBar.querySelector('#vSearchInput').addEventListener('input', (e) => {
+      state.vendorListSearchQuery = e.target.value.trim().toLowerCase();
+      renderVendorGrid();
+    });
+
+    filterBar.querySelector('#vCategoryFilterSelect').addEventListener('change', (e) => {
+      state.vendorListCategoryFilter = e.target.value;
+      renderVendorGrid();
+    });
+
+    wrap.appendChild(filterBar);
+    wrap.appendChild(gridContainer);
+    renderVendorGrid();
   }
 
   return wrap;
