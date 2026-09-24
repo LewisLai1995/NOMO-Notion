@@ -4996,11 +4996,11 @@ function renderVendors() {
   const isListTab = state.vendorTab === 'list';
   const tabRow = el(`<div class="flex items-center justify-between border-b mb-5" style="border-color:var(--line)">
     <div class="flex gap-2 -mb-px">
-      <button id="tabVendorList" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${isListTab ? color : 'transparent'}; color:${isListTab ? color : 'var(--ink-soft)'}">
-        🏢 合作廠商列表 (${vendors.length})
-      </button>
       <button id="tabVendorInquiries" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${!isListTab ? color : 'transparent'}; color:${!isListTab ? color : 'var(--ink-soft)'}">
         📊 詢價歷史資料庫 (${inquiries.length})
+      </button>
+      <button id="tabVendorList" class="px-4 py-2.5 text-[13px] font-bold border-b-2 transition-colors flex items-center gap-1.5" style="border-color:${isListTab ? color : 'transparent'}; color:${isListTab ? color : 'var(--ink-soft)'}">
+        🏢 合作廠商列表 (${vendors.length})
       </button>
     </div>
 
