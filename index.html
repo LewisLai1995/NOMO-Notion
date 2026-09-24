@@ -1164,13 +1164,28 @@ async function loadState() {
     const docRef = window.doc(window.db, "appData", window.currentUser.uid);
     const docSnap = await window.getDoc(docRef);
     
-    if (docSnap.exists()) {
+   if (docSnap.exists()) {
       const data = docSnap.data();
       if (data.jsonPayload) {
         Object.assign(state, JSON.parse(data.jsonPayload));
       } else {
         Object.assign(state, data);
       }
+
+      // ⭕ 補齊舊資料缺少的 vendor (包包) 角色欄位
+      if (!state.theme) state.theme = {};
+      if (!state.theme.vendor) state.theme.vendor = "#3B4A5A";
+
+      if (!state.roles) state.roles = {};
+      if (!state.roles.vendor) state.roles.vendor = "scholar";
+
+      if (!state.nicknames) state.nicknames = {};
+      if (!state.nicknames.vendor) state.nicknames.vendor = "包包";
+
+      if (!state.agentsEnabled) state.agentsEnabled = {};
+      if (state.agentsEnabled.vendor === undefined) state.agentsEnabled.vendor = true;
+
+      state.route = "today"; // 重整載入後鎖定 Today 主頁
       state.route = "today"; // 重整載入後鎖定 Today 主頁
       
       // ⭕ 強制將日期與週對齊為今天
@@ -5818,7 +5833,8 @@ function renderFellows() {
   const totalAnimals = animalKeys.length; // 6 種石頭型態
 
   ROLE_IDS.forEach(roleId => {
-    const color = state.theme[roleId];
+// ⭕ 加上 || "#3B4A5A" 預設值防呆，避免 undefined 造成 toLowerCase 報錯
+    const color = state.theme[roleId] || (roleId === 'vendor' ? '#3B4A5A' : 'var(--ink)');
     const nick = state.nicknames[roleId];
     const enabled = state.agentsEnabled[roleId];
 
