@@ -1125,7 +1125,15 @@ agentsEnabled: { project:true, life:true, finance:true, vendor:true },
     { id: "line", name: "LINE 通知", desc: "重要階段與盤點日推播提醒", connected: false },
     { id: "bank", name: "銀行帳戶匯入", desc: "自動帶入帳戶餘額（唯讀）", connected: false },
     { id: "drive", name: "雲端硬碟", desc: "同步展覽圖檔與發包文件", connected: true },
-  ]
+  ],
+  vendors: [
+  { id: "v1", name: "陳師傅木作工程", trade: "木作", contact: "陳大明", phone: "0933-111-222", tag: "star", note: "工細、配合度高，擅長異材質銜接與特展展牆" },
+  { id: "v2", name: "高科技光電", trade: "燈光", contact: "高經理", phone: "0955-222-333", tag: "normal", note: "專營舞台燈光與 LED 條燈，報價透明" },
+  { id: "v3", name: "宏達大圖輸出", trade: "大圖輸出", contact: "林小姐", phone: "0911-888-999", tag: "warning", note: "交貨迅速，但施工前需再三核對色彩校樣" }
+],
+vendorInquiries: [
+  { id: "vi1", vendorId: "v1", projectId: "p1", projectName: "森之光 — 台北當代館特展", item: "展場特製木作展牆 25 坪", initialQuote: 135000, finalQuote: 120000, status: "completed", date: "2026-09-10", note: "去頭數優惠 1.5 萬" }
+]
 };
 
 // 2. 初始應用程式狀態 (未登入時預設清空關鍵陣列)
@@ -1596,14 +1604,19 @@ function visibleNav(){
     return !roleForRoute || state.agentsEnabled[roleForRoute];
   });
 }
+
 const NAV = [
   {id:"today", label:"Today’s Scope", icon:iconHome},
   {id:"projectlog", label:"專案 Project Log", icon:iconProject},
   {id:"persona", label:"日常 Persona", icon:iconLife},
   {id:"reserve", label:"資產 Reserve", icon:iconFinance},
+  {id:"vendors", label:"廠商 Vendors", icon:iconVendor}, // 👈 新增廠商選單
   {id:"fellows", label:"夥伴 Fellows", icon:iconAgent},
   {id:"connections", label:"系統 Connections", icon:iconPlug},
 ];
+
+// ⭕ 新增 Vendor 圖示 SVG
+function iconVendor(a){ return sw(`<path d="M3 21 h18 M5 21 V7 l7-4 l7 4 v14 M9 10 h2 M15 10 h2 M9 14 h2 M15 14 h2 M9 18 h2 M15 18 h2" stroke-linecap="round" stroke-linejoin="round"/>`, a); }
 function iconHome(a){return sw(`<path d="M3 10 L11 3 L19 10" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 9 V18 H17 V9" stroke-linejoin="round"/>`,a);}
 function iconProject(a){return sw(`<rect x="3" y="6" width="16" height="12" rx="1"/><path d="M7 6 V4 H15 V6" /><path d="M3 11 H19"/>`,a);}
 function iconLife(a){return sw(`<rect x="3" y="4" width="16" height="15" rx="1"/><path d="M3 9 H19"/><path d="M7 2 V6 M15 2 V6"/>`,a);}
@@ -1720,6 +1733,7 @@ function render(){
     if(state.route==="projectlog") view.appendChild(state.detailProjectId ? renderProjectDetail(state.detailProjectId) : renderProjectLog());
     else if(state.route==="persona") view.appendChild(renderPersona());
     else if(state.route==="reserve") view.appendChild(renderReserve());
+    else if(state.route==="vendors") view.appendChild(renderVendors()); // 👈 加入 Vendors 路由判斷
     else if(state.route==="fellows") view.appendChild(renderFellows());
     else if(state.route==="connections") view.appendChild(renderConnections());
   }
@@ -2154,6 +2168,90 @@ function projectCard(p){
 
   return card;
 }
+
+  /* ============================================================ VENDOR MODAL ============================================================ */
+
+function openVendorModal(vToEdit = null) {
+  const color = state.theme.vendor || "#3B4A5A";
+  const isEdit = !!vToEdit;
+  const v = vToEdit || { name: "", trade: "木作", contact: "", phone: "", tag: "normal", note: "" };
+
+  const form = el(`<div>
+    <div class="font-display font-bold text-[19px] mb-3" style="color:${color}">${isEdit ? '編輯廠商資料' : '新增合作廠商'}</div>
+    
+    <div class="flex flex-col gap-3">
+      <label class="text-[12px]" style="color:var(--ink-soft)">廠商/公司名稱 <span style="color:#B23A3A">*</span>
+        <input id="vName" type="text" value="${v.name}" placeholder="例如：陳師傅木作工程" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+      </label>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <label class="text-[12px]" style="color:var(--ink-soft)">主要工種 <span style="color:#B23A3A">*</span>
+          <input id="vTrade" type="text" value="${v.trade}" placeholder="例如：木作、燈光、大圖" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">合作評價標籤
+          <select id="vTag" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)">
+            <option value="star" ${v.tag === 'star' ? 'selected' : ''}>⭐ 推薦 / 優質合作</option>
+            <option value="normal" ${v.tag === 'normal' || !v.tag ? 'selected' : ''}>★ 一般合作夥伴</option>
+            <option value="warning" ${v.tag === 'warning' ? 'selected' : ''}>⚠️ 配合需多盯緊</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <label class="text-[12px]" style="color:var(--ink-soft)">聯絡窗口
+          <input id="vContact" type="text" value="${v.contact}" placeholder="例如：陳師傅" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[12px]" style="color:var(--ink-soft)">聯絡電話
+          <input id="vPhone" type="text" value="${v.phone}" placeholder="09xx-xxx-xxx" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+        </label>
+      </div>
+
+      <label class="text-[12px]" style="color:var(--ink-soft)">廠商特性與評價備註
+        <textarea id="vNote" placeholder="例如：工細、配合度高、擅長異材質銜接..." class="w-full mt-1 border rounded-lg p-2.5 text-[12px] h-20 resize-none" style="border-color:var(--line)">${v.note || ''}</textarea>
+      </label>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="vCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
+      <button id="vSubmit" class="text-[13px] px-4 py-2 rounded-lg font-medium" style="background:${color};color:${contrastText(color)}">${isEdit ? '儲存修改' : '建立廠商'}</button>
+    </div>
+  </div>`);
+
+  form.querySelector('#vCancel').addEventListener('click', closeModal);
+  form.querySelector('#vSubmit').addEventListener('click', () => {
+    const name = form.querySelector('#vName').value.trim();
+    const trade = form.querySelector('#vTrade').value.trim();
+    if (!name || !trade) {
+      alertModal("請完整填寫廠商名稱與工種。");
+      return;
+    }
+
+    if (isEdit) {
+      vToEdit.name = name;
+      vToEdit.trade = trade;
+      vToEdit.tag = form.querySelector('#vTag').value;
+      vToEdit.contact = form.querySelector('#vContact').value.trim();
+      vToEdit.phone = form.querySelector('#vPhone').value.trim();
+      vToEdit.note = form.querySelector('#vNote').value.trim();
+    } else {
+      if (!state.vendors) state.vendors = [];
+      state.vendors.push({
+        id: "v" + uid(),
+        name, trade,
+        tag: form.querySelector('#vTag').value,
+        contact: form.querySelector('#vContact').value.trim(),
+        phone: form.querySelector('#vPhone').value.trim(),
+        note: form.querySelector('#vNote').value.trim()
+      });
+    }
+
+    closeModal();
+    commit();
+  });
+
+  openModal(form);
+}
+  
 function projectCreateModal(){
   const randomColor = PALETTE[Math.floor(Math.random()*PALETTE.length)];
   
@@ -4412,6 +4510,135 @@ function renderPersona(){
   wrap.appendChild(upcoming10Strip());
   const grid = el(`<div class="grid grid-cols-2 gap-5"></div>`);
   grid.append(personaMonthCalendar(), personaTodoCard());
+  wrap.appendChild(grid);
+  return wrap;
+}
+
+/* ============================================================ VENDORS PAGE ============================================================ */
+
+function vendorCard(v) {
+  const color = state.theme.vendor || "#3B4A5A";
+  const inquiries = (state.vendorInquiries || []).filter(i => i.vendorId === v.id);
+  const latestInquiry = inquiries.length ? inquiries[inquiries.length - 1] : null;
+
+  // 評價標籤樣式與文字
+  let tagClass = "bg-gray-50 text-gray-700 border-gray-200";
+  let tagText = "★ 一般合作";
+  if (v.tag === 'star') {
+    tagClass = "bg-amber-50 text-amber-800 border-amber-300 font-semibold";
+    tagText = "⭐ 推薦 / 優質";
+  } else if (v.tag === 'warning') {
+    tagClass = "bg-rose-50 text-rose-700 border-rose-300 font-semibold";
+    tagText = "⚠️ 配合需盯緊";
+  }
+
+  const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-md transition-shadow" style="border-top:3px solid ${color};">
+    <div>
+      <!-- 頂部工種與評價標籤 -->
+      <div class="flex items-center justify-between mb-2">
+        <span class="tag font-mono font-medium" style="border-color:${color};color:${color}">${v.trade || '工班'}</span>
+        <span class="text-[10px] px-2 py-0.5 rounded-full border ${tagClass}">${tagText}</span>
+      </div>
+
+      <!-- 廠商名稱與聯絡窗口 -->
+      <div class="font-display font-semibold text-[15px] mb-1 leading-tight">${v.name}</div>
+      <div class="text-[12px] flex items-center gap-2 mb-3" style="color:var(--ink-soft)">
+        <span>👤 ${v.contact || '未留聯絡人'}</span>
+        <span>•</span>
+        <span class="font-mono">${v.phone || '無電話'}</span>
+      </div>
+
+      <!-- 備註短評 -->
+      ${v.note ? `<div class="text-[11px] p-2 rounded-lg mb-3 line-clamp-2 leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft)">${v.note}</div>` : ''}
+    </div>
+
+    <!-- 底部歷史詢價摘要與操作 -->
+    <div class="pt-3 border-t flex items-center justify-between" style="border-color:var(--line)">
+      <div class="text-[11px]" style="color:var(--ink-soft)">
+        ${latestInquiry ? `歷史詢價 <span class="font-mono font-bold text-gray-800">${inquiries.length}</span> 筆` : '尚無歷史詢價紀錄'}
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button type="button" class="btn-edit-vendor text-[11px] px-2.5 py-1 rounded border hover:bg-gray-50" style="border-color:var(--line);color:var(--ink)">編輯</button>
+        <button type="button" class="btn-del-vendor text-[13px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除廠商">×</button>
+      </div>
+    </div>
+  </div>`);
+
+  // 編輯廠商
+  card.querySelector('.btn-edit-vendor').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openVendorModal(v);
+  });
+
+  // 刪除廠商
+  card.querySelector('.btn-del-vendor').addEventListener('click', (e) => {
+    e.stopPropagation();
+    confirmModal(`確定要刪除廠商「${v.name}」嗎？刪除後相關的詢價紀錄將一併移除。`, () => {
+      state.vendors = state.vendors.filter(x => x.id !== v.id);
+      if (state.vendorInquiries) {
+        state.vendorInquiries = state.vendorInquiries.filter(i => i.vendorId !== v.id);
+      }
+      commit();
+    }, { okLabel: "確定刪除", color: "var(--danger)" });
+  });
+
+  return card;
+}
+
+function renderVendors() {
+  const color = state.theme.vendor || "#3B4A5A";
+  const wrap = el(`<div></div>`);
+
+  // 1. 頁面標頭 (對齊吉祥物氣泡)
+  wrap.appendChild(agentPageHeader('vendor', 'PROCUREMENT & VENDORS', '廠商 Vendors'));
+
+  const vendors = state.vendors || [];
+  const inquiries = state.vendorInquiries || [];
+
+  // 2. 統計 Dashboards
+  const starCount = vendors.filter(v => v.tag === 'star').length;
+  const pendingInquiryCount = inquiries.filter(i => i.status === 'pending').length;
+
+  const dashboard = el(`<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">收錄合作廠商</div>
+      <div class="text-[22px] font-display font-bold">${vendors.length} <span class="text-[12px] font-sans font-normal text-gray-400">家</span></div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">⭐ 推薦 / 優質廠商</div>
+      <div class="text-[22px] font-display font-bold" style="color:var(--good)">${starCount} <span class="text-[12px] font-sans font-normal text-gray-400">家</span></div>
+    </div>
+    <div class="card rounded-xl p-4">
+      <div class="text-[10px] font-mono tracking-widest mb-1" style="color:var(--ink-soft)">等待回覆中詢價</div>
+      <div class="text-[22px] font-display font-bold" style="color:${color}">${pendingInquiryCount} <span class="text-[12px] font-sans font-normal text-gray-400">筆</span></div>
+    </div>
+  </div>`);
+  wrap.appendChild(dashboard);
+
+  // 3. 操作工具列 (新增廠商 + 搜尋/篩選)
+  const toolbar = el(`<div class="flex items-center justify-between gap-3 mb-5 flex-wrap">
+    <button id="btnAddVendor" class="rounded-lg px-4 py-2.5 text-[13px] font-medium border flex items-center gap-2 transition-colors hover:bg-white" style="border-color:${color};color:${color}">
+      ＋ 新增合作廠商
+    </button>
+    <div class="text-[12px]" style="color:var(--ink-soft)">
+      點擊廠商卡片可編輯詳細聯絡資料與特質備註
+    </div>
+  </div>`);
+
+  toolbar.querySelector('#btnAddVendor').addEventListener('click', () => openVendorModal());
+  wrap.appendChild(toolbar);
+
+  // 4. 廠商卡片網格
+  const grid = el(`<div class="grid grid-cols-3 gap-4"></div>`);
+  if (!vendors.length) {
+    grid.appendChild(el(`<div class="col-span-3 card rounded-xl p-8 text-center text-[13px]" style="color:var(--ink-soft)">
+      目前尚未收錄任何廠商。點擊上方「＋ 新增合作廠商」建立你的第一個廠商檔案庫！
+    </div>`));
+  } else {
+    vendors.forEach(v => grid.appendChild(vendorCard(v)));
+  }
+
   wrap.appendChild(grid);
   return wrap;
 }
