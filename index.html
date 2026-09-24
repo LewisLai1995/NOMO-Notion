@@ -2306,7 +2306,7 @@ function openInquiryModal(inquiryToEdit = null) {
   const isEdit = !!(inquiryToEdit && inquiryToEdit.id);
   
   const itemData = inquiryToEdit || {
-    vendorName: "", contact: "", phone: "",
+    vendorName: "", contact: "", phone: "", location: "",
     category: state.vendorCategories[0] || "🎁 贈品製作",
     date: state.todayISO,
     items: [
@@ -2324,7 +2324,7 @@ function openInquiryModal(inquiryToEdit = null) {
       <div class="p-3.5 rounded-xl border bg-gray-50/50 space-y-2.5" style="border-color:var(--line)">
         <div class="text-[11px] font-mono font-bold" style="color:var(--ink-soft)">基本資訊 · VENDOR INFO</div>
         
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-4 gap-2">
           <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">廠商名稱 <span style="color:#B23A3A">*</span>
             <input id="iqVendorName" type="text" value="${itemData.vendorName || ''}" placeholder="如：捷克彩印" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white" style="border-color:var(--line)"/>
           </label>
@@ -2334,9 +2334,13 @@ function openInquiryModal(inquiryToEdit = null) {
           <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">聯絡電話
             <input id="iqPhone" type="text" value="${itemData.phone || ''}" placeholder="09xx-xxx-xxx" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white font-mono" style="border-color:var(--line)"/>
           </label>
+          <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">地區
+            <input id="iqLocation" type="text" value="${itemData.location || ''}" placeholder="如：台北 / 全台" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white" style="border-color:var(--line)"/>
+          </label>
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
+          <!-- 類別選擇與管理 -->
           <div>
             <div class="flex items-center justify-between mb-1">
               <span class="text-[12px]" style="color:var(--ink-soft)">品項類別</span>
@@ -2402,6 +2406,7 @@ function openInquiryModal(inquiryToEdit = null) {
       vendorName: wrap.querySelector('#iqVendorName').value.trim(),
       contact: wrap.querySelector('#iqContact').value.trim(),
       phone: wrap.querySelector('#iqPhone').value.trim(),
+      location: wrap.querySelector('#iqLocation').value.trim(), // ⭕ 讀取地區輸入值
       category: wrap.querySelector('#iqCategory').value,
       date: wrap.querySelector('#iqDate').value,
       vendorNote: wrap.querySelector('#iqVendorNote').value.trim(),
@@ -5048,7 +5053,7 @@ function renderVendors() {
     const filterBar = el(`<div class="card rounded-xl p-3 mb-4 flex items-center justify-between gap-3 flex-wrap bg-white">
       <div class="flex items-center gap-2 flex-1 min-w-[240px]">
         <span class="text-[12px] text-gray-500 shrink-0">🔍 關鍵字搜尋：</span>
-        <input id="iqSearchInput" type="text" value="${currentQuery}" placeholder="搜尋廠商名稱、窗口、品項或規格..." class="w-full border rounded-lg px-3 py-1.5 text-[12px] outline-none focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
+        <input id="iqSearchInput" type="text" value="${currentQuery}" placeholder="搜尋地區 (如台北)、廠商名稱、窗口、品項或規格..." class="w-full border rounded-lg px-3 py-1.5 text-[12px] outline-none focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
@@ -5087,17 +5092,19 @@ function renderVendors() {
         // 1. 類別過濾
         if (catFilter !== "ALL" && iq.category !== catFilter) return false;
 
-        // 2. 關鍵字比對 (廠商名、窗口、筆記、品項名、規格)
+        // 2. 關鍵字比對 (地區、廠商名、窗口、筆記、品項名、規格)
         if (qLower) {
+          const locationMatch = (iq.location || "").toLowerCase().includes(qLower); // ⭕ 新增地區比對
           const vNameMatch = (iq.vendorName || "").toLowerCase().includes(qLower);
           const contactMatch = (iq.contact || "").toLowerCase().includes(qLower);
           const noteMatch = (iq.vendorNote || "").toLowerCase().includes(qLower);
           const itemMatch = (iq.items || []).some(it => 
             (it.itemName || "").toLowerCase().includes(qLower) || 
-            (it.specDetail || "").toLowerCase().includes(qLower)
+            (it.specDetail || "").toLowerCase().includes(qLower) ||
+            (it.note || "").toLowerCase().includes(qLower)
           );
 
-          if (!vNameMatch && !contactMatch && !noteMatch && !itemMatch) return false;
+          if (!locationMatch && !vNameMatch && !contactMatch && !noteMatch && !itemMatch) return false;
         }
 
         return true;
@@ -5139,9 +5146,9 @@ function renderVendors() {
                 <span class="text-[11px] font-mono text-gray-400">更新於 ${fmt(iq.date)}</span>
               </div>
               <div class="font-display font-bold text-[17px] flex items-center gap-3" style="color:var(--ink)">
-                <span>${iq.vendorName}</span>
-                ${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">(${[iq.contact, iq.phone].filter(Boolean).join(' • ')})</span>` : ''}
-              </div>
+  <span>${iq.vendorName}</span>${iq.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200">${iq.location}</span>` : ''}
+  ${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">(${[iq.contact, iq.phone].filter(Boolean).join(' • ')})</span>` : ''}
+</div>
             </div>
 
             <div class="flex items-center gap-2">
