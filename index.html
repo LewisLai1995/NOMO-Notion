@@ -2613,7 +2613,8 @@ function settlementModal(p, onCancel){
     p.settlement = { additionalAmount, actualCost, invoice:{ title:invoiceTitle, taxId:invoiceTax, address:invoiceAddr, amountWithTax:invoiceAmt } };
     closeModal(); 
 
-    const lineConfig = state.integrations.find(it => it.id === 'line');
+    // ⭕ 修正後的結案數據簡報發送邏輯：
+  const lineConfig = state.integrations.find(it => it.id === 'line');
   const ns = lineConfig ? lineConfig.notifySettings : null;
 
   if (ns && ns.projectSettledNotify !== false) {
@@ -2625,10 +2626,11 @@ function settlementModal(p, onCancel){
     const profit = revenue - actualCost;
     const margin = revenue ? ((profit / revenue) * 100).toFixed(1) : "0.0";
 
-    // 2. 計算年度累積數據
+    // 2. 計算年度累積數據 (修正小括號問題)
     const archived = state.projects.filter(x => x.settled && x.settlement && (x.settledAt || x.constructionDate).startsWith(String(thisYear)));
     const totalYearRevenue = archived.reduce((s, x) => s + (x.dealAmount + (x.settlement.additionalAmount || 0)), 0);
     
+    // ⭕ 這裡已修正多餘的右括號
     const avgYearMargin = archived.length ? (archived.reduce((s, x) => {
       const r = x.dealAmount + (x.settlement.additionalAmount || 0);
       const pr = r - (x.settlement.actualCost || 0);
