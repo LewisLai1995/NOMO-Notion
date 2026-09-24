@@ -560,20 +560,26 @@ async function sendLineNotification(message) {
   }
 }
 
- /* ============================================================ AUTO NOTIFICATION CHECKER ============================================================ */
+ /* ============================================================ AUTO NOTIFICATION CHECKER (FIXED) ============================================================ */
 
 async function checkAndSendDailyLineReminders() {
-  if (!isLineConnected()) return;
-
   const lineConfig = state.integrations.find(it => it.id === 'line');
+  if (!lineConfig || !lineConfig.token || !lineConfig.userId) {
+    console.log("ℹ️ 未設定 LINE Messaging API Token 或 User ID，跳過每日提醒檢查。");
+    return;
+  }
+
   const ns = lineConfig.notifySettings;
-  if (!ns) return;
+  if (!ns) {
+    console.log("ℹ️ 尚未設定 notifySettings 偏好，跳過每日提醒檢查。");
+    return;
+  }
 
   const todayStr = state.todayISO;
   const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
 
   if (lastCheckDate === todayStr) {
-    console.log("ℹ️ 當天 LINE 預警提醒已執行過，跳過比對。");
+    console.log("ℹ️ 今日 (" + todayStr + ") LINE 每日提醒已發送過，跳過自動比對。若要測試請執行 localStorage.removeItem('nomo_line_last_daily_check')");
     return;
   }
 
@@ -584,14 +590,16 @@ async function checkAndSendDailyLineReminders() {
   const messages = [];
 
   // -----------------------------------------------------------------
-  // 🏗️ 1. 專案時程預警 (開關：projectStageReminder)
+  // 🏗️ 1. 專案時程預警 (相容 projectStageReminder & projectReminder)
   // -----------------------------------------------------------------
-  if (ns.projectStageReminder !== false) {
-    const daysBefore = ns.projectDaysBefore || 3;
+  const isProjEnabled = ns.projectStageReminder !== false && ns.projectReminder !== false;
+  if (isProjEnabled) {
+    const daysBefore = ns.projectDaysBefore !== undefined ? ns.projectDaysBefore : 3;
     const targetDate = addDays(todayStr, daysBefore);
+    console.log(`🔍 [專案比對] 尋找 ${daysBefore} 天後 (${targetDate}) 的未完成階段...`);
 
     state.projects.filter(p => !p.settled).forEach(p => {
-      p.stages.forEach(s => {
+      (p.stages || []).forEach(s => {
         if (s.done) return;
         if (s.date === targetDate) {
           messages.push(`🏗️ ${nickProject}專案提醒：\n「${p.name}」即將於 ${daysBefore} 天後 (${fmt(s.date)}) 進入「${s.name}」階段！`);
@@ -601,11 +609,13 @@ async function checkAndSendDailyLineReminders() {
   }
 
   // -----------------------------------------------------------------
-  // 🌿 2. 日常行程與待辦 (開關：lifeScheduleReminder, lifeTodoReminder)
+  // 🌿 2. 日常行程預警 (相容 lifeScheduleReminder & lifeReminder)
   // -----------------------------------------------------------------
-  if (ns.lifeScheduleReminder !== false) {
-    const daysBefore = ns.lifeDaysBefore || 1;
+  const isLifeSchedEnabled = ns.lifeScheduleReminder !== false && ns.lifeReminder !== false;
+  if (isLifeSchedEnabled) {
+    const daysBefore = ns.lifeDaysBefore !== undefined ? ns.lifeDaysBefore : 1;
     const targetDate = addDays(todayStr, daysBefore);
+    console.log(`🔍 [行程比對] 尋找 ${daysBefore} 天後 (${targetDate}) 的預定行程...`);
 
     const upcomingEvents = state.personaEvents.filter(e => 
       e.kind === 'schedule' && !e.done && e.date === targetDate
@@ -618,7 +628,11 @@ async function checkAndSendDailyLineReminders() {
     }
   }
 
+  // -----------------------------------------------------------------
+  // 📋 3. 日常待辦事項提醒 (lifeTodoReminder)
+  // -----------------------------------------------------------------
   if (ns.lifeTodoReminder !== false) {
+    console.log(`🔍 [待辦比對] 尋找今天 (${todayStr}) 未完成的日常待辦...`);
     const todayTodos = state.personaEvents.filter(e => 
       e.kind === 'todo' && !e.done && e.date === todayStr
     );
@@ -630,11 +644,13 @@ async function checkAndSendDailyLineReminders() {
   }
 
   // -----------------------------------------------------------------
-  // 💰 3. 雙週資產盤點提醒 (開關：financeReviewReminder)
+  // 💰 4. 雙週資產盤點提醒 (相容 financeReviewReminder & financeReminder)
   // -----------------------------------------------------------------
-  if (ns.financeReviewReminder !== false) {
-    const daysBefore = ns.financeDaysBefore || 1;
+  const isFinEnabled = ns.financeReviewReminder !== false && ns.financeReminder !== false;
+  if (isFinEnabled) {
+    const daysBefore = ns.financeDaysBefore !== undefined ? ns.financeDaysBefore : 1;
     const targetDate = addDays(todayStr, daysBefore);
+    console.log(`🔍 [盤點比對] 檢查 ${daysBefore} 天後 (${targetDate}) 是否為盤點日...`);
 
     if (typeof isBiweeklyReviewDate === 'function' && isBiweeklyReviewDate(targetDate)) {
       const timeText = daysBefore === 0 ? "今天" : `${daysBefore} 天後 (${fmt(targetDate)})`;
@@ -643,15 +659,23 @@ async function checkAndSendDailyLineReminders() {
   }
 
   // -----------------------------------------------------------------
-  // 🚀 發送推播
+  // 🚀 5. 打包訊息並發送
   // -----------------------------------------------------------------
   if (messages.length > 0) {
     const fullMessage = `【NOMO.notion 每日夥伴提醒】\n\n` + messages.join('\n\n---\n\n');
+    console.log("⏳ 檢測到提醒項目，正在發送 LINE 每日自動推播...");
+    
+    // 強制補上連線狀態防呆
+    lineConfig.connected = true;
+    
     const success = await sendLineNotification(fullMessage);
     if (success) {
       localStorage.setItem('nomo_line_last_daily_check', todayStr);
+      console.log("✨ 每日預警推播發送成功！");
     }
   } else {
+    console.log("ℹ️ 經比對今日無符合條件之提醒項目。");
+    // 當天無提醒也註記完成，避免重複計算
     localStorage.setItem('nomo_line_last_daily_check', todayStr);
   }
 }
@@ -4555,9 +4579,9 @@ function openFirstReviewModal(){
   };
 
   const prev = latestPeriod();
-  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
-  buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
-  buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> prev?effectiveValue(item,prev.id):null);
+  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
+buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
+buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
   
   const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第一次盤點</button></div>`);
   wrap.appendChild(footer);
@@ -5036,69 +5060,85 @@ function openUsePlanModal(item, accumulatedTotal){
 
   openModal(form);
 }
+/* ==================== 盤點歷史紀錄 MODAL (FIXED) ==================== */
+
 function openFinanceHistoryModal(){
-  const color = state.theme.finance; const F = state.finance;
+  const color = state.theme.finance; 
+  const F = state.finance;
+  
+  if (!F.periods || !F.periods.length) {
+    alertModal('目前還沒有任何盤點歷史紀錄。');
+    return;
+  }
+
   let cursor = F.periods.length ? F.periods[F.periods.length-1].month : state.todayISO.slice(0,7);
   const wrap = el(`<div style="min-width:320px"></div>`);
   wrap.appendChild(el(`<div class="font-display font-bold text-[19px] mb-4" style="color:${color}">盤點歷史紀錄</div>`));
+  
   const nav = el(`<div class="flex items-center justify-between mb-4"></div>`);
-  const prevBtn = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">‹ 上個月</button>`);
-  const label = el(`<span class="text-[13px] font-mono"></span>`);
-  const nextBtn = el(`<button class="text-[12px] px-2 py-1 rounded border" style="border-color:var(--line)">下個月 ›</button>`);
+  const prevBtn = el(`<button class="text-[12px] px-2 py-1 rounded border hover:bg-gray-50" style="border-color:var(--line)">‹ 上個月</button>`);
+  const label = el(`<span class="text-[13px] font-mono font-bold"></span>`);
+  const nextBtn = el(`<button class="text-[12px] px-2 py-1 rounded border hover:bg-gray-50" style="border-color:var(--line)">下個月 ›</button>`);
   nav.append(prevBtn,label,nextBtn); wrap.appendChild(nav);
-  const body = el(`<div class="flex flex-col gap-5 max-h-[55vh] overflow-y-auto scrollbar-thin"></div>`); wrap.appendChild(body);
+  
+  const body = el(`<div class="flex flex-col gap-5 max-h-[55vh] overflow-y-auto scrollbar-thin"></div>`); 
+  wrap.appendChild(body);
+
+  // ⭕ 單一週期卡片繪製
   function periodBlock(p){
-    const box = el(`<div class="border rounded-lg p-3" style="border-color:var(--line)"></div>`);
-    const head = el(`<div class="flex items-center justify-between mb-2"></div>`);
-    head.innerHTML = `<div class="text-[12px] font-medium">第一次 ${fmt(p.firstDate)}${p.secondDate?` · 第二次 ${fmt(p.secondDate)}`:' · 尚未第二次盤點'}</div>`;
-    const delBtn = el(`<button class="text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除這筆盤點紀錄">×</button>`);
+    const box = el(`<div class="border rounded-xl p-3 bg-white" style="border-color:var(--line)"></div>`);
+    const head = el(`<div class="flex items-center justify-between mb-2 pb-2 border-b" style="border-color:var(--line)"></div>`);
+    head.innerHTML = `<div class="text-[12px] font-medium" style="color:var(--ink)">第一次：${fmt(p.firstDate)}${p.secondDate ? ` · 第二次：${fmt(p.secondDate)}` : ' · 尚未進行第二次盤點'}</div>`;
+    
+    const delBtn = el(`<button class="text-[14px] font-bold px-1 shrink-0 text-gray-400 hover:text-red-600 transition-colors" title="刪除這筆盤點紀錄">×</button>`);
     delBtn.addEventListener('click', ()=>{
-      confirmModal(`確定要刪除「${fmt(p.firstDate)}」這整筆盤點紀錄嗎？裡面每個項目在這次的第一次／第二次金額都會一併移除，且無法復原。`, ()=>{
+      confirmModal(`確定要刪除「${fmt(p.firstDate)}」這整筆盤點紀錄嗎？裡面每個項目在這次的金額都會一併移除，且無法復原。`, ()=>{
         state.finance.periods = state.finance.periods.filter(x=>x.id!==p.id);
         ['bank','expense','plan'].forEach(group=>{ state.finance[group].forEach(item=>{ delete item.first[p.id]; delete item.second[p.id]; }); });
         commit();
-        openFinanceHistoryModal(); // reopen fresh so the list reflects the deletion
+        closeModal();
+        openFinanceHistoryModal(); // 重新整理歷史紀錄彈窗
       }, {okLabel:'確定刪除', color:'var(--danger)'});
     });
+    
     head.appendChild(delBtn); box.appendChild(head);
+
+    // ⭕ 修正重點：把原本的 latest.id 替換成對應當前卡片的 p.id
     function sectionRows(title, c, group) {
-    const items = itemsInPeriod(group, latest.id);
-    const diffFn = FINANCE_DIFF_FORMULA[group];
-    let rows = `<tr><td colspan="4" class="pt-4 pb-1 text-[11px] font-mono tracking-widest" style="color:${c}">${title}</td></tr>`;
-    let sumF = 0, sumS = 0, hasSecond = false;
+      const items = itemsInPeriod(group, p.id);
+      const diffFn = FINANCE_DIFF_FORMULA[group];
+      let rows = `<tr><td colspan="4" class="pt-2 pb-1 text-[10px] font-mono tracking-widest font-bold" style="color:${c}">${title}</td></tr>`;
 
-    items.forEach(item => {
-      // ⭕ 確定 f 取 first，s 取 second
-      const f = item.first[latest.id];
-      const s = item.second[latest.id];
-
-      sumF += f || 0;
-      if (s != null) { 
-        sumS += s; 
-        hasSecond = true; 
+      if (!items.length) {
+        return rows + `<tr><td colspan="4" class="py-1 text-[11px] text-gray-400">（無紀錄）</td></tr>`;
       }
 
-      const diff = (f != null && s != null) ? diffFn(f, s) : null;
+      items.forEach(item => {
+        const f = item.first ? item.first[p.id] : null;
+        const s = item.second ? item.second[p.id] : null;
+        const diff = (f != null && s != null) ? diffFn(f, s) : null;
 
-      rows += `<tr>
-        <td class="py-1 text-[12px] pr-4" style="color:var(--ink-soft)">${item.label}</td>
-        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${f == null ? 'color:var(--line)' : ''}">${f == null ? '—' : f.toLocaleString()}</td>
-        <!-- ⭕ 第二次顯示欄位應帶入 s -->
-        <td class="py-1 text-[12px] font-mono text-right pr-4" style="${s == null ? 'color:var(--line)' : ''}">${s == null ? '—' : s.toLocaleString()}</td>
-        <td class="py-1 text-[12px] font-mono text-right" style="color:${diff == null ? 'var(--line)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')}">${diff == null ? '—' : (diff > 0 ? '+' : '') + diff.toLocaleString()}</td>
-      </tr>`;
-    });
-    // ... 後續邏輯保持不變
+        rows += `<tr>
+          <td class="py-1 text-[12px] pr-3" style="color:var(--ink-soft)">${item.label}</td>
+          <td class="py-1 text-[12px] font-mono text-right pr-3" style="${f == null ? 'color:var(--line)' : ''}">${f == null ? '—' : f.toLocaleString()}</td>
+          <td class="py-1 text-[12px] font-mono text-right pr-3" style="${s == null ? 'color:var(--line)' : ''}">${s == null ? '—' : s.toLocaleString()}</td>
+          <td class="py-1 text-[12px] font-mono text-right" style="color:${diff == null ? 'var(--line)' : (diff >= 0 ? 'var(--good)' : 'var(--danger)')}">${diff == null ? '—' : (diff > 0 ? '+' : '') + diff.toLocaleString()}</td>
+        </tr>`;
+      });
+
       return rows;
     }
-    const tableHtml = `<table class="w-full min-w-[380px]"><thead><tr><th class="text-left pb-1 text-[10px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-1 text-[10px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
+
+    const tableHtml = `<table class="w-full min-w-[340px]"><thead><tr><th class="text-left pb-1 text-[10px]" style="color:var(--ink-soft)">項目</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第一次</th><th class="text-right pb-1 text-[10px] pr-3" style="color:var(--ink-soft)">第二次</th><th class="text-right pb-1 text-[10px]" style="color:var(--ink-soft)">差額</th></tr></thead><tbody>
       ${sectionRows('A．可運用現金流','var(--sage)','bank')}
       ${sectionRows('B．預留常態性支出',color,'expense')}
       ${sectionRows('C．計畫性支出','var(--gold)','plan')}
     </tbody></table>`;
+    
     box.appendChild(el(`<div class="overflow-x-auto scrollbar-thin">${tableHtml}</div>`));
     return box;
   }
+
   function refresh(){
     const [y,m] = cursor.split('-');
     label.textContent = `${y} 年 ${parseInt(m,10)} 月`;
@@ -5107,12 +5147,16 @@ function openFinanceHistoryModal(){
     if(!periods.length){ body.appendChild(el(`<div class="text-[12px] py-8 text-center" style="color:var(--ink-soft)">這個月沒有盤點紀錄。</div>`)); return; }
     periods.forEach(p=> body.appendChild(periodBlock(p)));
   }
+
   prevBtn.addEventListener('click', ()=>{ const [y,m]=cursor.split('-').map(Number); const d=new Date(y,m-2,1); cursor=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; refresh(); });
   nextBtn.addEventListener('click', ()=>{ const [y,m]=cursor.split('-').map(Number); const d=new Date(y,m,1); cursor=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; refresh(); });
+  
   refresh();
-  const footer = el(`<div class="flex justify-end mt-4"><button id="histClose" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">關閉</button></div>`);
+  
+  const footer = el(`<div class="flex justify-end mt-4"><button id="histClose" class="text-[13px] px-4 py-2 rounded-lg border hover:bg-gray-50" style="border-color:var(--line)">關閉</button></div>`);
   wrap.appendChild(footer);
   footer.querySelector('#histClose').addEventListener('click', closeModal);
+  
   openModal(wrap);
 }
 function financeReviewSettingsCard(){
