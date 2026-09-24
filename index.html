@@ -821,6 +821,7 @@ state = {
     {id:"drive", name:"雲端硬碟", desc:"同步展覽圖檔與發包文件", connected:true},
   ]
 }
+    }
 
   
 
@@ -843,8 +844,8 @@ async function saveState() {
     console.log("☁️ 已成功同步至個人雲端！");
   } catch (e) {
     console.error("❌ Firebase 儲存失敗:", e);
-  }
-}
+  } 
+}  
   function clearDefaultTemplateData() {
   confirmModal(
     "確定要刪除所有預設的模板資料（包含預設專案、待辦與行程）嗎？<br><span class='text-[12px] text-gray-500'>此操作無法復原，清空後你即可開始建立專屬的全新內容。</span>",
