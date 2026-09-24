@@ -598,14 +598,23 @@ async function checkAndSendDailyLineReminders() {
     const targetDate = addDays(todayStr, daysBefore);
     console.log(`🔍 [專案比對] 尋找 ${daysBefore} 天後 (${targetDate}) 的未完成階段...`);
 
+    // ⭕ 建立暫存陣列，收集當天符合條件的所有專案階段
+    const projItems = [];
+
     state.projects.filter(p => !p.settled).forEach(p => {
       (p.stages || []).forEach(s => {
         if (s.done) return;
         if (s.date === targetDate) {
-          messages.push(`🏗️ ${nickProject}專案提醒：\n「${p.name}」即將於 ${daysBefore} 天後 (${fmt(s.date)}) 進入「${s.name}」階段！`);
+          // 只存單行的描述
+          projItems.push(`「${p.name}」即將於 ${daysBefore} 天後 (${fmt(s.date)}) 進入「${s.name}」階段！`);
         }
       });
     });
+
+    // ⭕ 若有收集到項目，組合成一封統一標頭的簡潔訊息
+    if (projItems.length > 0) {
+      messages.push(`🏗️ ${nickProject}專案提醒：\n` + projItems.join('\n'));
+    }
   }
 
   // -----------------------------------------------------------------
