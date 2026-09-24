@@ -4977,7 +4977,7 @@ function vendorCard(v) {
       <!-- 📌 第二排：地區標籤前置 + 廠商名稱齊左，評價標籤齊右 -->
       <div class="flex items-center justify-between gap-2 mb-2">
         <div class="font-display font-bold text-[16px] flex items-center gap-1.5 truncate leading-tight">
-          ${v.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded border shrink-0 ${v.tag === 'black' ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-white/80 text-gray-700 border-gray-300'}">📍 ${v.location}</span>` : ''}
+          ${v.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded border shrink-0 ${v.tag === 'black' ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-white/80 text-gray-700 border-gray-300'}">${v.location}</span>` : ''}
           <span class="truncate">${v.name}</span>
         </div>
         <span class="text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${tagClass}">${tagText}</span>
@@ -5017,8 +5017,11 @@ function vendorCard(v) {
 function renderVendors() {
   const color = state.theme.vendor || "#3B4A5A";
   
-  // 預設切換至「inquiries (詢價歷史資料庫)」
-  if (!state.vendorTab) state.vendorTab = "inquiries"; 
+  // ⭕ 關鍵修正：若 vendorTab 為空或不在 inquiries，確保強制定在 'inquiries' (第一個頁籤)
+  if (!state.vendorTab || state.vendorTab === 'list') {
+    state.vendorTab = "inquiries";
+  }
+
   if (!state.vendorCategoryFilter) state.vendorCategoryFilter = "ALL";
   if (!state.vendorSearchQuery) state.vendorSearchQuery = "";
   if (!state.vendorListCategoryFilter) state.vendorListCategoryFilter = "ALL";
