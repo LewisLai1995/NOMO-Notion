@@ -767,7 +767,7 @@ function openLineTokenModal() {
 /* ============================================================ STATE ============================================================ */
 let state = {
   route:"today", detailProjectId:null, detailTab:"main", todayISO: todayISO(),
-  projectNavOpen: true, // ⭕ 控制左側專案清單開合 (預設展開)
+  projectNavOpen: true,
   theme:{ project:"#B5654A", life:"#7A8B6F", finance:"#A97F2E" },
   roles:{ project:"architect", life:"sprout", finance:"stacked" },
   nicknames:{ project:"坦坦", life:"露米", finance:"諾米" },
@@ -780,23 +780,13 @@ let state = {
   weekOffset:0, weekSelectedDate:null, financeSettingsOpen:false,
   financeReviewWindows:[[4,7],[18,20]],
   finance:{
-    // Each "period" is one salary cycle with up to two reviews: `first` (when salary lands)
-    // and `second` (later, once known bills like credit cards have cleared, to compare
-    // actual vs reserved). Items store their value per period as {periodId: value} maps —
-    // not parallel arrays — so an item created mid-cycle simply has no earlier entries,
-    // instead of needing null-padding across a shared index.
     periods: [],
     bank:[],
     expense:[],
     plan:[],
   },
   integrations:[
-    {id:"gcal", name:"Google Calendar", desc:"雙向同步展覽節點與個人行程", connected:true},
-    // 尋找此段 state 初始化區域：
-state = {
-  // ... 其他 state 設定 ...
-  integrations: [
-    { id: 'gcal', name: 'Google Calendar', desc: '...', connected: false },
+    { id: 'gcal', name: 'Google Calendar', desc: '雙向同步展覽節點與個人行程', connected: true },
     { 
       id: 'line', 
       name: 'LINE 通知', 
@@ -804,24 +794,19 @@ state = {
       connected: false, 
       token: '', 
       userId: '',
-      
-      // 👈 【請將 notifySettings 補在 line 物件的這裡】
       notifySettings: {
         projectReminder: true,      // 專案時程提醒
         projectDaysBefore: 3,       // 專案前 X 天
-        
         lifeReminder: true,         // 生活行程提醒
         lifeDaysBefore: 1,          // 行程前 X 天
-        
         financeReminder: true,      // 資產雙週盤點提醒
         financeDaysBefore: 1        // 盤點前 X 天
       }
     },
-    {id:"bank", name:"銀行帳戶匯入", desc:"自動帶入帳戶餘額（唯讀）", connected:false},
-    {id:"drive", name:"雲端硬碟", desc:"同步展覽圖檔與發包文件", connected:true},
+    { id: "bank", name: "銀行帳戶匯入", desc: "自動帶入帳戶餘額（唯讀）", connected: false },
+    { id: "drive", name: "雲端硬碟", desc: "同步展覽圖檔與發包文件", connected: true }
   ]
-}
-    }
+}; // ⭕ 正確閉合全域 state 物件
 
   
 
