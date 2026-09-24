@@ -5145,9 +5145,9 @@ function renderVendors() {
                 <span class="tag font-mono text-[10px]" style="border-color:${color};color:${color}">${iq.category || '採購詢價'}</span>
                 <span class="text-[11px] font-mono text-gray-400">更新於 ${fmt(iq.date)}</span>
               </div>
-              <div class="font-display font-bold text-[17px] flex items-center gap-3" style="color:var(--ink)">
-  <span>${iq.vendorName}</span>${iq.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200">${iq.location}</span>` : ''}
-  ${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">(${[iq.contact, iq.phone].filter(Boolean).join(' • ')})</span>` : ''}
+              <div class="font-display font-bold text-[17px] flex items-center gap-2" style="color:var(--ink)">
+  ${iq.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200 shrink-0">📍 ${iq.location}</span>` : ''}
+  <span>${iq.vendorName}</span>${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">${[iq.contact, iq.phone].filter(Boolean).join(' • ')}</span>` : ''}
 </div>
             </div>
 
