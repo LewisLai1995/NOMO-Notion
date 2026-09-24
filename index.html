@@ -1757,6 +1757,9 @@ function renderNav(){
   });
 }
 function render(){
+  if (state.route !== 'vendors') {
+    state.vendorTab = 'inquiries'; // 重置為第一個頁籤
+  }
  state.todayISO = todayISO(); // 確保每次渲染時全域 todayISO 都是當前最新日期
   state.personaSelectedDate = state.personaSelectedDate || state.todayISO;
   if(!visibleNav().find(n=>n.id===state.route)) state.route = "today";
@@ -4921,77 +4924,69 @@ function renderPersona(){
 }
 
 
-/* ==================== 廠商卡片 UI (依合作等級動態變色版) ==================== */
+/* ==================== 廠商卡片 UI (統一白底 + 等級動態邊框) ==================== */
 
 function vendorCard(v) {
   const defaultThemeColor = state.theme.vendor || "#3B4A5A";
 
-  // ⭕ 依等級定義卡片整體主題風格 (頂條顏色、背景色、文字顏色、評價標籤)
+  // 預設 (🥉 合作關係)
   let borderTopColor = defaultThemeColor;
-  let cardBgStyle = "background: var(--paper, #ffffff); color: var(--ink); border-color: var(--line);";
+  let borderColor = "var(--line)";
   let tagClass = "bg-gray-100 text-gray-700 border-gray-300";
   let tagText = "🥉 合作關係";
-  let subTextColor = "color: var(--ink-soft);";
-  let noteBgStyle = "background: var(--paper-deep, #f3f4f6); color: var(--ink-soft);";
 
   if (v.tag === 'gold') {
-    // 🥇 金牌廠商：暖金質感
+    // 🥇 金牌廠商
     borderTopColor = "#D97706";
-    cardBgStyle = "background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); color: #78350F; border-color: #FCD34D;";
+    borderColor = "#FCD34D";
     tagClass = "bg-amber-500 text-white border-amber-600 font-bold shadow-sm";
     tagText = "🥇 金牌廠商";
-    subTextColor = "color: #B45309;";
-    noteBgStyle = "background: rgba(251, 191, 36, 0.2); color: #92400E;";
 
   } else if (v.tag === 'silver' || v.tag === 'star') {
-    // 🥈 優質夥伴：銀藍質感
+    // 🥈 優質夥伴
     borderTopColor = "#0284C7";
-    cardBgStyle = "background: linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%); color: #0C4A6E; border-color: #7DD3FC;";
+    borderColor = "#7DD3FC";
     tagClass = "bg-sky-600 text-white border-sky-700 font-bold shadow-sm";
     tagText = "🥈 優質夥伴";
-    subTextColor = "color: #0369A1;";
-    noteBgStyle = "background: rgba(56, 189, 248, 0.2); color: #075985;";
 
   } else if (v.tag === 'black' || v.tag === 'warning') {
-    // 📔 死亡筆記：警示酷黑質感
-    borderTopColor = "#111827";
-    cardBgStyle = "background: #1F2937; color: #F9FAFB; border-color: #374151;";
+    // 📔 死亡筆記
+    borderTopColor = "#374151";
+    borderColor = "#6B7280";
     tagClass = "bg-rose-600 text-white border-rose-700 font-bold shadow-sm";
     tagText = "📔 死亡筆記";
-    subTextColor = "color: #9CA3AF;";
-    noteBgStyle = "background: #111827; color: #D1D5DB; border: 1px solid #374151;";
   }
 
-  const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-lg transition-all" style="border-top: 4px solid ${borderTopColor}; ${cardBgStyle}">
+  const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-md transition-all" style="border-top: 4px solid ${borderTopColor}; border-color: ${borderColor}; background: var(--paper, #ffffff);">
     <div>
-      <!-- 📌 第一排：類別齊左，齒輪圖示與刪除叉叉齊右 -->
+      <!-- 第一排：類別齊左，齒輪與刪除齊右 -->
       <div class="flex items-center justify-between mb-3">
         <span class="tag font-mono font-medium" style="border-color:${borderTopColor}; color:${borderTopColor}">${v.trade || '未指定類別'}</span>
         
         <div class="flex items-center gap-1">
-          <button type="button" class="btn-edit-vendor text-[13px] px-1.5 py-0.5 rounded opacity-70 hover:opacity-100 hover:bg-black/10 transition-colors" title="編輯廠商資料">⚙️</button>
-          <button type="button" class="btn-del-vendor text-[14px] font-bold px-1 opacity-60 hover:opacity-100 hover:text-red-500 transition-colors" title="刪除廠商">×</button>
+          <button type="button" class="btn-edit-vendor text-[13px] px-1.5 py-0.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors" title="編輯廠商資料">⚙️</button>
+          <button type="button" class="btn-del-vendor text-[14px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除廠商">×</button>
         </div>
       </div>
 
-      <!-- 📌 第二排：地區標籤前置 + 廠商名稱齊左，評價標籤齊右 -->
+      <!-- 第二排：地點標籤前置 + 廠商名稱齊左，評價標籤齊右 -->
       <div class="flex items-center justify-between gap-2 mb-2">
-        <div class="font-display font-bold text-[16px] flex items-center gap-1.5 truncate leading-tight">
-          ${v.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded border shrink-0 ${v.tag === 'black' ? 'bg-gray-800 text-gray-300 border-gray-700' : 'bg-white/80 text-gray-700 border-gray-300'}">${v.location}</span>` : ''}
+        <div class="font-display font-bold text-[16px] flex items-center gap-1.5 truncate leading-tight" style="color:var(--ink)">
+          ${v.location ? `<span class="text-[10px] font-mono font-normal px-2 py-0.5 rounded bg-gray-100 border text-gray-600 border-gray-200 shrink-0">📍 ${v.location}</span>` : ''}
           <span class="truncate">${v.name}</span>
         </div>
         <span class="text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${tagClass}">${tagText}</span>
       </div>
 
       <!-- 聯絡資訊 -->
-      <div class="text-[12px] flex items-center gap-2 mb-3 opacity-90" style="${subTextColor}">
+      <div class="text-[12px] flex items-center gap-2 mb-3" style="color:var(--ink-soft)">
         <span>👤 ${v.contact || '未留聯絡人'}</span>
         <span>•</span>
         <span class="font-mono">${v.phone || '無電話'}</span>
       </div>
 
-      <!-- 備註短評 -->
-      ${v.note ? `<div class="text-[11px] p-2.5 rounded-lg leading-relaxed" style="${noteBgStyle}">${v.note}</div>` : ''}
+      <!-- 備註短評 (統一經典底色) -->
+      ${v.note ? `<div class="text-[11px] p-2.5 rounded-lg leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft)">${v.note}</div>` : ''}
     </div>
   </div>`);
 
