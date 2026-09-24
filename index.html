@@ -1339,11 +1339,23 @@ function roleSVG(roleId,color,w,h){
   const svg = (ANIMAL_TEMPLATES[key]||ANIMAL_TEMPLATES.sprout)(w,h);
   return `<span style="color:${color};display:inline-flex;">${svg}</span>`;
 }
+/* ============================================================ ROLE MESSAGES ============================================================ */
+
 function roleMsgHome(roleId){
-  if(roleId==="project"){ ... }
-  if(roleId==="life"){ ... }
-  if(roleId==="finance"){ ... }
-  // ⭕ 新增 vendor 氣泡對話
+  if(roleId==="project"){
+    const n = state.todos.filter(t=>t.agent==='project' && !t.done).length;
+    return `今天專案還有 ${n} 個待辦事項未完成`;
+  }
+  if(roleId==="life"){
+    const next = [...state.personaEvents].filter(e=>!e.done && diffDays(state.todayISO,e.date)>=0).sort((a,b)=>diffDays(state.todayISO,a.date)-diffDays(state.todayISO,b.date))[0];
+    if(next) return `下一個行程是 ${fmt(next.date)} 的 ${next.text||'（未命名）'}`;
+    return "目前沒有排定中的行程";
+  }
+  if(roleId==="finance"){
+    const last = lastReviewDateLabel();
+    const d = diffDays(state.todayISO, nextBiweeklyDate(state.todayISO));
+    return d===0 ? "今天是雙週盤點日！快來確認銀行餘額吧" : `距離下次雙週盤點還有 ${d} 天${last?`，上次盤點在 ${fmt(last)}`:''}。`;
+  }
   if(roleId==="vendor"){
     const n = (state.vendorInquiries || []).filter(i => i.status === 'pending').length;
     return n > 0 ? `目前有 ${n} 筆詢價正在等待廠商回覆報價喔` : "所有廠商詢價紀錄皆已歸檔完成！";
@@ -1351,10 +1363,9 @@ function roleMsgHome(roleId){
 }
 
 function roleMsgPage(roleId){
-  if(roleId==="project"){ ... }
-  if(roleId==="life"){ ... }
-  if(roleId==="finance"){ ... }
-  // ⭕ 新增 vendor 頁面氣泡對話
+  if(roleId==="project"){ const n = state.projects.filter(p=>!p.settled).length; return `目前手上有 ${n} 個進行中的專案，記得盯緊發包與時程進度喔！`; }
+  if(roleId==="life"){ const n = state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date.slice(0,7)===state.personaCalMonth).length; return `這個月已經安排了 ${n} 筆行程，點日曆上的日期就能直接新增行程或待辦喔！`; }
+  if(roleId==="finance"){ const last = lastReviewDateLabel(); return last?`上次盤點在 ${fmt(last)}，別忘了每半個月回來記一次帳喔！`:'還沒有任何盤點紀錄，點進去開始第一次盤點吧！'; }
   if(roleId==="vendor"){
     const n = (state.vendors || []).length;
     return `資料庫目前收錄了 ${n} 家合作廠商，隨時可以點選查看歷史詢價紀錄！`;
