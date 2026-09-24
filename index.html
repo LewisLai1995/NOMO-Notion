@@ -560,6 +560,104 @@ async function sendLineNotification(message) {
   }
 }
 
+ /* ============================================================ AUTO NOTIFICATION CHECKER ============================================================ */
+
+// ⭕ 每日開啟網頁時自動比對 notifySettings 並發送預警推播
+async function checkAndSendDailyLineReminders() {
+  // 1. 檢查 LINE 是否開啟與連接
+  if (!isLineConnected()) return;
+
+  const lineConfig = state.integrations.find(it => it.id === 'line');
+  const ns = lineConfig.notifySettings;
+  if (!ns) return;
+
+  const todayStr = state.todayISO;
+  const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
+
+  // 2. 當天如果已經檢查發送過，直接跳過（避免重複發送）
+  if (lastCheckDate === todayStr) {
+    console.log("ℹ️ 當天 LINE 預警提醒已執行過，跳過比對。");
+    return;
+  }
+
+  // ⭕ 動態抓取使用者自訂的石頭暱稱 (若無則使用預設)
+  const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+  const nickLife = (state.nicknames && state.nicknames.life) || "露米";
+  const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
+
+  const messages = [];
+
+  // -----------------------------------------------------------------
+  // 🏗️ 1. 專案時程提醒
+  // -----------------------------------------------------------------
+  if (ns.projectReminder) {
+    const daysBefore = ns.projectDaysBefore || 3;
+    const targetDate = addDays(todayStr, daysBefore);
+
+    state.projects.filter(p => !p.settled).forEach(p => {
+      p.stages.forEach(s => {
+        if (s.done) return;
+
+        const stageDate = s.date;
+        if (stageDate === targetDate) {
+          // ⭕ 套用自訂暱稱 nickProject
+          messages.push(`🏗️ ${nickProject}專案預警：「${p.name}」即將於 ${daysBefore} 天後 (${fmt(stageDate)}) 進入「${s.name}」階段！`);
+        }
+      });
+    });
+  }
+
+  // -----------------------------------------------------------------
+  // 🌿 2. 日常行程提醒
+  // -----------------------------------------------------------------
+  if (ns.lifeReminder) {
+    const daysBefore = ns.lifeDaysBefore || 1;
+    const targetDate = addDays(todayStr, daysBefore);
+
+    const upcomingEvents = state.personaEvents.filter(e => 
+      e.kind === 'schedule' && !e.done && e.date === targetDate
+    );
+
+    if (upcomingEvents.length > 0) {
+      const eventNames = upcomingEvents.map(e => `・${e.text}`).join('\n');
+      const timeText = daysBefore === 0 ? "今天" : `${daysBefore} 天後 (${fmt(targetDate)})`;
+      // ⭕ 套用自訂暱稱 nickLife
+      messages.push(`🌿 ${nickLife}日常提醒：你在 ${timeText} 有以下行程預定：\n${eventNames}`);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // 💰 3. 雙週資產盤點提醒
+  // -----------------------------------------------------------------
+  if (ns.financeReminder) {
+    const daysBefore = ns.financeDaysBefore || 1;
+    const targetDate = addDays(todayStr, daysBefore);
+
+    if (typeof isBiweeklyReviewDate === 'function' && isBiweeklyReviewDate(targetDate)) {
+      const timeText = daysBefore === 0 ? "今天" : `${daysBefore} 天後 (${fmt(targetDate)})`;
+      // ⭕ 套用自訂暱稱 nickFinance
+      messages.push(`💰 ${nickFinance}資產提醒：${timeText} 是雙週資產盤點日！記得預留時間進行預算劃撥與卡費實繳喔。`);
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // 🚀 4. 彙整訊息並發送推播
+  // -----------------------------------------------------------------
+  if (messages.length > 0) {
+    const fullMessage = `【NOMO.notion 每日夥伴提醒】\n\n` + messages.join('\n\n');
+    console.log("⏳ 正在發送 LINE 每日自動預警推播...");
+    
+    const success = await sendLineNotification(fullMessage);
+    if (success) {
+      localStorage.setItem('nomo_line_last_daily_check', todayStr);
+      console.log("✨ 每日預警推播發送成功！");
+    }
+  } else {
+    console.log("ℹ️ 經比對今日無符合預警條件之項目。");
+    localStorage.setItem('nomo_line_last_daily_check', todayStr);
+  }
+}
+
 /* ============================================================ LINE SETTINGS MODAL (TABBED) ============================================================ */
 
 function openLineTokenModal() {
@@ -2178,9 +2276,9 @@ function projectCreateModal(){
 
     // ⭕ 在此處發送 LINE 通知
     if (typeof sendLineNotification === 'function') {
-      sendLineNotification(`🏗️ 坦坦專案通知：已成功建立新專案「${name}」！預計展期：${startDate} ➔ ${endDate}。`);
+      const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+      sendLineNotification(`🏗️ ${nickProject}專案通知：已成功建立新專案「${name}」！預計展期：${startDate} ➔ ${endDate}。`);
     }
-
     commit();
   });
 
