@@ -1610,13 +1610,27 @@ function promptModal(title, fields, onSubmit){
   requestAnimationFrame(()=>{ const first=fields[0] && inputs[fields[0].key]; if(first) first.focus(); });
 }
 function confirmModal(message, onConfirm, opts){
-  opts = opts||{};
+  opts = opts || {};
   const wrap = el(`<div></div>`);
   wrap.appendChild(el(`<div class="text-[14px] mb-5 leading-relaxed" style="color:var(--ink)">${message}</div>`));
-  const footer = el(`<div class="flex justify-end gap-2"><button id="cmCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">${opts.cancelLabel||'取消'}</button><button id="cmOk" class="text-[13px] px-4 py-2 rounded-lg" style="background:${opts.color||'var(--ink)'};color:#fff">${opts.okLabel||'確定'}</button></div>`);
+  const footer = el(`<div class="flex justify-end gap-2">
+    <button id="cmCancel" class="text-[13px] px-4 py-2 rounded-lg border hover:bg-gray-50" style="border-color:var(--line)">${opts.cancelLabel||'取消'}</button>
+    <button id="cmOk" class="text-[13px] px-4 py-2 rounded-lg font-medium" style="background:${opts.color||'var(--ink)'};color:#fff">${opts.okLabel||'確定'}</button>
+  </div>`);
   wrap.appendChild(footer);
-  footer.querySelector('#cmCancel').addEventListener('click', closeModal);
-  footer.querySelector('#cmOk').addEventListener('click', ()=>{ closeModal(); onConfirm(); });
+
+  // ⭕ 點擊取消時，先關閉確認視窗，若有帶入 onCancel 則執行 callback
+  footer.querySelector('#cmCancel').addEventListener('click', () => {
+    closeModal();
+    if (opts.onCancel) opts.onCancel();
+  });
+
+  // 點擊確定時，先關閉確認視窗，執行 onConfirm
+  footer.querySelector('#cmOk').addEventListener('click', () => {
+    closeModal();
+    onConfirm();
+  });
+
   openModal(wrap);
 }
 function alertModal(message){
@@ -2507,11 +2521,16 @@ function openInquiryModal(inquiryToEdit = null) {
 }
   
 
-/* ==================== 類別管理 MODAL (支援返回詢價 MODAL) ==================== */
+/* ==================== 類別管理 MODAL (完全支援返回與草稿留存) ==================== */
 
 function openCategoryManageModal(onUpdated, previousInquiryData = null) {
   const color = state.theme.vendor || "#3B4A5A";
   
+  // 重新返回開啟「管理類別 Modal」的共用邏輯
+  const reopenManageModal = () => {
+    openCategoryManageModal(onUpdated, previousInquiryData);
+  };
+
   const renderList = () => {
     const listEl = wrap.querySelector('#catList');
     listEl.innerHTML = '';
@@ -2522,16 +2541,29 @@ function openCategoryManageModal(onUpdated, previousInquiryData = null) {
         <button type="button" class="btn-del-cat text-[13px] font-bold px-1.5 text-gray-400 hover:text-red-600 transition-colors" title="刪除類別">×</button>
       </div>`);
 
+      // ⭕ 刪除確認：無論按確定或取消，皆重新回到管理類別 Modal
       row.querySelector('.btn-del-cat').addEventListener('click', () => {
         if (state.vendorCategories.length <= 1) {
           alertModal("至少需保留一個類別。");
           return;
         }
-        confirmModal(`確定要刪除類別「${cat}」嗎？`, () => {
-          state.vendorCategories.splice(idx, 1);
-          commit();
-          renderList();
-        });
+
+        confirmModal(
+          `確定要刪除類別「${cat}」嗎？`, 
+          () => {
+            // 按下「確定」：執行刪除，同步資料並回到管理 Modal
+            state.vendorCategories.splice(idx, 1);
+            commit();
+            if (onUpdated) onUpdated();
+            reopenManageModal();
+          }, 
+          {
+            okLabel: "確定刪除",
+            color: "var(--danger)",
+            // ⭕ 按下「取消」：同樣返回管理 Modal，不關閉彈窗
+            onCancel: reopenManageModal
+          }
+        );
       });
 
       listEl.appendChild(row);
@@ -2570,12 +2602,13 @@ function openCategoryManageModal(onUpdated, previousInquiryData = null) {
     newInp.value = "";
     commit();
     renderList();
+    if (onUpdated) onUpdated();
   };
 
   addBtn.addEventListener('click', addCat);
   newInp.addEventListener('keydown', e => { if (e.key === 'Enter') addCat(); });
 
-  // ⭕ 點擊完成：回到詢價 Modal
+  // ⭕ 點擊完成：回到詢價 Modal 並帶入原有草稿資料
   wrap.querySelector('#closeCatModal').addEventListener('click', () => {
     closeModal();
     if (onUpdated) onUpdated();
