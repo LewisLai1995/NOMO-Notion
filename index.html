@@ -2718,29 +2718,58 @@ function editSettlementModal(p) {
     const invoiceTax = form.querySelector('#stInvTax').value.trim();
     const invoiceAddr = form.querySelector('#stInvAddr').value.trim();
     const invoiceAmt = parseFloat(form.querySelector('#stInvAmt').value);
-
     const valid = dealAmountFinal > 0 && actualCost >= 0 && !isNaN(actualCost) && invoiceTitle && invoiceTax && invoiceAddr && invoiceAmt > 0;
-    if (!valid) {
-      form.querySelector('#stErr').classList.remove('hidden');
-      return;
-    }
+    if (!valid) { form.querySelector('#stErr').classList.remove('hidden'); return; }
 
     p.dealAmount = dealAmountFinal;
-    p.settlement = {
-      additionalAmount,
-      actualCost,
-      invoice: {
-        title: invoiceTitle,
-        taxId: invoiceTax,
-        address: invoiceAddr,
-        amountWithTax: invoiceAmt
+    p.settled = true; 
+    p.settledAt = state.todayISO;
+    p.settlement = { additionalAmount, actualCost, invoice: { title: invoiceTitle, taxId: invoiceTax, address: invoiceAddr, amountWithTax: invoiceAmt } };
+
+    closeModal(); 
+
+    // ⭕ 結案數據簡報推播
+    const lineConfig = state.integrations.find(it => it.id === 'line');
+    const ns = lineConfig ? lineConfig.notifySettings : null;
+
+    if (ns && ns.projectSettledNotify !== false) {
+      const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+      const thisYear = new Date().getFullYear();
+      
+      const revenue = p.dealAmount + (additionalAmount || 0);
+      const profit = revenue - actualCost;
+      const margin = revenue ? ((profit / revenue) * 100).toFixed(1) : "0.0";
+
+      const archived = state.projects.filter(x => x.settled && x.settlement && (x.settledAt || x.constructionDate).startsWith(String(thisYear)));
+      const totalYearRevenue = archived.reduce((s, x) => s + (x.dealAmount + (x.settlement.additionalAmount || 0)), 0);
+      
+      let avgYearMargin = margin;
+      if (archived.length > 0) {
+        const sumMargin = archived.reduce((s, x) => {
+          const r = x.dealAmount + (x.settlement.additionalAmount || 0);
+          const pr = r - (x.settlement.actualCost || 0);
+          return s + (r ? (pr / r) * 100 : 0);
+        }, 0);
+        avgYearMargin = (sumMargin / archived.length).toFixed(1);
       }
-    };
 
-    closeModal();
-    commit(); // 重新渲染畫面並觸發 Firebase 雲端背景同步
-  });
+      const msg = `📊 ${nickProject}專案結案數據簡報\n\n` +
+                  `【本案「${p.name}」結算】\n` +
+                  `・總收入：NT$ ${revenue.toLocaleString()}\n` +
+                  `・實際支出：NT$ ${actualCost.toLocaleString()}\n` +
+                  `・專案利潤：NT$ ${profit.toLocaleString()}\n` +
+                  `・專案毛利率：${margin}%\n\n` +
+                  `【${thisYear} 年度累積績效】\n` +
+                  `・累積營業額：NT$ ${Math.round(totalYearRevenue).toLocaleString()}\n` +
+                  `・平均毛利率：${avgYearMargin}%\n` +
+                  `・總結案數：${archived.length} 件`;
 
+      sendLineNotification(msg);
+    }
+
+    commit();
+  }); // ⭕ 正確閉合 stSubmit 事件
+  
   return form;
 }
 function projectMiniCalendar(){
@@ -4520,59 +4549,56 @@ function openFirstReviewModal(){
   wrap.appendChild(footer);
   
   footer.querySelector('#rvCancel').addEventListener('click', closeModal);
-  footer.querySelector('#rvSubmit').addEventListener('click', ()=>{
-    const period = {id:'pr'+uid(), month:(dateInput.value||state.todayISO).slice(0,7), firstDate: dateInput.value||state.todayISO, secondDate:null};
+ footer.querySelector('#rvSubmit').addEventListener('click', () => {
+    const period = { id: 'pr' + uid(), month: (dateInput.value || state.todayISO).slice(0, 7), firstDate: dateInput.value || state.todayISO, secondDate: null };
     state.finance.periods.push(period);
 
     state.finance.periods.sort((a, b) => new Date(a.firstDate) - new Date(b.firstDate));
-    ['bank','expense','plan'].forEach(group=>{
-      // ⭕ 1. 更新既有名目的第二次盤點數值 (寫入 period.id)
-      state.finance[group].forEach(item=>{ 
+    ['bank', 'expense', 'plan'].forEach(group => {
+      state.finance[group].forEach(item => { 
         const inp = inputs[group][item.id]; 
-        if(inp && inp.value!==''){ 
+        if (inp && inp.value !== '') { 
           item.second[period.id] = parseFloat(inp.value) || 0; 
         } 
       });
 
-      // ⭕ 2. 若有新增名目，同時寫入 first 與 second
-      pendingNew[group].forEach(entry=>{ 
-        if(!entry.label) return; 
+      pendingNew[group].forEach(entry => { 
+        if (!entry.label) return; 
         const val = parseFloat(entry.input.value) || 0;
         state.finance[group].push({
           id: 'x' + uid(), 
           label: entry.label, 
-          first: { [period.id]: val }, // 避免 first 為空
+          first: { [period.id]: val }, 
           second: { [period.id]: val }
         }); 
       });
     });
-    closeModal(); 
-const lineConfig = state.integrations.find(it => it.id === 'line');
-  const ns = lineConfig ? lineConfig.notifySettings : null;
 
-  if (ns && ns.financeCompletedNotify !== false) {
-    const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
-    
-    // 抓取前 3 張卡片的關鍵數據
-    const firstBankSum = itemsInPeriod('bank', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
-    const expenseEff = sumEffective('expense', period.id);
-    const firstExpenseSum = itemsInPeriod('expense', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
-    const secondExpenseSum = sumPhase('expense', period.id, 'second');
-    const savedMoney = firstExpenseSum - secondExpenseSum;
+    closeModal();
 
-    const msg = `💰 ${nickFinance}資產盤點數據簡報\n\n` +
-                `・本月總收入：NT$ ${firstBankSum.toLocaleString()}\n` +
-                `・本月總支出：NT$ ${expenseEff.toLocaleString()}\n` +
-                `・本月預算損益：${savedMoney >= 0 ? '+' : ''}NT$ ${savedMoney.toLocaleString()} (${savedMoney >= 0 ? '省下花費' : '超支'})`;
+    // ⭕ 第一次盤點完成推播
+    const lineConfig = state.integrations.find(it => it.id === 'line');
+    const ns = lineConfig ? lineConfig.notifySettings : null;
 
-    sendLineNotification(msg);
-  }
+    if (ns && ns.financeCompletedNotify !== false) {
+      const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
+      
+      const firstBankSum = itemsInPeriod('bank', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
+      const expenseEff = sumEffective('expense', period.id);
+      const firstExpenseSum = itemsInPeriod('expense', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
+      const secondExpenseSum = sumPhase('expense', period.id, 'second');
+      const savedMoney = firstExpenseSum - secondExpenseSum;
 
-  commit();
-});
-    
+      const msg = `💰 ${nickFinance}資產盤點數據簡報\n\n` +
+                  `・本月總收入：NT$ ${firstBankSum.toLocaleString()}\n` +
+                  `・本月總支出：NT$ ${expenseEff.toLocaleString()}\n` +
+                  `・本月預算損益：${savedMoney >= 0 ? '+' : ''}NT$ ${savedMoney.toLocaleString()} (${savedMoney >= 0 ? '省下花費' : '超支'})`;
+
+      sendLineNotification(msg);
+    }
+
     commit();
-  });
+  }); // ⭕ 正確閉合 rvSubmit 事件
 
   wrap.addEventListener('input', () => window.updateModalLiveCalc());
   openModal(wrap, null, true);
