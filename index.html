@@ -1061,10 +1061,10 @@ async function saveState() {
 // 1. 全域預設模板資料 (供全新註冊使用)
 const DEFAULT_STATE = {
   route: "today", detailProjectId: null, detailTab: "main", todayISO: todayISO(),
-  theme: { project: "#B5654A", life: "#7A8B6F", finance: "#A97F2E" },
-  roles: { project: "architect", life: "sprout", finance: "stacked" },
-  nicknames: { project: "坦坦", life: "露米", finance: "諾米" },
-  agentsEnabled: { project: true, life: true, finance: true },
+ theme: { project:"#B5654A", life:"#7A8B6F", finance:"#A97F2E", vendor:"#3B4A5A" },
+roles: { project:"architect", life:"sprout", finance:"stacked", vendor:"scholar" },
+nicknames: { project:"坦坦", life:"露米", finance:"諾米", vendor:"包包" },
+agentsEnabled: { project:true, life:true, finance:true, vendor:true },
   projects: [
     { id: "p1", name: "森之光 — 台北當代館特展", client: "台北當代藝術館", budget: 1200000, dealAmount: 1080000, contactName: "游先生", contactPhone: "0912-345-678",
       constructionDate: addDays(todayISO(), 10), viewStageIndex: null, color: "#B5654A", settled: false, settlement: null,
@@ -1323,31 +1323,34 @@ const ROLE_META = {
   project:{ label:"專案", desc:"專案時程管理", route:"projectlog", agendaTitle:"專案待辦" },
   life:{ label:"生活", desc:"日常時間梳理", route:"persona", agendaTitle:"日常待辦" },
   finance:{ label:"資產", desc:"雙週資產盤點", route:"reserve", agendaTitle:"財務提醒" },
+  vendor:{ label:"廠商", desc:"詢價發包歷程", route:"vendors", agendaTitle:"詢價提醒" } // 👈 新增第 4 位夥伴
 };
-const ROLE_IDS = ["project","life","finance"];
+const ROLE_IDS = ["project", "life", "finance", "vendor"];
 function roleSVG(roleId,color,w,h){
   const key = state.roles[roleId] || 'sprout';
   const svg = (ANIMAL_TEMPLATES[key]||ANIMAL_TEMPLATES.sprout)(w,h);
   return `<span style="color:${color};display:inline-flex;">${svg}</span>`;
 }
 function roleMsgHome(roleId){
-  if(roleId==="project"){
-    const n = state.todos.filter(t=>t.agent==='project' && !t.done).length;
-    return `今天專案還有 ${n} 個待辦事項未完成`;
+  if(roleId==="project"){ ... }
+  if(roleId==="life"){ ... }
+  if(roleId==="finance"){ ... }
+  // ⭕ 新增 vendor 氣泡對話
+  if(roleId==="vendor"){
+    const n = (state.vendorInquiries || []).filter(i => i.status === 'pending').length;
+    return n > 0 ? `目前有 ${n} 筆詢價正在等待廠商回覆報價喔` : "所有廠商詢價紀錄皆已歸檔完成！";
   }
-  if(roleId==="life"){
-    const next = [...state.personaEvents].filter(e=>!e.done && diffDays(state.todayISO,e.date)>=0).sort((a,b)=>diffDays(state.todayISO,a.date)-diffDays(state.todayISO,b.date))[0];
-    if(next) return `下一個行程是 ${fmt(next.date)} 的 ${next.text||'（未命名）'}`;
-    return "目前沒有排定中的行程";
-  }
-  const last = lastReviewDateLabel();
-  const d = diffDays(state.todayISO, nextBiweeklyDate(state.todayISO));
-  return d===0 ? "今天是雙週盤點日！快來確認銀行餘額吧" : `距離下次雙週盤點還有 ${d} 天${last?`，上次盤點在 ${fmt(last)}`:''}。`;
 }
+
 function roleMsgPage(roleId){
-  if(roleId==="project"){ const n = state.projects.filter(p=>!p.settled).length; return `目前手上有 ${n} 個進行中的專案，記得盯緊發包與時程進度喔！`; }
-  if(roleId==="life"){ const n = state.personaEvents.filter(e=>eventKind(e)==='schedule' && e.date.slice(0,7)===state.personaCalMonth).length; return `這個月已經安排了 ${n} 筆行程，點日曆上的日期就能直接新增行程或待辦喔！`; }
-  const last = lastReviewDateLabel(); return last?`上次盤點在 ${fmt(last)}，別忘了每半個月回來記一次帳喔！`:'還沒有任何盤點紀錄，點進去開始第一次盤點吧！';
+  if(roleId==="project"){ ... }
+  if(roleId==="life"){ ... }
+  if(roleId==="finance"){ ... }
+  // ⭕ 新增 vendor 頁面氣泡對話
+  if(roleId==="vendor"){
+    const n = (state.vendors || []).length;
+    return `資料庫目前收錄了 ${n} 家合作廠商，隨時可以點選查看歷史詢價紀錄！`;
+  }
 }
 
 function citySkylineSVG(){
