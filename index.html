@@ -2407,7 +2407,7 @@ function openInquiryModal(inquiryToEdit = null) {
 
   const createItemRow = (itData = {}) => {
     const rowIdx = itemsContainer.children.length;
-    const rowCard = el(`<div class="item-spec-row p-3 rounded-xl border bg-white space-y-2 relative" style="border-color:var(--line)">
+    const card = el(`<div class="item-spec-row p-3 rounded-xl border bg-white space-y-2 relative" style="border-color:var(--line)">
       <div class="flex items-center justify-between border-b pb-1" style="border-color:var(--line)">
         <span class="text-[11px] font-mono font-bold text-gray-500">規格品項 #${rowIdx + 1}</span>
         ${rowIdx > 0 ? `<button type="button" class="btn-remove-row text-[11px] text-red-600 hover:underline">刪除品項</button>` : ''}
@@ -2424,10 +2424,10 @@ function openInquiryModal(inquiryToEdit = null) {
 
       <div class="grid grid-cols-4 gap-2 items-center">
         <label class="text-[11px] text-gray-500">數量
-          <input type="number" value="${itData.unitPrice !== undefined && itData.unitPrice !== null ? itData.unitPrice : ''}" min="0" placeholder="0" class="it-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
+          <input type="number" value="${itData.qty || 1}" min="1" class="it-qty w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">單價 (NT$)
-          <input type="number" value="${itData.unitPrice || 0}" min="0" class="it-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
+          <input type="number" value="${itData.unitPrice !== undefined && itData.unitPrice !== null ? itData.unitPrice : ''}" min="0" placeholder="0" class="it-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">稅別
           <select class="it-tax w-full mt-0.5 border rounded px-1.5 py-1 text-[12px] bg-white" style="border-color:var(--line)">
@@ -2444,9 +2444,9 @@ function openInquiryModal(inquiryToEdit = null) {
       <input type="text" value="${itData.note || ''}" placeholder="其他說明 (如：附牛皮紙盒包裝)" class="it-note w-full border rounded px-2 py-1 text-[11px] text-gray-600 bg-gray-50/50" style="border-color:var(--line)"/>
     </div>`);
 
-    const qtyInp = rowCard.querySelector('.it-qty');
-    const priceInp = rowCard.querySelector('.it-price');
-    const totalDisp = rowCard.querySelector('.it-total-display');
+    const qtyInp = card.querySelector('.it-qty');
+    const priceInp = card.querySelector('.it-price');
+    const totalDisp = card.querySelector('.it-total-display');
 
     const calcTotal = () => {
       const q = parseFloat(qtyInp.value) || 0;
@@ -2458,17 +2458,18 @@ function openInquiryModal(inquiryToEdit = null) {
     priceInp.addEventListener('input', calcTotal);
     calcTotal();
 
-    const removeBtn = rowCard.querySelector('.btn-remove-row');
+    // ⭕ 防呆綁定：只有在存在刪除按鈕時才監聽點擊
+    const removeBtn = card.querySelector('.btn-remove-row');
     if (removeBtn) {
       removeBtn.addEventListener('click', () => {
-        rowCard.remove();
+        card.remove();
         itemsContainer.querySelectorAll('.item-spec-row').forEach((c, i) => {
           c.querySelector('.font-mono').textContent = `規格品項 #${i + 1}`;
         });
       });
     }
 
-    itemsContainer.appendChild(rowCard);
+    itemsContainer.appendChild(card);
   };
 
   initialItems.forEach(it => createItemRow(it));
