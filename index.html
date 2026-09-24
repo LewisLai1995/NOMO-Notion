@@ -4414,6 +4414,8 @@ function renderPersona(){
 }
 
 /* ============================================================ RESERVE ============================================================ */
+/* ==================== 帶有右側參考值標籤的名目編輯器 ==================== */
+
 function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNew, valueForItem){
   const head = el(`<div class="mt-4 mb-2">
     <div class="flex items-center justify-between">
@@ -4432,11 +4434,20 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
   wrap.appendChild(rowsWrap);
 
   state.finance[group].forEach(item => {
-    const last = valueForItem(item);
-    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5">
-      <span style="color:var(--ink-soft)" class="truncate min-w-0 flex-1">${item.label}</span>
+    // ⭕ 取得上一次的參考數值
+    const lastVal = valueForItem(item);
+    const lastValText = (lastVal != null && !isNaN(lastVal)) ? `NT$ ${lastVal.toLocaleString()}` : '—';
+
+    // ⭕ 輸入框預設為 0，並在右側加入不可編輯的 (上次: NT$ xxx) 參考標籤
+    const row = el(`<div class="flex items-center justify-between gap-2 text-[12px] mb-2">
+      <span style="color:var(--ink-soft)" class="truncate min-w-0 flex-1 font-medium">${item.label}</span>
+      
+      <!-- 右側參考值 + 輸入框區塊 -->
       <div class="flex items-center gap-2 shrink-0">
-        <input type="number" value="${last==null?0:last}" class="w-28 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 border text-gray-500 border-gray-200 select-none" title="上一次盤點的預估金額">
+          上次: ${lastValText}
+        </span>
+        <input type="number" value="0" placeholder="0" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
         <button type="button" class="del-item-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除名目">×</button>
       </div>
     </div>`);
@@ -4448,7 +4459,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
       if (typeof window.updateModalLiveCalc === 'function') window.updateModalLiveCalc();
     });
     
-    // ⭕ 兩階段二次確認刪除按鈕
+    // 兩階段二次確認刪除按鈕
     const delBtn = row.querySelector('.del-item-btn');
     delBtn.addEventListener('click', (e) => {
       const btn = e.currentTarget;
@@ -4475,11 +4486,15 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
     rowsWrap.appendChild(row);
   });
 
+  // 新增動態名目
   addBtn.addEventListener('click', () => {
-    const row = el(`<div class="flex items-center justify-between gap-3 text-[12px] mb-1.5">
+    const row = el(`<div class="flex items-center justify-between gap-2 text-[12px] mb-2">
       <input type="text" placeholder="項目名稱" class="flex-1 min-w-0 border-b bg-transparent text-[12px] outline-none py-0.5" style="border-color:var(--line);color:var(--ink)"/>
       <div class="flex items-center gap-2 shrink-0">
-        <input type="number" value="0" placeholder="金額" class="w-28 border rounded px-2 py-1 text-[13px] text-right font-mono" style="border-color:var(--line)"/>
+        <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-50 border text-gray-300 border-gray-200 select-none">
+          上次: —
+        </span>
+        <input type="number" value="0" placeholder="0" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
         <button type="button" class="del-new-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="移除">×</button>
       </div>
     </div>`);
