@@ -5513,15 +5513,12 @@ function renderConnections() {
 (async function init(){ 
   await loadState(); 
 
-  // ⭕ 初始化後檢測：若今天是盤點日且尚未發送過提醒，發送 LINE 提醒
-  if (typeof isBiweeklyReviewDate === 'function' && isBiweeklyReviewDate(state.todayISO)) {
-    const lastNotified = localStorage.getItem('nomo_last_review_notified');
-    if (lastNotified !== state.todayISO) {
-      const sendSuccess = await sendLineNotification(`💰 諾米提醒：今天是雙週資產盤點日 (${fmt(state.todayISO)})！別忘了回 NOMO.notion 核對銀行與卡費金額喔。`);
-      if (sendSuccess) {
-        localStorage.setItem('nomo_last_review_notified', state.todayISO);
-      }
-    }
+  // ⭕ 確保 loadState() 完成後執行檢查
+  if (typeof checkAndSendDailyLineReminders === 'function') {
+    console.log("🔍 開始執行 LINE 每日預警比對...");
+    await checkAndSendDailyLineReminders();
+  } else {
+    console.error("❌ 找不到 checkAndSendDailyLineReminders 函式！");
   }
 })();
 
