@@ -5017,10 +5017,8 @@ function vendorCard(v) {
 function renderVendors() {
   const color = state.theme.vendor || "#3B4A5A";
   
-  // ⭕ 關鍵修正：若 vendorTab 為空或不在 inquiries，確保強制定在 'inquiries' (第一個頁籤)
-  if (!state.vendorTab || state.vendorTab === 'list') {
-    state.vendorTab = "inquiries";
-  }
+  // ⭕ 正確邏輯：只有在 vendorTab 完全沒有設定值時，才預設給 "inquiries"
+  if (!state.vendorTab) state.vendorTab = "inquiries";
 
   if (!state.vendorCategoryFilter) state.vendorCategoryFilter = "ALL";
   if (!state.vendorSearchQuery) state.vendorSearchQuery = "";
