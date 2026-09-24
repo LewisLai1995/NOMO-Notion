@@ -656,12 +656,12 @@ async function checkAndSendDailyLineReminders() {
   }
 }
 
-/* ============================================================ LINE SETTINGS MODAL (TABBED) ============================================================ */
+/* ============================================================ LINE SETTINGS MODAL (TABBED & COLLAPSIBLE) ============================================================ */
 
 function openLineTokenModal() {
   const lineConfig = state.integrations.find(it => it.id === 'line');
   
-  // ⭕ 擴充 notifySettings 預設值
+  // ⭕ 擴充與初始化 notifySettings 預設值
   if (!lineConfig.notifySettings) {
     lineConfig.notifySettings = {
       // 專案
@@ -706,11 +706,11 @@ function openLineTokenModal() {
     <!-- ⭕ 分頁 1：提醒項目勾選 (Notification Items) -->
     <div id="tabContentNotify" class="space-y-3 py-1">
       
-      <!-- 1. 專案區塊 (含小箭頭向下展開) -->
+      <!-- 1. 專案區塊 (可摺疊開閉) -->
       <div class="card rounded-xl border overflow-hidden" style="border-color:var(--line)">
-        <button type="button" id="toggleProjAccordion" class="w-full p-3.5 flex items-center justify-between bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-left">
+        <button type="button" id="toggleProjAccordion" class="w-full p-3.5 flex items-center justify-between bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-left select-none">
           <span class="text-[13px] font-bold" style="color:var(--ink)">🏗️ 專案 · ${nickProject}</span>
-          <span id="projChevron" class="text-[12px] transition-transform duration-200" style="color:var(--ink-soft)">▼</span>
+          <span id="projChevron" class="text-[12px] transition-transform duration-200" style="color:var(--ink-soft); transform: rotate(180deg);">▼</span>
         </button>
         <div id="projAccordionBody" class="p-3.5 border-t space-y-3" style="border-color:var(--line)">
           <!-- (1) 時程節點預警 -->
@@ -741,49 +741,59 @@ function openLineTokenModal() {
         </div>
       </div>
 
-      <!-- 2. 日常生活區塊 -->
-      <div class="card rounded-xl p-3.5 border space-y-2.5" style="border-color:var(--line)">
-        <div class="text-[13px] font-bold mb-1" style="color:var(--ink)">🌿 生活 · ${nickLife}</div>
-        <!-- (1) 行程前幾天通知 -->
-        <div class="flex items-center gap-2 text-[12px]">
-          <input type="checkbox" id="chkLifeSchedule" ${ns.lifeScheduleReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
-          <span style="color:var(--ink)">行程開始前</span>
-          <select id="selLifeDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
-            <option value="0" ${ns.lifeDaysBefore == 0 ? 'selected' : ''}>當天早晨</option>
-            <option value="1" ${ns.lifeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
-            <option value="2" ${ns.lifeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
-          </select>
-          <span style="color:var(--ink)">發送行程通知</span>
+      <!-- 2. 日常生活區塊 (可摺疊開閉) -->
+      <div class="card rounded-xl border overflow-hidden" style="border-color:var(--line)">
+        <button type="button" id="toggleLifeAccordion" class="w-full p-3.5 flex items-center justify-between bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-left select-none">
+          <span class="text-[13px] font-bold" style="color:var(--ink)">🌿 生活 · ${nickLife}</span>
+          <span id="lifeChevron" class="text-[12px] transition-transform duration-200" style="color:var(--ink-soft); transform: rotate(180deg);">▼</span>
+        </button>
+        <div id="lifeAccordionBody" class="p-3.5 border-t space-y-3" style="border-color:var(--line)">
+          <!-- (1) 行程前幾天通知 -->
+          <div class="flex items-center gap-2 text-[12px]">
+            <input type="checkbox" id="chkLifeSchedule" ${ns.lifeScheduleReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
+            <span style="color:var(--ink)">行程開始前</span>
+            <select id="selLifeDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+              <option value="0" ${ns.lifeDaysBefore == 0 ? 'selected' : ''}>當天早晨</option>
+              <option value="1" ${ns.lifeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
+              <option value="2" ${ns.lifeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
+            </select>
+            <span style="color:var(--ink)">發送行程通知</span>
+          </div>
+          <!-- (2) 待辦事項通知 -->
+          <label class="flex items-center gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+            <input type="checkbox" id="chkLifeTodo" ${ns.lifeTodoReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
+            <span>每日推播當天未完成之待辦事項</span>
+          </label>
         </div>
-        <!-- (2) 待辦事項通知 -->
-        <label class="flex items-center gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
-          <input type="checkbox" id="chkLifeTodo" ${ns.lifeTodoReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
-          <span>每日推播當天未完成之待辦事項</span>
-        </label>
       </div>
 
-      <!-- 3. 資產盤點區塊 -->
-      <div class="card rounded-xl p-3.5 border space-y-2.5" style="border-color:var(--line)">
-        <div class="text-[13px] font-bold mb-1" style="color:var(--ink)">💰 資產 · ${nickFinance}</div>
-        <!-- (1) 盤點日預警 -->
-        <div class="flex items-center gap-2 text-[12px]">
-          <input type="checkbox" id="chkFinanceReview" ${ns.financeReviewReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600"/>
-          <span style="color:var(--ink)">雙週盤點日前</span>
-          <select id="selFinanceDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
-            <option value="0" ${ns.financeDaysBefore == 0 ? 'selected' : ''}>當天</option>
-            <option value="1" ${ns.financeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
-            <option value="2" ${ns.financeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
-          </select>
-          <span style="color:var(--ink)">發送盤點提醒</span>
-        </div>
-        <!-- (2) 盤點完畢後數據傳送 -->
-        <label class="flex items-start gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
-          <input type="checkbox" id="chkFinanceCompleted" ${ns.financeCompletedNotify !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600 mt-0.5"/>
-          <div>
-            <span>盤點完畢後傳送資產數據簡報</span>
-            <div class="text-[10px] mt-0.5" style="color:var(--ink-soft)">自動推播本月總收入、總支出與預算損益狀況</div>
+      <!-- 3. 資產盤點區塊 (可摺疊開閉) -->
+      <div class="card rounded-xl border overflow-hidden" style="border-color:var(--line)">
+        <button type="button" id="toggleFinanceAccordion" class="w-full p-3.5 flex items-center justify-between bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-left select-none">
+          <span class="text-[13px] font-bold" style="color:var(--ink)">💰 資產 · ${nickFinance}</span>
+          <span id="financeChevron" class="text-[12px] transition-transform duration-200" style="color:var(--ink-soft); transform: rotate(180deg);">▼</span>
+        </button>
+        <div id="financeAccordionBody" class="p-3.5 border-t space-y-3" style="border-color:var(--line)">
+          <!-- (1) 盤點日預警 -->
+          <div class="flex items-center gap-2 text-[12px]">
+            <input type="checkbox" id="chkFinanceReview" ${ns.financeReviewReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600"/>
+            <span style="color:var(--ink)">雙週盤點日前</span>
+            <select id="selFinanceDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+              <option value="0" ${ns.financeDaysBefore == 0 ? 'selected' : ''}>當天</option>
+              <option value="1" ${ns.financeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
+              <option value="2" ${ns.financeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
+            </select>
+            <span style="color:var(--ink)">發送盤點提醒</span>
           </div>
-        </label>
+          <!-- (2) 盤點完畢後數據傳送 -->
+          <label class="flex items-start gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+            <input type="checkbox" id="chkFinanceCompleted" ${ns.financeCompletedNotify !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600 mt-0.5"/>
+            <div>
+              <span>盤點完畢後傳送資產數據簡報</span>
+              <div class="text-[10px] mt-0.5" style="color:var(--ink-soft)">自動推播本月總收入、總支出與預算損益狀況</div>
+            </div>
+          </label>
+        </div>
       </div>
 
     </div>
@@ -818,15 +828,21 @@ function openLineTokenModal() {
     </div>
   </div>`);
 
-  // 折疊選單 (Accordion) 邏輯
-  const toggleBtn = wrap.querySelector('#toggleProjAccordion');
-  const bodyEl = wrap.querySelector('#projAccordionBody');
-  const chevron = wrap.querySelector('#projChevron');
-  
-  toggleBtn.addEventListener('click', () => {
-    const isHidden = bodyEl.classList.toggle('hidden');
-    chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
-  });
+  // ⭕ 三大區塊的開閉合 (Collapsible Accordion) 綁定
+  const bindAccordion = (toggleId, bodyId, chevronId) => {
+    const toggleBtn = wrap.querySelector('#' + toggleId);
+    const bodyEl = wrap.querySelector('#' + bodyId);
+    const chevron = wrap.querySelector('#' + chevronId);
+
+    toggleBtn.addEventListener('click', () => {
+      const isHidden = bodyEl.classList.toggle('hidden');
+      chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+    });
+  };
+
+  bindAccordion('toggleProjAccordion', 'projAccordionBody', 'projChevron');
+  bindAccordion('toggleLifeAccordion', 'lifeAccordionBody', 'lifeChevron');
+  bindAccordion('toggleFinanceAccordion', 'financeAccordionBody', 'financeChevron');
 
   // 分頁切換邏輯
   const tabNotify = wrap.querySelector('#tabBtnNotify');
