@@ -1131,6 +1131,8 @@ agentsEnabled: { project:true, life:true, finance:true, vendor:true },
   { id: "v2", name: "高科技光電", trade: "燈光", contact: "高經理", phone: "0955-222-333", tag: "normal", note: "專營舞台燈光與 LED 條燈，報價透明" },
   { id: "v3", name: "宏達大圖輸出", trade: "大圖輸出", contact: "林小姐", phone: "0911-888-999", tag: "warning", note: "交貨迅速，但施工前需再三核對色彩校樣" }
 ],
+  // 在 DEFAULT_STATE 中加入預設類別陣列：
+vendorCategories: ["🎁 贈品製作", "👕 衣服/服飾", "🖨️ 大圖/印刷", "📦 展示/道具", "🔧 其他採購"],
 vendorInquiries: [
   { id: "vi1", vendorId: "v1", projectId: "p1", projectName: "森之光 — 台北當代館特展", item: "展場特製木作展牆 25 坪", initialQuote: 135000, finalQuote: 120000, status: "completed", date: "2026-09-10", note: "去頭數優惠 1.5 萬" }
 ]
@@ -1185,7 +1187,11 @@ async function loadState() {
       if (!state.agentsEnabled) state.agentsEnabled = {};
       if (state.agentsEnabled.vendor === undefined) state.agentsEnabled.vendor = true;
 
-      state.route = "today"; // 重整載入後鎖定 Today 主頁
+     // ⭕ 加在這裡：補齊舊資料缺少的自訂品項類別陣列
+      if (!state.vendorCategories || !state.vendorCategories.length) {
+        state.vendorCategories = ["🎁 贈品製作", "👕 衣服/服飾", "🖨️ 大圖/印刷", "📦 展示/道具", "🔧 其他採購"];
+      }
+
       state.route = "today"; // 重整載入後鎖定 Today 主頁
       
       // ⭕ 強制將日期與週對齊為今天
@@ -2278,140 +2284,143 @@ function openVendorModal(vToEdit = null) {
   openModal(form);
 }
 
-/* ==================== 結構化多廠商詢價/比價 Modal (鎖定背景遮罩) ==================== */
+/* ==================== 以廠商為主的詢價/規格紀錄 Modal ==================== */
 
 function openInquiryModal(inquiryToEdit = null) {
   const color = state.theme.vendor || "#3B4A5A";
   const isEdit = !!inquiryToEdit;
   
   const itemData = inquiryToEdit || {
-    title: "", category: "贈品製作", date: state.todayISO,
-    winnerIndex: "", decisionNote: "",
-    quotes: [
-      { vendorName: "", phone: "", itemSpec: "", specDetail: "", qty: 100, unitPrice: 120 }
-    ]
+    vendorName: "", contact: "", phone: "",
+    category: state.vendorCategories[0] || "🎁 贈品製作",
+    date: state.todayISO,
+    items: [
+      { itemName: "", specDetail: "", qty: 100, unitPrice: 0, taxType: "含稅", note: "" }
+    ],
+    vendorNote: ""
   };
 
   const wrap = el(`<div>
-    <div class="font-display font-bold text-[19px] mb-3" style="color:${color}">${isEdit ? '編輯詢價比價紀錄' : '建立多廠商詢價/比價紀錄'}</div>
+    <div class="font-display font-bold text-[19px] mb-3" style="color:${color}">${isEdit ? '編輯廠商詢價紀錄' : '建立廠商詢價與規格紀錄'}</div>
     
-    <div class="flex flex-col gap-3 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin">
-      <!-- 詢價標題與類別 -->
-      <label class="text-[12px]" style="color:var(--ink-soft)">詢價/採購專案標題 <span style="color:#B23A3A">*</span>
-        <input id="iqTitle" type="text" value="${itemData.title}" placeholder="例如：2026 周邊 - 12oz 帆布袋與工作服製作" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
-      </label>
+    <div class="flex flex-col gap-3 max-h-[72vh] overflow-y-auto pr-1 scrollbar-thin">
+      
+      <!-- 📌 1. 廠商主體資訊 -->
+      <div class="p-3.5 rounded-xl border bg-gray-50/50 space-y-2.5" style="border-color:var(--line)">
+        <div class="text-[11px] font-mono font-bold" style="color:var(--ink-soft)">基本資訊 · VENDOR INFO</div>
+        
+        <div class="grid grid-cols-3 gap-2">
+          <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">廠商名稱 <span style="color:#B23A3A">*</span>
+            <input id="iqVendorName" type="text" value="${itemData.vendorName || ''}" placeholder="如：捷克彩印" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white" style="border-color:var(--line)"/>
+          </label>
+          <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">窗口名稱
+            <input id="iqContact" type="text" value="${itemData.contact || ''}" placeholder="如：林先生" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white" style="border-color:var(--line)"/>
+          </label>
+          <label class="text-[12px] col-span-1" style="color:var(--ink-soft)">聯絡電話
+            <input id="iqPhone" type="text" value="${itemData.phone || ''}" placeholder="09xx-xxx-xxx" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white font-mono" style="border-color:var(--line)"/>
+          </label>
+        </div>
 
-      <div class="grid grid-cols-2 gap-2.5">
-        <label class="text-[12px]" style="color:var(--ink-soft)">品項類別
-          <select id="iqCategory" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)">
-            <option value="贈品製作" ${itemData.category === '贈品製作' ? 'selected' : ''}>🎁 贈品製作</option>
-            <option value="衣服/服飾" ${itemData.category === '衣服/服飾' ? 'selected' : ''}>👕 衣服/服飾製作</option>
-            <option value="大圖/印刷" ${itemData.category === '大圖/印刷' ? 'selected' : ''}>🖨️ 大圖/印刷工程</option>
-            <option value="展示/道具" ${itemData.category === '展示/道具' ? 'selected' : ''}>📦 展示/道具製作</option>
-            <option value="其他採購" ${itemData.category === '其他採購' ? 'selected' : ''}>🔧 其他採購項目</option>
-          </select>
-        </label>
-        <label class="text-[12px]" style="color:var(--ink-soft)">詢價日期
-          <input id="iqDate" type="date" value="${itemData.date || state.todayISO}" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
-        </label>
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- 類別選擇與管理 -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[12px]" style="color:var(--ink-soft)">品項類別</span>
+              <button type="button" id="btnManageCat" class="text-[10px] font-bold text-amber-800 hover:underline">⚙️ 管理類別</button>
+            </div>
+            <select id="iqCategory" class="w-full border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)"></select>
+          </div>
+
+          <label class="text-[12px]" style="color:var(--ink-soft)">詢價更新日期
+            <input id="iqDate" type="date" value="${itemData.date || state.todayISO}" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white" style="border-color:var(--line)"/>
+          </label>
+        </div>
       </div>
 
-      <!-- 動態廠商報價區塊 -->
+      <!-- 📌 2. 品項與規格明細表 -->
       <div class="border-t pt-3 mt-1" style="border-color:var(--line)">
         <div class="flex items-center justify-between mb-2">
-          <div class="text-[12px] font-bold" style="color:var(--ink)">各廠商詢價與規格報價：</div>
-          <button type="button" id="btnAddQuoteVendor" class="text-[11px] font-bold px-2.5 py-1 rounded border hover:bg-gray-50 transition-colors" style="border-color:${color};color:${color}">
-            ＋ 新增比價廠商
+          <div class="text-[12px] font-bold" style="color:var(--ink)">詢價品項與規格明細：</div>
+          <button type="button" id="btnAddItemRow" class="text-[11px] font-bold px-2.5 py-1 rounded border hover:bg-gray-50 transition-colors" style="border-color:${color};color:${color}">
+            ＋ 新增規格品項
           </button>
         </div>
-        <div id="quoteRowsContainer" class="space-y-3"></div>
+        <div id="itemsContainer" class="space-y-3"></div>
       </div>
 
-      <!-- 最終選定廠商（動態連動上表） -->
-      <div class="border-t pt-3 mt-1 space-y-2.5" style="border-color:var(--line)">
-        <label class="text-[12px]" style="color:var(--ink-soft)">最終選定發包廠商
-          <select id="iqWinnerSelect" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)">
-            <option value="">-- 尚未決定 / 比價中 --</option>
-          </select>
-        </label>
-        <label class="text-[12px]" style="color:var(--ink-soft)">決策原因與材質心得紀錄
-          <textarea id="iqDecisionNote" placeholder="例如：A 廠商單價雖貴 10 元，但 12oz 帆布厚實度遠勝 B 廠商，且電繡字體不含糊..." class="w-full mt-1 border rounded-lg p-2.5 text-[12px] h-20 resize-none" style="border-color:var(--line)">${itemData.decisionNote || ''}</textarea>
+      <!-- 📌 3. 廠商筆記 -->
+      <div class="border-t pt-3 mt-1" style="border-color:var(--line)">
+        <label class="text-[12px]" style="color:var(--ink-soft)">廠商筆記 (品質、備註說明、樣品心得)
+          <textarea id="iqVendorNote" placeholder="例如：打樣品質不錯、交期約 7 個工作天、大量訂購可再爭取折扣..." class="w-full mt-1 border rounded-lg p-2.5 text-[12px] h-20 resize-none" style="border-color:var(--line)">${itemData.vendorNote || ''}</textarea>
         </label>
       </div>
     </div>
 
     <div class="flex justify-end gap-2 mt-5 pt-2 border-t" style="border-color:var(--line)">
       <button id="iqCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button>
-      <button id="iqSubmit" class="text-[13px] px-4 py-2 rounded-lg font-medium" style="background:${color};color:${contrastText(color)}">${isEdit ? '儲存修改' : '建立比價紀錄'}</button>
+      <button id="iqSubmit" class="text-[13px] px-4 py-2 rounded-lg font-medium" style="background:${color};color:${contrastText(color)}">${isEdit ? '儲存修改' : '建立詢價紀錄'}</button>
     </div>
   </div>`);
 
-  const container = wrap.querySelector('#quoteRowsContainer');
-  const winnerSelect = wrap.querySelector('#iqWinnerSelect');
-  const initialQuotes = itemData.quotes && itemData.quotes.length ? itemData.quotes : [{ vendorName: "", phone: "", itemSpec: "", specDetail: "", qty: 100, unitPrice: 0 }];
-
-  // 更新「最終發包廠商」下拉選單
-  const updateWinnerOptions = () => {
-    const currentSelected = winnerSelect.value;
-    winnerSelect.innerHTML = `<option value="">-- 尚未決定 / 比價中 --</option>`;
-
-    container.querySelectorAll('.quote-vendor-card').forEach((cardEl, idx) => {
-      const vNameInput = cardEl.querySelector('.q-vname');
-      const vName = vNameInput ? vNameInput.value.trim() : "";
-      const labelText = vName ? `${vName} (廠商 ${idx + 1})` : `廠商 ${idx + 1}`;
-      
-      const isSelected = (itemData.winnerIndex !== undefined && String(itemData.winnerIndex) === String(idx)) || (currentSelected === String(idx));
-      winnerSelect.appendChild(el(`<option value="${idx}" ${isSelected ? 'selected' : ''}>${labelText}</option>`));
-    });
+  // 刷新類別下拉選單
+  const refreshCatSelect = () => {
+    const sel = wrap.querySelector('#iqCategory');
+    const currentVal = sel.value || itemData.category;
+    sel.innerHTML = state.vendorCategories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
   };
 
-  // 建立單家廠商報價表單卡片
-  const createVendorQuoteCard = (qData = {}) => {
-    const vIdx = container.children.length;
-    const card = el(`<div class="quote-vendor-card p-3 rounded-xl border bg-gray-50/50 space-y-2 relative" style="border-color:var(--line)">
-      <div class="flex items-center justify-between border-b pb-1.5" style="border-color:var(--line)">
-        <span class="text-[11px] font-mono font-bold text-gray-600">廠商 ${vIdx + 1}</span>
-        ${vIdx > 0 ? `<button type="button" class="btn-remove-quote text-[11px] text-red-600 hover:underline">刪除此廠商</button>` : ''}
-      </div>
+  // 管理類別點擊事件
+  wrap.querySelector('#btnManageCat').addEventListener('click', () => {
+    openCategoryManageModal(() => refreshCatSelect());
+  });
 
-      <div class="grid grid-cols-2 gap-2">
-        <label class="text-[11px] text-gray-500">廠商名稱
-          <input type="text" value="${qData.vendorName || ''}" placeholder="如：捷克彩印" class="q-vname w-full mt-0.5 border rounded px-2 py-1 text-[12px] bg-white" style="border-color:var(--line)"/>
-        </label>
-        <label class="text-[11px] text-gray-500">電話/聯絡方式
-          <input type="text" value="${qData.phone || ''}" placeholder="09xx-xxx-xxx" class="q-phone w-full mt-0.5 border rounded px-2 py-1 text-[12px] bg-white font-mono" style="border-color:var(--line)"/>
-        </label>
+  const itemsContainer = wrap.querySelector('#itemsContainer');
+  const initialItems = itemData.items && itemData.items.length ? itemData.items : [{ itemName: "", specDetail: "", qty: 100, unitPrice: 0, taxType: "含稅", note: "" }];
+
+  // 建立單個品項規格列
+  const createItemRow = (itData = {}) => {
+    const rowIdx = itemsContainer.children.length;
+    const rowCard = el(`<div class="item-spec-row p-3 rounded-xl border bg-white space-y-2 relative" style="border-color:var(--line)">
+      <div class="flex items-center justify-between border-b pb-1" style="border-color:var(--line)">
+        <span class="text-[11px] font-mono font-bold text-gray-500">規格品項 #${rowIdx + 1}</span>
+        ${rowIdx > 0 ? `<button type="button" class="btn-remove-row text-[11px] text-red-600 hover:underline">刪除品項</button>` : ''}
       </div>
 
       <div class="grid grid-cols-2 gap-2">
         <label class="text-[11px] text-gray-500">品項名稱
-          <input type="text" value="${qData.itemSpec || ''}" placeholder="如：12oz 帆布袋" class="q-itemspec w-full mt-0.5 border rounded px-2 py-1 text-[12px] bg-white" style="border-color:var(--line)"/>
+          <input type="text" value="${itData.itemName || ''}" placeholder="如：陶瓷馬克杯 350ml" class="it-name w-full mt-0.5 border rounded px-2 py-1 text-[12px]" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">規格/工法細節
-          <input type="text" value="${qData.specDetail || ''}" placeholder="如：單色絲印/電繡Logo" class="q-specdetail w-full mt-0.5 border rounded px-2 py-1 text-[12px] bg-white" style="border-color:var(--line)"/>
+          <input type="text" value="${itData.specDetail || ''}" placeholder="如：單色烘印 / 亮光釉" class="it-spec w-full mt-0.5 border rounded px-2 py-1 text-[12px]" style="border-color:var(--line)"/>
         </label>
       </div>
 
-      <div class="grid grid-cols-3 gap-2 items-center">
+      <div class="grid grid-cols-4 gap-2 items-center">
         <label class="text-[11px] text-gray-500">數量
-          <input type="number" value="${qData.qty || 1}" min="1" placeholder="數量" class="q-qty w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono bg-white text-right" style="border-color:var(--line)"/>
+          <input type="number" value="${itData.qty || 1}" min="1" class="it-qty w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">單價 (NT$)
-          <input type="number" value="${qData.unitPrice || 0}" min="0" placeholder="單價" class="q-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono bg-white text-right" style="border-color:var(--line)"/>
+          <input type="number" value="${itData.unitPrice || 0}" min="0" class="it-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[11px] text-gray-500">稅別
+          <select class="it-tax w-full mt-0.5 border rounded px-1.5 py-1 text-[12px] bg-white" style="border-color:var(--line)">
+            <option value="含稅" ${itData.taxType === '含稅' || !itData.taxType ? 'selected' : ''}>含稅</option>
+            <option value="未稅" ${itData.taxType === '未稅' ? 'selected' : ''}>未稅</option>
+          </select>
         </label>
         <div>
-          <div class="text-[11px] text-gray-500">總價 (試算)</div>
-          <div class="q-total-display font-mono font-bold text-[13px] pt-1 text-right" style="color:${color}">NT$ 0</div>
+          <div class="text-[11px] text-gray-500">試算總價</div>
+          <div class="it-total-display font-mono font-bold text-[13px] pt-1 text-right" style="color:${color}">NT$ 0</div>
         </div>
       </div>
+
+      <input type="text" value="${itData.note || ''}" placeholder="其他說明 (如：附牛皮紙盒包裝)" class="it-note w-full border rounded px-2 py-1 text-[11px] text-gray-600 bg-gray-50/50" style="border-color:var(--line)"/>
     </div>`);
 
-    const qtyInp = card.querySelector('.q-qty');
-    const priceInp = card.querySelector('.q-price');
-    const totalDisp = card.querySelector('.q-total-display');
-    const vNameInp = card.querySelector('.q-vname');
+    const qtyInp = rowCard.querySelector('.it-qty');
+    const priceInp = rowCard.querySelector('.it-price');
+    const totalDisp = rowCard.querySelector('.it-total-display');
 
-    // 自動計算總價 (數量 * 單價)
     const calcTotal = () => {
       const q = parseFloat(qtyInp.value) || 0;
       const p = parseFloat(priceInp.value) || 0;
@@ -2420,80 +2429,71 @@ function openInquiryModal(inquiryToEdit = null) {
 
     qtyInp.addEventListener('input', calcTotal);
     priceInp.addEventListener('input', calcTotal);
-    calcTotal(); // 第一次計算
+    calcTotal();
 
-    // 當廠商名稱改變，同步更新下拉選單文字
-    vNameInp.addEventListener('input', updateWinnerOptions);
-
-    // 刪除該廠商
-    const removeBtn = card.querySelector('.btn-remove-quote');
+    const removeBtn = rowCard.querySelector('.btn-remove-row');
     if (removeBtn) {
       removeBtn.addEventListener('click', () => {
-        card.remove();
-        // 重新編號
-        container.querySelectorAll('.quote-vendor-card').forEach((c, i) => {
-          c.querySelector('.font-bold').textContent = `廠商 ${i + 1}`;
+        rowCard.remove();
+        itemsContainer.querySelectorAll('.item-spec-row').forEach((c, i) => {
+          c.querySelector('.font-mono').textContent = `規格品項 #${i + 1}`;
         });
-        updateWinnerOptions();
       });
     }
 
-    container.appendChild(card);
-    updateWinnerOptions();
+    itemsContainer.appendChild(rowCard);
   };
 
-  // 初次繪製廠商
-  initialQuotes.forEach(q => createVendorQuoteCard(q));
+  initialItems.forEach(it => createItemRow(it));
 
-  // 點擊按鈕新增第二家/第三家廠商
-  wrap.querySelector('#btnAddQuoteVendor').addEventListener('click', () => {
-    createVendorQuoteCard({ qty: 100, unitPrice: 0 });
+  wrap.querySelector('#btnAddItemRow').addEventListener('click', () => {
+    createItemRow({ qty: 100, unitPrice: 0, taxType: "含稅" });
   });
 
   // 取消與送出
   wrap.querySelector('#iqCancel').addEventListener('click', closeModal);
   wrap.querySelector('#iqSubmit').addEventListener('click', () => {
-    const title = wrap.querySelector('#iqTitle').value.trim();
-    if (!title) {
-      alertModal("請輸入詢價專案標題。");
+    const vendorName = wrap.querySelector('#iqVendorName').value.trim();
+    if (!vendorName) {
+      alertModal("請輸入廠商名稱。");
       return;
     }
 
-    const compiledQuotes = [];
-    container.querySelectorAll('.quote-vendor-card').forEach(cardEl => {
-      const vendorName = cardEl.querySelector('.q-vname').value.trim();
-      const phone = cardEl.querySelector('.q-phone').value.trim();
-      const itemSpec = cardEl.querySelector('.q-itemspec').value.trim();
-      const specDetail = cardEl.querySelector('.q-specdetail').value.trim();
-      const qty = parseFloat(cardEl.querySelector('.q-qty').value) || 0;
-      const unitPrice = parseFloat(cardEl.querySelector('.q-price').value) || 0;
-      const totalPrice = qty * unitPrice;
+    const compiledItems = [];
+    itemsContainer.querySelectorAll('.item-spec-row').forEach(r => {
+      const itemName = r.querySelector('.it-name').value.trim();
+      const specDetail = r.querySelector('.it-spec').value.trim();
+      const qty = parseFloat(r.querySelector('.it-qty').value) || 0;
+      const unitPrice = parseFloat(r.querySelector('.it-price').value) || 0;
+      const taxType = r.querySelector('.it-tax').value;
+      const note = r.querySelector('.it-note').value.trim();
 
-      if (vendorName || itemSpec || unitPrice) {
-        compiledQuotes.push({ vendorName, phone, itemSpec, specDetail, qty, unitPrice, totalPrice });
+      if (itemName || unitPrice || specDetail) {
+        compiledItems.push({
+          itemName, specDetail, qty, unitPrice,
+          totalPrice: qty * unitPrice,
+          taxType, note
+        });
       }
     });
 
-    const winnerVal = winnerSelect.value;
-    const winnerIdx = winnerVal !== "" ? parseInt(winnerVal, 10) : "";
+    const payload = {
+      vendorName,
+      contact: wrap.querySelector('#iqContact').value.trim(),
+      phone: wrap.querySelector('#iqPhone').value.trim(),
+      category: wrap.querySelector('#iqCategory').value,
+      date: wrap.querySelector('#iqDate').value,
+      vendorNote: wrap.querySelector('#iqVendorNote').value.trim(),
+      items: compiledItems
+    };
 
     if (isEdit) {
-      inquiryToEdit.title = title;
-      inquiryToEdit.category = wrap.querySelector('#iqCategory').value;
-      inquiryToEdit.date = wrap.querySelector('#iqDate').value;
-      inquiryToEdit.winnerIndex = winnerIdx;
-      inquiryToEdit.decisionNote = wrap.querySelector('#iqDecisionNote').value.trim();
-      inquiryToEdit.quotes = compiledQuotes;
+      Object.assign(inquiryToEdit, payload);
     } else {
       if (!state.vendorInquiries) state.vendorInquiries = [];
       state.vendorInquiries.push({
         id: "iq" + uid(),
-        title,
-        category: wrap.querySelector('#iqCategory').value,
-        date: wrap.querySelector('#iqDate').value,
-        winnerIndex: winnerIdx,
-        decisionNote: wrap.querySelector('#iqDecisionNote').value.trim(),
-        quotes: compiledQuotes
+        ...payload
       });
     }
 
@@ -2501,8 +2501,84 @@ function openInquiryModal(inquiryToEdit = null) {
     commit();
   });
 
-  // ⭕ 關鍵修正：傳入第三個參數 lockBackdrop = true，禁止點擊 Modal 外部背景關閉
   openModal(wrap, null, true);
+  refreshCatSelect();
+}
+
+  /* ==================== 類別管理 MODAL ==================== */
+
+function openCategoryManageModal(onUpdated) {
+  const color = state.theme.vendor || "#3B4A5A";
+  
+  const renderList = () => {
+    const listEl = wrap.querySelector('#catList');
+    listEl.innerHTML = '';
+    
+    state.vendorCategories.forEach((cat, idx) => {
+      const row = el(`<div class="flex items-center justify-between p-2 rounded-lg border bg-gray-50/60" style="border-color:var(--line)">
+        <span class="text-[13px] font-medium" style="color:var(--ink)">${cat}</span>
+        <button type="button" class="btn-del-cat text-[13px] font-bold px-1.5 text-gray-400 hover:text-red-600 transition-colors" title="刪除類別">×</button>
+      </div>`);
+
+      row.querySelector('.btn-del-cat').addEventListener('click', () => {
+        if (state.vendorCategories.length <= 1) {
+          alertModal("至少需保留一個類別。");
+          return;
+        }
+        confirmModal(`確定要刪除類別「${cat}」嗎？`, () => {
+          state.vendorCategories.splice(idx, 1);
+          commit();
+          renderList();
+          if (onUpdated) onUpdated();
+        });
+      });
+
+      listEl.appendChild(row);
+    });
+  };
+
+  const wrap = el(`<div>
+    <div class="font-display font-bold text-[18px] mb-2" style="color:${color}">管理品項類別</div>
+    <p class="text-[12px] mb-4" style="color:var(--ink-soft)">你可以隨時新增自訂類別，或刪除不再使用的項目。</p>
+
+    <!-- 新增類別列 -->
+    <div class="flex gap-2 mb-4">
+      <input id="newCatInput" type="text" placeholder="輸入新類別名稱 (如：☕ 咖啡周邊)..." class="flex-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
+      <button type="button" id="btnAddCat" class="px-3.5 py-1.5 rounded-lg text-[12px] font-medium shrink-0" style="background:${color};color:${contrastText(color)}">＋ 新增</button>
+    </div>
+
+    <!-- 類別清單 -->
+    <div id="catList" class="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1 scrollbar-thin"></div>
+
+    <div class="flex justify-end mt-5 pt-2 border-t" style="border-color:var(--line)">
+      <button type="button" id="closeCatModal" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">完成</button>
+    </div>
+  </div>`);
+
+  const newInp = wrap.querySelector('#newCatInput');
+  const addBtn = wrap.querySelector('#btnAddCat');
+
+  const addCat = () => {
+    const val = newInp.value.trim();
+    if (!val) return;
+    if (state.vendorCategories.includes(val)) {
+      alertModal("已有相同的類別名稱。");
+      return;
+    }
+    state.vendorCategories.push(val);
+    newInp.value = "";
+    commit();
+    renderList();
+    if (onUpdated) onUpdated();
+  };
+
+  addBtn.addEventListener('click', addCat);
+  newInp.addEventListener('keydown', e => { if (e.key === 'Enter') addCat(); });
+
+  wrap.querySelector('#closeCatModal').addEventListener('click', closeModal);
+
+  openModal(wrap, null, true);
+  renderList();
 }
   
 function projectCreateModal(){
@@ -4923,36 +4999,32 @@ function renderVendors() {
     wrap.appendChild(grid);
 
   } else {
-   // -------------------------------------------------------------
-    // 頁籤 2：詢價比價資料庫區 (安全語法修復版)
+
+// -------------------------------------------------------------
+    // 頁籤 2：詢價比價資料庫區 (廠商為主卡片 UI)
     // -------------------------------------------------------------
     const list = el(`<div class="space-y-4"></div>`);
     if (!inquiries.length) {
       list.appendChild(el(`<div class="card rounded-xl p-8 text-center text-[13px]" style="color:var(--ink-soft)">
-        目前尚無詢價比價紀錄。點擊右上角「＋ 新增比價紀錄」開始記錄廠商報價與規格！
+        目前尚無詢價紀錄。點擊右上角「＋ 新增詢價紀錄」開始登記廠商規格與報價！
       </div>`));
     } else {
       inquiries.forEach(iq => {
-        const hasWinner = iq.winnerIndex !== undefined && iq.winnerIndex !== "" && iq.quotes && iq.quotes[iq.winnerIndex];
+        let itemsHtml = "";
+        (iq.items || []).forEach((it, idx) => {
+          const qty = it.qty || 1;
+          const uPrice = it.unitPrice || 0;
+          const total = it.totalPrice || (qty * uPrice);
 
-        // ⭕ 1. 先將廠商卡片的 HTML 拆出來組合，避免範本字串嵌套語法錯誤
-        let quotesHtml = "";
-        (iq.quotes || []).forEach((q, idx) => {
-          const isWinner = hasWinner && String(iq.winnerIndex) === String(idx);
-          const qty = q.qty || 1;
-          const uPrice = q.unitPrice || 0;
-          const total = q.totalPrice || (qty * uPrice);
-
-          quotesHtml += `
-            <div class="p-2.5 rounded-lg border text-[12px] ${isWinner ? 'bg-amber-50/60 border-amber-300' : 'bg-gray-50/50 border-gray-200'}">
+          itemsHtml += `
+            <div class="p-2.5 rounded-lg border bg-gray-50/60 text-[12px] border-gray-200">
               <div class="flex items-center justify-between mb-1">
-                <span class="font-bold truncate" style="color:var(--ink)">${q.vendorName || '廠商 ' + (idx + 1)}</span>
-                ${isWinner ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 font-bold shrink-0">得標選用</span>' : ''}
+                <span class="font-bold text-gray-800 truncate">${it.itemName || '未具名品項'}</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded font-bold font-mono ${it.taxType === '未稅' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}">${it.taxType || '含稅'}</span>
               </div>
-              ${q.phone ? '<div class="text-[10px] font-mono text-gray-400 mb-1">📞 ' + q.phone + '</div>' : ''}
               
-              <div class="text-[11px] font-medium text-gray-700 mt-1">${q.itemSpec || '通用規格'}</div>
-              <div class="text-[10px] text-gray-500 mb-1.5 truncate">${q.specDetail || '無特殊說明'}</div>
+              <div class="text-[11px] text-gray-600 mb-1">${it.specDetail || '標準規格'}</div>
+              ${it.note ? `<div class="text-[10px] text-gray-400 mb-1.5 italic">${it.note}</div>` : ''}
 
               <div class="pt-1.5 border-t border-gray-200 flex items-baseline justify-between font-mono">
                 <span class="text-[10px] text-gray-400">${qty} 件 @ NT$ ${uPrice.toLocaleString()}</span>
@@ -4962,15 +5034,17 @@ function renderVendors() {
           `;
         });
 
-        // ⭕ 2. 組合外層卡片
         const card = el(`<div class="card rounded-xl p-4 hover:shadow-md transition-shadow">
           <div class="flex items-start justify-between mb-2">
             <div>
               <div class="flex items-center gap-2 mb-1">
-                <span class="tag font-mono text-[10px]" style="border-color:${color};color:${color}">${iq.category || '採購比價'}</span>
-                <span class="text-[11px] font-mono text-gray-400">${fmt(iq.date)}</span>
+                <span class="tag font-mono text-[10px]" style="border-color:${color};color:${color}">${iq.category || '採購詢價'}</span>
+                <span class="text-[11px] font-mono text-gray-400">更新於 ${fmt(iq.date)}</span>
               </div>
-              <div class="font-display font-bold text-[16px]" style="color:var(--ink)">${iq.title}</div>
+              <div class="font-display font-bold text-[17px] flex items-center gap-3" style="color:var(--ink)">
+                <span>${iq.vendorName}</span>
+                ${iq.contact || iq.phone ? `<span class="text-[12px] font-sans font-normal text-gray-500">(${[iq.contact, iq.phone].filter(Boolean).join(' • ')})</span>` : ''}
+              </div>
             </div>
 
             <div class="flex items-center gap-2">
@@ -4979,23 +5053,23 @@ function renderVendors() {
             </div>
           </div>
 
-          <!-- 廠商比價卡片網格 -->
+          <!-- 規格品項網格 -->
           <div class="grid grid-cols-3 gap-2.5 my-3">
-            ${quotesHtml}
+            ${itemsHtml || '<div class="text-[11px] text-gray-400 col-span-3">（未紀錄規格品項）</div>'}
           </div>
 
-          <!-- 決策心得備註 -->
-          ${iq.decisionNote ? `
+          <!-- 廠商筆記 -->
+          ${iq.vendorNote ? `
             <div class="mt-2 pt-2 border-t text-[11px] flex items-start gap-1.5" style="border-color:var(--line); color:var(--ink-soft)">
-              <span class="shrink-0 font-bold" style="color:${color}">💡 採購決策心得：</span>
-              <span class="leading-relaxed">${iq.decisionNote}</span>
+              <span class="shrink-0 font-bold" style="color:${color}">📝 廠商筆記：</span>
+              <span class="leading-relaxed">${iq.vendorNote}</span>
             </div>
           ` : ''}
         </div>`);
 
         card.querySelector('.btn-edit-iq').addEventListener('click', () => openInquiryModal(iq));
         card.querySelector('.btn-del-iq').addEventListener('click', () => {
-          confirmModal(`確定要刪除「${iq.title}」這筆比價紀錄嗎？`, () => {
+          confirmModal(`確定要刪除對「${iq.vendorName}」的這筆詢價紀錄嗎？`, () => {
             state.vendorInquiries = state.vendorInquiries.filter(x => x.id !== iq.id);
             commit();
           }, { okLabel: "確定刪除", color: "var(--danger)" });
@@ -5005,6 +5079,7 @@ function renderVendors() {
       });
     }
     wrap.appendChild(list);
+    
   }
 
   return wrap;
