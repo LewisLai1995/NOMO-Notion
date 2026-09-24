@@ -562,9 +562,7 @@ async function sendLineNotification(message) {
 
  /* ============================================================ AUTO NOTIFICATION CHECKER ============================================================ */
 
-// ⭕ 每日開啟網頁時自動比對 notifySettings 並發送預警推播
 async function checkAndSendDailyLineReminders() {
-  // 1. 檢查 LINE 是否開啟與連接
   if (!isLineConnected()) return;
 
   const lineConfig = state.integrations.find(it => it.id === 'line');
@@ -574,13 +572,11 @@ async function checkAndSendDailyLineReminders() {
   const todayStr = state.todayISO;
   const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
 
-  // 2. 當天如果已經檢查發送過，直接跳過（避免重複發送）
   if (lastCheckDate === todayStr) {
     console.log("ℹ️ 當天 LINE 預警提醒已執行過，跳過比對。");
     return;
   }
 
-  // ⭕ 動態抓取使用者自訂的石頭暱稱 (若無則使用預設)
   const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
   const nickLife = (state.nicknames && state.nicknames.life) || "露米";
   const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
@@ -588,29 +584,26 @@ async function checkAndSendDailyLineReminders() {
   const messages = [];
 
   // -----------------------------------------------------------------
-  // 🏗️ 1. 專案時程提醒
+  // 🏗️ 1. 專案時程預警 (開關：projectStageReminder)
   // -----------------------------------------------------------------
-  if (ns.projectReminder) {
+  if (ns.projectStageReminder !== false) {
     const daysBefore = ns.projectDaysBefore || 3;
     const targetDate = addDays(todayStr, daysBefore);
 
     state.projects.filter(p => !p.settled).forEach(p => {
       p.stages.forEach(s => {
         if (s.done) return;
-
-        const stageDate = s.date;
-        if (stageDate === targetDate) {
-          // ⭕ 套用自訂暱稱 nickProject
-          messages.push(`🏗️ ${nickProject}專案預警：「${p.name}」即將於 ${daysBefore} 天後 (${fmt(stageDate)}) 進入「${s.name}」階段！`);
+        if (s.date === targetDate) {
+          messages.push(`🏗️ ${nickProject}專案提醒：\n「${p.name}」即將於 ${daysBefore} 天後 (${fmt(s.date)}) 進入「${s.name}」階段！`);
         }
       });
     });
   }
 
   // -----------------------------------------------------------------
-  // 🌿 2. 日常行程提醒
+  // 🌿 2. 日常行程與待辦 (開關：lifeScheduleReminder, lifeTodoReminder)
   // -----------------------------------------------------------------
-  if (ns.lifeReminder) {
+  if (ns.lifeScheduleReminder !== false) {
     const daysBefore = ns.lifeDaysBefore || 1;
     const targetDate = addDays(todayStr, daysBefore);
 
@@ -621,39 +614,44 @@ async function checkAndSendDailyLineReminders() {
     if (upcomingEvents.length > 0) {
       const eventNames = upcomingEvents.map(e => `・${e.text}`).join('\n');
       const timeText = daysBefore === 0 ? "今天" : `${daysBefore} 天後 (${fmt(targetDate)})`;
-      // ⭕ 套用自訂暱稱 nickLife
-      messages.push(`🌿 ${nickLife}日常提醒：你在 ${timeText} 有以下行程預定：\n${eventNames}`);
+      messages.push(`🌿 ${nickLife}日常行程提醒：\n你在 ${timeText} 有以下預定行程：\n${eventNames}`);
+    }
+  }
+
+  if (ns.lifeTodoReminder !== false) {
+    const todayTodos = state.personaEvents.filter(e => 
+      e.kind === 'todo' && !e.done && e.date === todayStr
+    );
+
+    if (todayTodos.length > 0) {
+      const todoNames = todayTodos.map(e => `・${e.text}`).join('\n');
+      messages.push(`📋 ${nickLife}今日待辦提醒：\n今天有 ${todayTodos.length} 項未完成的待辦事項：\n${todoNames}`);
     }
   }
 
   // -----------------------------------------------------------------
-  // 💰 3. 雙週資產盤點提醒
+  // 💰 3. 雙週資產盤點提醒 (開關：financeReviewReminder)
   // -----------------------------------------------------------------
-  if (ns.financeReminder) {
+  if (ns.financeReviewReminder !== false) {
     const daysBefore = ns.financeDaysBefore || 1;
     const targetDate = addDays(todayStr, daysBefore);
 
     if (typeof isBiweeklyReviewDate === 'function' && isBiweeklyReviewDate(targetDate)) {
       const timeText = daysBefore === 0 ? "今天" : `${daysBefore} 天後 (${fmt(targetDate)})`;
-      // ⭕ 套用自訂暱稱 nickFinance
-      messages.push(`💰 ${nickFinance}資產提醒：${timeText} 是雙週資產盤點日！記得預留時間進行預算劃撥與卡費實繳喔。`);
+      messages.push(`💰 ${nickFinance}資產提醒：\n${timeText} 是雙週資產盤點日！記得預留時間進行預算劃撥與卡費實繳喔。`);
     }
   }
 
   // -----------------------------------------------------------------
-  // 🚀 4. 彙整訊息並發送推播
+  // 🚀 發送推播
   // -----------------------------------------------------------------
   if (messages.length > 0) {
-    const fullMessage = `【NOMO.notion 每日夥伴提醒】\n\n` + messages.join('\n\n');
-    console.log("⏳ 正在發送 LINE 每日自動預警推播...");
-    
+    const fullMessage = `【NOMO.notion 每日夥伴提醒】\n\n` + messages.join('\n\n---\n\n');
     const success = await sendLineNotification(fullMessage);
     if (success) {
       localStorage.setItem('nomo_line_last_daily_check', todayStr);
-      console.log("✨ 每日預警推播發送成功！");
     }
   } else {
-    console.log("ℹ️ 經比對今日無符合預警條件之項目。");
     localStorage.setItem('nomo_line_last_daily_check', todayStr);
   }
 }
@@ -662,17 +660,35 @@ async function checkAndSendDailyLineReminders() {
 
 function openLineTokenModal() {
   const lineConfig = state.integrations.find(it => it.id === 'line');
+  
+  // ⭕ 擴充 notifySettings 預設值
   if (!lineConfig.notifySettings) {
     lineConfig.notifySettings = {
-      projectReminder: true, projectDaysBefore: 3,
-      lifeReminder: true, lifeDaysBefore: 1,
-      financeReminder: true, financeDaysBefore: 1
+      // 專案
+      projectStageReminder: true,
+      projectDaysBefore: 3,
+      projectCreatedNotify: true,
+      projectSettledNotify: true,
+
+      // 日常
+      lifeScheduleReminder: true,
+      lifeDaysBefore: 1,
+      lifeTodoReminder: true,
+
+      // 資產
+      financeReviewReminder: true,
+      financeDaysBefore: 1,
+      financeCompletedNotify: true
     };
   }
 
   const ns = lineConfig.notifySettings;
   const currentToken = lineConfig.token || '';
   const currentUserId = lineConfig.userId || '';
+
+  const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+  const nickLife = (state.nicknames && state.nicknames.life) || "露米";
+  const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
 
   const wrap = el(`<div>
     <div class="font-display font-bold text-[19px] mb-3" style="color:var(--ink)">LINE 通知偏好與連動設定</div>
@@ -688,67 +704,91 @@ function openLineTokenModal() {
     </div>
 
     <!-- ⭕ 分頁 1：提醒項目勾選 (Notification Items) -->
-    <div id="tabContentNotify" class="space-y-4 py-1">
-      <!-- 1. 專案時程 -->
-      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
-        <div class="flex items-center justify-between mb-2">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="chkProject" ${ns.projectReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-amber-600"/>
-            <span class="text-[13px] font-medium" style="color:var(--ink)">🏗️ 坦坦專案時程提醒</span>
+    <div id="tabContentNotify" class="space-y-3 py-1">
+      
+      <!-- 1. 專案區塊 (含小箭頭向下展開) -->
+      <div class="card rounded-xl border overflow-hidden" style="border-color:var(--line)">
+        <button type="button" id="toggleProjAccordion" class="w-full p-3.5 flex items-center justify-between bg-gray-50/50 hover:bg-gray-100/50 transition-colors text-left">
+          <span class="text-[13px] font-bold" style="color:var(--ink)">🏗️ 專案 · ${nickProject}</span>
+          <span id="projChevron" class="text-[12px] transition-transform duration-200" style="color:var(--ink-soft)">▼</span>
+        </button>
+        <div id="projAccordionBody" class="p-3.5 border-t space-y-3" style="border-color:var(--line)">
+          <!-- (1) 時程節點預警 -->
+          <div class="flex items-center gap-2 text-[12px]">
+            <input type="checkbox" id="chkProjStage" ${ns.projectStageReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-amber-600"/>
+            <span style="color:var(--ink)">時程節點於</span>
+            <select id="selProjDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
+              <option value="1" ${ns.projectDaysBefore == 1 ? 'selected' : ''}>1</option>
+              <option value="2" ${ns.projectDaysBefore == 2 ? 'selected' : ''}>2</option>
+              <option value="3" ${ns.projectDaysBefore == 3 ? 'selected' : ''}>3</option>
+              <option value="5" ${ns.projectDaysBefore == 5 ? 'selected' : ''}>5</option>
+            </select>
+            <span style="color:var(--ink)">天前通知</span>
+          </div>
+          <!-- (2) 專案建立時 -->
+          <label class="flex items-center gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+            <input type="checkbox" id="chkProjCreated" ${ns.projectCreatedNotify !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-amber-600"/>
+            <span>專案建立時發送通知</span>
           </label>
-        </div>
-        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
-          <span>於展期或關鍵節點前</span>
-          <select id="selProjectDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
-            <option value="1" ${ns.projectDaysBefore == 1 ? 'selected' : ''}>1</option>
-            <option value="2" ${ns.projectDaysBefore == 2 ? 'selected' : ''}>2</option>
-            <option value="3" ${ns.projectDaysBefore == 3 ? 'selected' : ''}>3</option>
-            <option value="5" ${ns.projectDaysBefore == 5 ? 'selected' : ''}>5</option>
-          </select>
-          <span>天主動發送 LINE 推播提醒</span>
+          <!-- (3) 專案結案時 -->
+          <label class="flex items-start gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+            <input type="checkbox" id="chkProjSettled" ${ns.projectSettledNotify !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-amber-600 mt-0.5"/>
+            <div>
+              <span>專案結案時，傳送本案與年度累積數據</span>
+              <div class="text-[10px] mt-0.5" style="color:var(--ink-soft)">包含：本案利潤/支出/毛利率、年度累積營業額/平均毛利率/案件總數</div>
+            </div>
+          </label>
         </div>
       </div>
 
-      <!-- 2. 生活行程 -->
-      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
-        <div class="flex items-center justify-between mb-2">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="chkLife" ${ns.lifeReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
-            <span class="text-[13px] font-medium" style="color:var(--ink)">🌿 露米日常行程提醒</span>
-          </label>
-        </div>
-        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
-          <span>於預定行程開始前</span>
+      <!-- 2. 日常生活區塊 -->
+      <div class="card rounded-xl p-3.5 border space-y-2.5" style="border-color:var(--line)">
+        <div class="text-[13px] font-bold mb-1" style="color:var(--ink)">🌿 生活 · ${nickLife}</div>
+        <!-- (1) 行程前幾天通知 -->
+        <div class="flex items-center gap-2 text-[12px]">
+          <input type="checkbox" id="chkLifeSchedule" ${ns.lifeScheduleReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
+          <span style="color:var(--ink)">行程開始前</span>
           <select id="selLifeDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
             <option value="0" ${ns.lifeDaysBefore == 0 ? 'selected' : ''}>當天早晨</option>
             <option value="1" ${ns.lifeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
             <option value="2" ${ns.lifeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
           </select>
-          <span>發送每日行程摘要推播</span>
+          <span style="color:var(--ink)">發送行程通知</span>
         </div>
+        <!-- (2) 待辦事項通知 -->
+        <label class="flex items-center gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+          <input type="checkbox" id="chkLifeTodo" ${ns.lifeTodoReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-teal-600"/>
+          <span>每日推播當天未完成之待辦事項</span>
+        </label>
       </div>
 
-      <!-- 3. 資產盤點 -->
-      <div class="card rounded-xl p-3.5 border" style="border-color:var(--line)">
-        <div class="flex items-center justify-between mb-2">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" id="chkFinance" ${ns.financeReminder ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600"/>
-            <span class="text-[13px] font-medium" style="color:var(--ink)">💰 諾米雙週資產盤點提醒</span>
-          </label>
-        </div>
-        <div class="flex items-center gap-2 pl-6 text-[12px]" style="color:var(--ink-soft)">
-          <span>於雙週發薪/結算盤點前</span>
+      <!-- 3. 資產盤點區塊 -->
+      <div class="card rounded-xl p-3.5 border space-y-2.5" style="border-color:var(--line)">
+        <div class="text-[13px] font-bold mb-1" style="color:var(--ink)">💰 資產 · ${nickFinance}</div>
+        <!-- (1) 盤點日預警 -->
+        <div class="flex items-center gap-2 text-[12px]">
+          <input type="checkbox" id="chkFinanceReview" ${ns.financeReviewReminder !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600"/>
+          <span style="color:var(--ink)">雙週盤點日前</span>
           <select id="selFinanceDays" class="border rounded px-2 py-1 bg-white font-mono" style="border-color:var(--line)">
             <option value="0" ${ns.financeDaysBefore == 0 ? 'selected' : ''}>當天</option>
             <option value="1" ${ns.financeDaysBefore == 1 ? 'selected' : ''}>1 天</option>
             <option value="2" ${ns.financeDaysBefore == 2 ? 'selected' : ''}>2 天</option>
           </select>
-          <span>提醒進行預算劃撥與卡費實繳</span>
+          <span style="color:var(--ink)">發送盤點提醒</span>
         </div>
+        <!-- (2) 盤點完畢後數據傳送 -->
+        <label class="flex items-start gap-2 cursor-pointer text-[12px]" style="color:var(--ink)">
+          <input type="checkbox" id="chkFinanceCompleted" ${ns.financeCompletedNotify !== false ? 'checked' : ''} class="rounded w-4 h-4 accent-yellow-600 mt-0.5"/>
+          <div>
+            <span>盤點完畢後傳送資產數據簡報</span>
+            <div class="text-[10px] mt-0.5" style="color:var(--ink-soft)">自動推播本月總收入、總支出與預算損益狀況</div>
+          </div>
+        </label>
       </div>
+
     </div>
 
-    <!-- ⭕ 分頁 2：API 金鑰設定 (API Token Settings) -->
+    <!-- ⭕ 分頁 2：API 金鑰設定 -->
     <div id="tabContentApi" class="hidden space-y-3 py-1">
       <p class="text-[12px] leading-relaxed" style="color:var(--ink-soft)">
         設定完成後，訊息將透過 LINE Official Account 推播至你的手機。
@@ -759,7 +799,7 @@ function openLineTokenModal() {
       </label>
 
       <label class="text-[12px] block" style="color:var(--ink-soft)">Your User ID
-        <input id="lineUserIdInput" type="text" value="${currentUserId}" placeholder="貼上 Basic settings 裡面的 Your user ID (例: U123456...)" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[12px] font-mono" style="border-color:var(--line)"/>
+        <input id="lineUserIdInput" type="text" value="${currentUserId}" placeholder="貼上 Basic settings 裡面的 Your user ID" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[12px] font-mono" style="border-color:var(--line)"/>
       </label>
 
       <div id="lineTokenMsg" class="text-[12px] hidden"></div>
@@ -777,6 +817,16 @@ function openLineTokenModal() {
       <button type="button" id="btnSaveLine" class="text-[13px] px-4 py-2 rounded-lg bg-[color:var(--ink)] text-white font-medium">儲存偏好設定</button>
     </div>
   </div>`);
+
+  // 折疊選單 (Accordion) 邏輯
+  const toggleBtn = wrap.querySelector('#toggleProjAccordion');
+  const bodyEl = wrap.querySelector('#projAccordionBody');
+  const chevron = wrap.querySelector('#projChevron');
+  
+  toggleBtn.addEventListener('click', () => {
+    const isHidden = bodyEl.classList.toggle('hidden');
+    chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+  });
 
   // 分頁切換邏輯
   const tabNotify = wrap.querySelector('#tabBtnNotify');
@@ -796,7 +846,7 @@ function openLineTokenModal() {
     contentApi.classList.remove('hidden'); contentNotify.classList.add('hidden');
   });
 
-  // 測試發送邏輯
+  // 測試按鈕事件
   const tokenInput = wrap.querySelector('#lineTokenInput');
   const userIdInput = wrap.querySelector('#lineUserIdInput');
   const msg = wrap.querySelector('#lineTokenMsg');
@@ -831,36 +881,40 @@ function openLineTokenModal() {
     }
   });
 
-  // ⭕ 正確的底部：
   wrap.querySelector('#btnCancelLine').addEventListener('click', closeModal);
 
-  // 儲存偏好與 API 設定
+  // 儲存偏好設定
   wrap.querySelector('#btnSaveLine').addEventListener('click', () => {
-    // 1. 儲存 API Token
     const t = tokenInput.value.trim();
     const u = userIdInput.value.trim();
     lineConfig.token = t;
     lineConfig.userId = u;
     lineConfig.connected = !!(t && u);
 
-    // 2. 儲存通知偏好設定
     lineConfig.notifySettings = {
-      projectReminder: wrap.querySelector('#chkProject').checked,
-      projectDaysBefore: parseInt(wrap.querySelector('#selProjectDays').value, 10),
-      
-      lifeReminder: wrap.querySelector('#chkLife').checked,
+      // 專案
+      projectStageReminder: wrap.querySelector('#chkProjStage').checked,
+      projectDaysBefore: parseInt(wrap.querySelector('#selProjDays').value, 10),
+      projectCreatedNotify: wrap.querySelector('#chkProjCreated').checked,
+      projectSettledNotify: wrap.querySelector('#chkProjSettled').checked,
+
+      // 日常
+      lifeScheduleReminder: wrap.querySelector('#chkLifeSchedule').checked,
       lifeDaysBefore: parseInt(wrap.querySelector('#selLifeDays').value, 10),
-      
-      financeReminder: wrap.querySelector('#chkFinance').checked,
-      financeDaysBefore: parseInt(wrap.querySelector('#selFinanceDays').value, 10)
+      lifeTodoReminder: wrap.querySelector('#chkLifeTodo').checked,
+
+      // 資產
+      financeReviewReminder: wrap.querySelector('#chkFinanceReview').checked,
+      financeDaysBefore: parseInt(wrap.querySelector('#selFinanceDays').value, 10),
+      financeCompletedNotify: wrap.querySelector('#chkFinanceCompleted').checked
     };
 
     closeModal();
     commit();
   });
 
-  openModal(wrap); // 👈 這裡要用 openModal 開啟 DOM 節點
-} // 👈 閉合 openLineTokenModal 函式
+  openModal(wrap);
+}
   
 /* ============================================================ STATE ============================================================ */
 let state = {
@@ -2275,12 +2329,16 @@ function projectCreateModal(){
     closeModal(); 
 
     // ⭕ 在此處發送 LINE 通知
-    if (typeof sendLineNotification === 'function') {
-      const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
-      sendLineNotification(`🏗️ ${nickProject}專案通知：已成功建立新專案「${name}」！預計展期：${startDate} ➔ ${endDate}。`);
-    }
-    commit();
-  });
+    const lineConfig = state.integrations.find(it => it.id === 'line');
+  const ns = lineConfig ? lineConfig.notifySettings : null;
+
+  if (ns && ns.projectCreatedNotify !== false) {
+    const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+    sendLineNotification(`🏗️ ${nickProject}專案通知：\n已成功建立新專案「${name}」！\n預計展期：${startDate} ➔ ${endDate}`);
+  }
+
+  commit();
+});
 
   // 初次渲染月曆
   renderCalendar();
@@ -2553,7 +2611,48 @@ function settlementModal(p, onCancel){
     p.dealAmount = dealAmountFinal;
     p.settled = true; p.settledAt = state.todayISO;
     p.settlement = { additionalAmount, actualCost, invoice:{ title:invoiceTitle, taxId:invoiceTax, address:invoiceAddr, amountWithTax:invoiceAmt } };
-    closeModal(); commit();
+    closeModal(); 
+
+    const lineConfig = state.integrations.find(it => it.id === 'line');
+  const ns = lineConfig ? lineConfig.notifySettings : null;
+
+  if (ns && ns.projectSettledNotify !== false) {
+    const nickProject = (state.nicknames && state.nicknames.project) || "坦坦";
+    const thisYear = new Date().getFullYear();
+    
+    // 1. 計算本案結算數據
+    const revenue = p.dealAmount + (additionalAmount || 0);
+    const profit = revenue - actualCost;
+    const margin = revenue ? ((profit / revenue) * 100).toFixed(1) : "0.0";
+
+    // 2. 計算年度累積數據
+    const archived = state.projects.filter(x => x.settled && x.settlement && (x.settledAt || x.constructionDate).startsWith(String(thisYear)));
+    const totalYearRevenue = archived.reduce((s, x) => s + (x.dealAmount + (x.settlement.additionalAmount || 0)), 0);
+    
+    const avgYearMargin = archived.length ? (archived.reduce((s, x) => {
+      const r = x.dealAmount + (x.settlement.additionalAmount || 0);
+      const pr = r - (x.settlement.actualCost || 0);
+      return s + (r ? (pr / r) * 100 : 0);
+    }, 0) / archived.length).toFixed(1) : margin;
+
+    const msg = `📊 ${nickProject}專案結案數據簡報\n\n` +
+                `【本案「${p.name}」結算】\n` +
+                `・總收入：NT$ ${revenue.toLocaleString()}\n` +
+                `・實際支出：NT$ ${actualCost.toLocaleString()}\n` +
+                `・專案利潤：NT$ ${profit.toLocaleString()}\n` +
+                `・專案毛利率：${margin}%\n\n` +
+                `【${thisYear} 年度累積績效】\n` +
+                `・累積營業額：NT$ ${Math.round(totalYearRevenue).toLocaleString()}\n` +
+                `・平均毛利率：${avgYearMargin}%\n` +
+                `・總結案數：${archived.length} 件`;
+
+    sendLineNotification(msg);
+  }
+
+  commit();
+});
+    
+    commit();
   });
   return form;
 }
@@ -4445,7 +4544,32 @@ function openFirstReviewModal(){
         }); 
       });
     });
-    closeModal(); commit();
+    closeModal(); 
+const lineConfig = state.integrations.find(it => it.id === 'line');
+  const ns = lineConfig ? lineConfig.notifySettings : null;
+
+  if (ns && ns.financeCompletedNotify !== false) {
+    const nickFinance = (state.nicknames && state.nicknames.finance) || "諾米";
+    
+    // 抓取前 3 張卡片的關鍵數據
+    const firstBankSum = itemsInPeriod('bank', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
+    const expenseEff = sumEffective('expense', period.id);
+    const firstExpenseSum = itemsInPeriod('expense', period.id).reduce((s, it) => s + (it.first[period.id] || 0), 0);
+    const secondExpenseSum = sumPhase('expense', period.id, 'second');
+    const savedMoney = firstExpenseSum - secondExpenseSum;
+
+    const msg = `💰 ${nickFinance}資產盤點數據簡報\n\n` +
+                `・本月總收入：NT$ ${firstBankSum.toLocaleString()}\n` +
+                `・本月總支出：NT$ ${expenseEff.toLocaleString()}\n` +
+                `・本月預算損益：${savedMoney >= 0 ? '+' : ''}NT$ ${savedMoney.toLocaleString()} (${savedMoney >= 0 ? '省下花費' : '超支'})`;
+
+    sendLineNotification(msg);
+  }
+
+  commit();
+});
+    
+    commit();
   });
 
   wrap.addEventListener('input', () => window.updateModalLiveCalc());
