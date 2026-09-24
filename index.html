@@ -2215,14 +2215,14 @@ function projectCard(p){
   return card;
 }
 
-  /* ============================================================ VENDOR MODAL ============================================================ */
+/* ==================== 合作廠商 MODAL (共用類別 + 全新 4 階標籤) ==================== */
 
 function openVendorModal(vToEdit = null) {
   const color = state.theme.vendor || "#3B4A5A";
   const isEdit = !!vToEdit;
-  const v = vToEdit || { name: "", trade: "木作", contact: "", phone: "", tag: "normal", note: "" };
+  const v = vToEdit || { name: "", trade: state.vendorCategories[0] || "🎁 贈品製作", contact: "", phone: "", tag: "normal", note: "" };
 
-  const form = el(`<div>
+  const wrap = el(`<div>
     <div class="font-display font-bold text-[19px] mb-3" style="color:${color}">${isEdit ? '編輯廠商資料' : '新增合作廠商'}</div>
     
     <div class="flex flex-col gap-3">
@@ -2231,14 +2231,22 @@ function openVendorModal(vToEdit = null) {
       </label>
 
       <div class="grid grid-cols-2 gap-2.5">
-        <label class="text-[12px]" style="color:var(--ink-soft)">主要工種 <span style="color:#B23A3A">*</span>
-          <input id="vTrade" type="text" value="${v.trade}" placeholder="例如：木作、燈光、大圖" class="w-full mt-1 border rounded-lg px-3 py-1.5 text-[13px]" style="border-color:var(--line)"/>
-        </label>
+        <!-- ⭕ 共用品項類別選單 + 管理按鈕 -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[12px]" style="color:var(--ink-soft)">主要品項類別 <span style="color:#B23A3A">*</span></span>
+            <button type="button" id="btnManageVendorCat" class="text-[10px] font-bold text-amber-800 hover:underline">⚙️ 管理類別</button>
+          </div>
+          <select id="vTrade" class="w-full border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)"></select>
+        </div>
+
+        <!-- ⭕ 全新 4 階標籤 -->
         <label class="text-[12px]" style="color:var(--ink-soft)">合作評價標籤
           <select id="vTag" class="w-full mt-1 border rounded-lg px-2.5 py-1.5 text-[13px] bg-white outline-none" style="border-color:var(--line)">
-            <option value="star" ${v.tag === 'star' ? 'selected' : ''}>⭐ 推薦 / 優質合作</option>
-            <option value="normal" ${v.tag === 'normal' || !v.tag ? 'selected' : ''}>★ 一般合作夥伴</option>
-            <option value="warning" ${v.tag === 'warning' ? 'selected' : ''}>⚠️ 配合需多盯緊</option>
+            <option value="gold" ${v.tag === 'gold' ? 'selected' : ''}>🥇 金牌廠商</option>
+            <option value="silver" ${v.tag === 'silver' ? 'selected' : ''}>🥈 優質夥伴</option>
+            <option value="normal" ${v.tag === 'normal' || !v.tag ? 'selected' : ''}>🥉 合作關係</option>
+            <option value="black" ${v.tag === 'black' || v.tag === 'warning' ? 'selected' : ''}>📔 死亡筆記</option>
           </select>
         </label>
       </div>
@@ -2263,31 +2271,52 @@ function openVendorModal(vToEdit = null) {
     </div>
   </div>`);
 
-  form.querySelector('#vCancel').addEventListener('click', closeModal);
-  form.querySelector('#vSubmit').addEventListener('click', () => {
-    const name = form.querySelector('#vName').value.trim();
-    const trade = form.querySelector('#vTrade').value.trim();
-    if (!name || !trade) {
-      alertModal("請完整填寫廠商名稱與工種。");
+  // 刷新類別下拉選項
+  const refreshTradeSelect = () => {
+    const sel = wrap.querySelector('#vTrade');
+    const currentVal = sel.value || v.trade;
+    sel.innerHTML = state.vendorCategories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+  };
+
+  // 管理類別按鈕綁定 (返回時保留草稿)
+  wrap.querySelector('#btnManageVendorCat').addEventListener('click', () => {
+    const draft = {
+      ...v,
+      name: wrap.querySelector('#vName').value.trim(),
+      trade: wrap.querySelector('#vTrade').value,
+      tag: wrap.querySelector('#vTag').value,
+      contact: wrap.querySelector('#vContact').value.trim(),
+      phone: wrap.querySelector('#vPhone').value.trim(),
+      note: wrap.querySelector('#vNote').value.trim()
+    };
+    closeModal();
+    openCategoryManageModal(() => {}, draft);
+  });
+
+  wrap.querySelector('#vCancel').addEventListener('click', closeModal);
+  wrap.querySelector('#vSubmit').addEventListener('click', () => {
+    const name = wrap.querySelector('#vName').value.trim();
+    if (!name) {
+      alertModal("請輸入廠商名稱。");
       return;
     }
 
+    const payload = {
+      name,
+      trade: wrap.querySelector('#vTrade').value,
+      tag: wrap.querySelector('#vTag').value,
+      contact: wrap.querySelector('#vContact').value.trim(),
+      phone: wrap.querySelector('#vPhone').value.trim(),
+      note: wrap.querySelector('#vNote').value.trim()
+    };
+
     if (isEdit) {
-      vToEdit.name = name;
-      vToEdit.trade = trade;
-      vToEdit.tag = form.querySelector('#vTag').value;
-      vToEdit.contact = form.querySelector('#vContact').value.trim();
-      vToEdit.phone = form.querySelector('#vPhone').value.trim();
-      vToEdit.note = form.querySelector('#vNote').value.trim();
+      Object.assign(vToEdit, payload);
     } else {
       if (!state.vendors) state.vendors = [];
       state.vendors.push({
         id: "v" + uid(),
-        name, trade,
-        tag: form.querySelector('#vTag').value,
-        contact: form.querySelector('#vContact').value.trim(),
-        phone: form.querySelector('#vPhone').value.trim(),
-        note: form.querySelector('#vNote').value.trim()
+        ...payload
       });
     }
 
@@ -2295,7 +2324,8 @@ function openVendorModal(vToEdit = null) {
     commit();
   });
 
-  openModal(form);
+  openModal(wrap, null, true);
+  refreshTradeSelect();
 }
 
 
@@ -4886,34 +4916,46 @@ function renderPersona(){
   return wrap;
 }
 
-/* ============================================================ VENDORS PAGE ============================================================ */
+
+/* ==================== 廠商卡片 UI (兩排新版面 + 4 階標籤) ==================== */
 
 function vendorCard(v) {
   const color = state.theme.vendor || "#3B4A5A";
-  const inquiries = (state.vendorInquiries || []).filter(i => i.vendorId === v.id);
-  const latestInquiry = inquiries.length ? inquiries[inquiries.length - 1] : null;
 
-  // 評價標籤樣式與文字
+  // ⭕ 全新 4 階標籤樣式與對應內容
   let tagClass = "bg-gray-50 text-gray-700 border-gray-200";
-  let tagText = "★ 一般合作";
-  if (v.tag === 'star') {
-    tagClass = "bg-amber-50 text-amber-800 border-amber-300 font-semibold";
-    tagText = "⭐ 推薦 / 優質";
-  } else if (v.tag === 'warning') {
-    tagClass = "bg-rose-50 text-rose-700 border-rose-300 font-semibold";
-    tagText = "⚠️ 配合需盯緊";
+  let tagText = "🥉 合作關係";
+
+  if (v.tag === 'gold') {
+    tagClass = "bg-amber-50 text-amber-800 border-amber-300 font-bold";
+    tagText = "🥇 金牌廠商";
+  } else if (v.tag === 'silver' || v.tag === 'star') {
+    tagClass = "bg-sky-50 text-sky-800 border-sky-300 font-bold";
+    tagText = "🥈 優質夥伴";
+  } else if (v.tag === 'black' || v.tag === 'warning') {
+    tagClass = "bg-gray-900 text-white border-gray-900 font-bold";
+    tagText = "📔 死亡筆記";
   }
 
   const card = el(`<div class="card rounded-xl p-4 text-left relative flex flex-col justify-between hover:shadow-md transition-shadow" style="border-top:3px solid ${color};">
     <div>
-      <!-- 頂部工種與評價標籤 -->
-      <div class="flex items-center justify-between mb-2">
-        <span class="tag font-mono font-medium" style="border-color:${color};color:${color}">${v.trade || '工班'}</span>
-        <span class="text-[10px] px-2 py-0.5 rounded-full border ${tagClass}">${tagText}</span>
+      <!-- 📌 第一排：類別齊左，編輯與刪除叉叉齊右 -->
+      <div class="flex items-center justify-between mb-3">
+        <span class="tag font-mono font-medium" style="border-color:${color};color:${color}">${v.trade || '未指定類別'}</span>
+        
+        <div class="flex items-center gap-1.5">
+          <button type="button" class="btn-edit-vendor text-[11px] px-2.5 py-0.5 rounded border hover:bg-gray-50" style="border-color:var(--line);color:var(--ink)">編輯</button>
+          <button type="button" class="btn-del-vendor text-[14px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除廠商">×</button>
+        </div>
       </div>
 
-      <!-- 廠商名稱與聯絡窗口 -->
-      <div class="font-display font-semibold text-[15px] mb-1 leading-tight">${v.name}</div>
+      <!-- 📌 第二排：廠商名稱齊左，評價標籤齊右 -->
+      <div class="flex items-center justify-between gap-2 mb-2">
+        <div class="font-display font-bold text-[16px] truncate leading-tight" style="color:var(--ink)">${v.name}</div>
+        <span class="text-[10px] px-2 py-0.5 rounded-full border shrink-0 ${tagClass}">${tagText}</span>
+      </div>
+
+      <!-- 聯絡資訊 -->
       <div class="text-[12px] flex items-center gap-2 mb-3" style="color:var(--ink-soft)">
         <span>👤 ${v.contact || '未留聯絡人'}</span>
         <span>•</span>
@@ -4921,36 +4963,20 @@ function vendorCard(v) {
       </div>
 
       <!-- 備註短評 -->
-      ${v.note ? `<div class="text-[11px] p-2 rounded-lg mb-3 line-clamp-2 leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft)">${v.note}</div>` : ''}
-    </div>
-
-    <!-- 底部歷史詢價摘要與操作 -->
-    <div class="pt-3 border-t flex items-center justify-between" style="border-color:var(--line)">
-      <div class="text-[11px]" style="color:var(--ink-soft)">
-        ${latestInquiry ? `歷史詢價 <span class="font-mono font-bold text-gray-800">${inquiries.length}</span> 筆` : '尚無歷史詢價紀錄'}
-      </div>
-
-      <div class="flex items-center gap-1.5">
-        <button type="button" class="btn-edit-vendor text-[11px] px-2.5 py-1 rounded border hover:bg-gray-50" style="border-color:var(--line);color:var(--ink)">編輯</button>
-        <button type="button" class="btn-del-vendor text-[13px] font-bold px-1 text-gray-400 hover:text-red-600 transition-colors" title="刪除廠商">×</button>
-      </div>
+      ${v.note ? `<div class="text-[11px] p-2.5 rounded-lg leading-relaxed" style="background:var(--paper-deep);color:var(--ink-soft)">${v.note}</div>` : ''}
     </div>
   </div>`);
 
-  // 編輯廠商
+  // 事件綁定
   card.querySelector('.btn-edit-vendor').addEventListener('click', (e) => {
     e.stopPropagation();
     openVendorModal(v);
   });
 
-  // 刪除廠商
   card.querySelector('.btn-del-vendor').addEventListener('click', (e) => {
     e.stopPropagation();
-    confirmModal(`確定要刪除廠商「${v.name}」嗎？刪除後相關的詢價紀錄將一併移除。`, () => {
+    confirmModal(`確定要刪除廠商「${v.name}」嗎？`, () => {
       state.vendors = state.vendors.filter(x => x.id !== v.id);
-      if (state.vendorInquiries) {
-        state.vendorInquiries = state.vendorInquiries.filter(i => i.vendorId !== v.id);
-      }
       commit();
     }, { okLabel: "確定刪除", color: "var(--danger)" });
   });
