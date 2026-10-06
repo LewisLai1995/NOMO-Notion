@@ -5498,9 +5498,9 @@ function openFirstReviewModal(){
   };
 
   const prev = latestPeriod();
-  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
-    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
-    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
+  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> (prev && item.first && item.first[prev.id] != null) ? item.first[prev.id] : null);
+  buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> (prev && item.first && item.first[prev.id] != null) ? item.first[prev.id] : null);
+  buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> (prev && item.first && item.first[prev.id] != null) ? item.first[prev.id] : null);
   
   const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第一次盤點</button></div>`);
   wrap.appendChild(footer);
