@@ -5331,7 +5331,9 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
     const lastVal = valueForItem(item);
     const lastValText = (lastVal != null && !isNaN(lastVal)) ? `NT$ ${lastVal.toLocaleString()}` : '—';
 
-    // ⭕ 輸入框預設為 0，並在右側加入不可編輯的 (上次: NT$ xxx) 參考標籤
+    // ⭕ 預設填入上次數值或 0
+    const defaultInpVal = (lastVal != null && !isNaN(lastVal)) ? lastVal : 0;
+
     const row = el(`<div class="flex items-center justify-between gap-2 text-[12px] mb-2">
       <span style="color:var(--ink-soft)" class="truncate min-w-0 flex-1 font-medium">${item.label}</span>
       
@@ -5340,7 +5342,7 @@ function buildFinanceSectionEditor(wrap, group, title, sColor, inputs, pendingNe
         <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 border text-gray-500 border-gray-200 select-none" title="上一次盤點的預估金額">
           上次: ${lastValText}
         </span>
-        <input type="number" value="0" placeholder="0" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
+        <input type="number" value="${defaultInpVal}" placeholder="0" class="w-24 border rounded px-2 py-1 text-[13px] text-right font-mono focus:border-[color:var(--ink)]" style="border-color:var(--line)"/>
         <button type="button" class="del-item-btn text-[14px] font-bold px-1 shrink-0" style="color:var(--danger)" title="刪除名目">×</button>
       </div>
     </div>`);
@@ -5496,9 +5498,9 @@ function openFirstReviewModal(){
   };
 
   const prev = latestPeriod();
-  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
-buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
-buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> (prev && item.first) ? item.first[prev.id] : null);
+  buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
+    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
+    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> (item.first && item.first[p.id] != null) ? item.first[p.id] : null);
   
   const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">送出第一次盤點</button></div>`);
   wrap.appendChild(footer);
@@ -5513,7 +5515,7 @@ buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥�
       state.finance[group].forEach(item => { 
         const inp = inputs[group][item.id]; 
         if (inp && inp.value !== '') { 
-          item.second[period.id] = parseFloat(inp.value) || 0; 
+          item.first[period.id] = parseFloat(inp.value) || 0; // ⭕ 修正：填寫至 first (第一次盤點)
         } 
       });
 
@@ -5523,8 +5525,8 @@ buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥�
         state.finance[group].push({
           id: 'x' + uid(), 
           label: entry.label, 
-          first: { [period.id]: val }, 
-          second: { [period.id]: val }
+          first: { [period.id]: val }, // ⭕ 修正：新增名目僅寫入 first，second 留空
+          second: {}
         }); 
       });
     });
@@ -5740,9 +5742,9 @@ function openEditLastReviewModal(){
       smRemainEl.style.color = remainUnallocated >= 0 ? 'var(--good)' : 'var(--danger)';
     };
 
-    buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=>item.first[p.id]);
-    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=>item.first[p.id]);
-    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=>item.first[p.id]);
+    buildFinanceSectionEditor(wrap,'bank','A．可運用現金流（發薪日收入總額）','var(--sage)',inputs,pendingNew, item=> item.first ? item.first[p.id] : null);
+    buildFinanceSectionEditor(wrap,'expense','B．預留常態性支出（還債等已轉走 + 卡費預估）',color,inputs,pendingNew, item=> item.first ? item.first[p.id] : null);
+    buildFinanceSectionEditor(wrap,'plan','C．計畫性支出（本次預定劃撥存款/投資）','var(--gold)',inputs,pendingNew, item=> item.first ? item.first[p.id] : null);
     
     const footer = el(`<div class="flex justify-end gap-2 mt-4"><button id="rvCancel2" class="text-[13px] px-4 py-2 rounded-lg border" style="border-color:var(--line)">取消</button><button id="rvSubmit2" class="text-[13px] px-4 py-2 rounded-lg" style="background:${color};color:${contrastText(color)}">儲存修改</button></div>`);
     wrap.appendChild(footer);
@@ -6158,25 +6160,22 @@ function financeReviewSettingsCard(){
     state.finance.periods.push(period);
 
     ['bank', 'expense', 'plan'].forEach(group => {
-      // 處理既有名目
-      state.finance[group].forEach(item => {
-        const inp = inputs[group][item.id];
-        if (inp && inp.value !== '') {
-          const val = parseFloat(inp.value) || 0;
-          item.first[period.id] = val;
-          item.second[period.id] = val;
-        }
+      state.finance[group].forEach(item => { 
+        const inp = inputs[group][item.id]; 
+        if (inp && inp.value !== '') { 
+          item.first[period.id] = parseFloat(inp.value) || 0; 
+        } 
       });
-      // 處理新增名目
-      pendingNew[group].forEach(entry => {
-        if (!entry.label) return;
+
+      pendingNew[group].forEach(entry => { 
+        if (!entry.label) return; 
         const val = parseFloat(entry.input.value) || 0;
         state.finance[group].push({
-          id: 'x' + uid(),
-          label: entry.label,
-          first: { [period.id]: val },
-          second: { [period.id]: val }
-        });
+          id: 'x' + uid(), 
+          label: entry.label, 
+          first: { [period.id]: val }, 
+          second: {}
+        }); 
       });
     });
 
