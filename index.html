@@ -2664,7 +2664,7 @@ function openInquiryModal(inquiryToEdit = null) {
         ];
       }
 
-      // 2. 系統提示詞（要求嚴格輸出指定 JSON）
+      // 2. 系統提示詞
       const promptHeader = `你是一個專業的採購助理。請分析這份報價單，並嚴格只輸出 JSON 格式 (不要包含 markdown 標記如 \`\`\`json)，JSON 結構必須為：
 {
   "vendorName": "廠商公司名稱",
@@ -2691,8 +2691,8 @@ function openInquiryModal(inquiryToEdit = null) {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 呼叫最新 Gemini API (針對 AQ... 金鑰認證結構優化)
-      const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`;
+      // 3. 呼叫最新 Gemini 2.5 API (支援 AQ... Auth Key)
+      const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const response = await fetch(targetApiUrl, {
         method: "POST",
@@ -2727,7 +2727,7 @@ function openInquiryModal(inquiryToEdit = null) {
 
       // 自動帶入品項列表
       if (aiParsed.items && aiParsed.items.length) {
-        itemsContainer.innerHTML = ''; // 清空預設空白列
+        itemsContainer.innerHTML = '';
         aiParsed.items.forEach(it => createItemRow(it));
       }
 
