@@ -560,49 +560,35 @@ async function sendLineNotification(message) {
 }
 
  /* ============================================================ AUTO NOTIFICATION CHECKER (FIXED) ============================================================ */
-
 async function checkAndSendDailyLineReminders() {
-  // 1. 抓取 LINE 設定物件
-  let lineConfig = state.integrations ? state.integrations.find(it => it.id === 'line') : null;
+  // 1. 抓取 LINE 整合設定物件
+  let lineConfig = (state.integrations && Array.isArray(state.integrations)) 
+    ? state.integrations.find(it => it.id === 'line') 
+    : null;
 
   if (!lineConfig) {
     console.log("ℹ️ 未找到 LINE 整合設定，跳過每日提醒檢查。");
     return;
   }
 
-  // 防呆：自動補充預設值
+  // 2. 抓取 Token 與 User ID
   const token = (lineConfig.token || "").trim();
   const userId = (lineConfig.userId || "").trim();
 
-  // 2. 判斷 Token 與 User ID 是否真的填寫
   if (!token || !userId) {
     console.log("ℹ️ 未設定 LINE Messaging API Token 或 User ID，跳過每日提醒檢查。");
     return;
   }
 
-  // ⭕ 強制啟用連線狀態，確保 API 呼叫不被擋下
+  // 強制設為已連線，確保 API 呼叫不被不必要的狀態切換阻擋
   lineConfig.connected = true;
 
-  const ns = lineConfig.notifySettings || {};
+  const notifySettings = lineConfig.notifySettings || {};
   const todayStr = state.todayISO || todayISO();
   const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
 
   if (lastCheckDate === todayStr) {
-    console.log("ℹ️ 今日 (" + todayStr + ") LINE 每日提醒已發送過，跳過自動比對。若要測試請執行 localStorage.removeItem('nomo_line_last_daily_check')");
-    return;
-  }
-
-  const ns = lineConfig.notifySettings;
-  if (!ns) {
-    console.log("ℹ️ 尚未設定 notifySettings 偏好，跳過每日提醒檢查。");
-    return;
-  }
-
-  const todayStr = state.todayISO;
-  const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
-
-  if (lastCheckDate === todayStr) {
-    console.log("ℹ️ 今日 (" + todayStr + ") LINE 每日提醒已發送過，跳過自動比對。若要測試請執行 localStorage.removeItem('nomo_line_last_daily_check')");
+    console.log("ℹ️ 今日 (" + todayStr + ") LINE 每日提醒已發送過，跳過自動比對。若要強制測試請執行：localStorage.removeItem('nomo_line_last_daily_check'); checkAndSendDailyLineReminders();");
     return;
   }
 
@@ -613,43 +599,39 @@ async function checkAndSendDailyLineReminders() {
   const messages = [];
 
   // -----------------------------------------------------------------
-  // 🏗️ 1. 專案時程預警 (相容 projectStageReminder & projectReminder)
+  // 🏗️ 1. 專案時程預警
   // -----------------------------------------------------------------
-  const isProjEnabled = ns.projectStageReminder !== false && ns.projectReminder !== false;
+  const isProjEnabled = notifySettings.projectStageReminder !== false && notifySettings.projectReminder !== false;
   if (isProjEnabled) {
-    const daysBefore = ns.projectDaysBefore !== undefined ? ns.projectDaysBefore : 3;
+    const daysBefore = notifySettings.projectDaysBefore !== undefined ? notifySettings.projectDaysBefore : 3;
     const targetDate = addDays(todayStr, daysBefore);
     console.log(`🔍 [專案比對] 尋找 ${daysBefore} 天後 (${targetDate}) 的未完成階段...`);
 
-    // ⭕ 建立暫存陣列，收集當天符合條件的所有專案階段
     const projItems = [];
-
-    state.projects.filter(p => !p.settled).forEach(p => {
+    (state.projects || []).filter(p => !p.settled).forEach(p => {
       (p.stages || []).forEach(s => {
         if (s.done) return;
         if (s.date === targetDate) {
-          // 只存單行的描述
           projItems.push(`「${p.name}」即將於 ${daysBefore} 天後 (${fmt(s.date)}) 進入「${s.name}」階段！`);
         }
       });
     });
 
-    // ⭕ 若有收集到項目，組合成一封統一標頭的簡潔訊息
     if (projItems.length > 0) {
       messages.push(`🏗️ ${nickProject}專案提醒：\n` + projItems.join('\n'));
     }
   }
 
   // -----------------------------------------------------------------
-  // 🌿 2. 日常行程預警 (相容 lifeScheduleReminder & lifeReminder)
+  // 🌿 2. 日常行程預警
   // -----------------------------------------------------------------
-  const isLifeSchedEnabled = ns.lifeScheduleReminder !== false && ns.lifeReminder !== false;
+  const isLifeSchedEnabled = notifySettings.lifeScheduleReminder !== false && notifySettings.lifeReminder !== false;
   if (isLifeSchedEnabled) {
-    const daysBefore = ns.lifeDaysBefore !== undefined ? ns.lifeDaysBefore : 1;
+    const daysBefore = notifySettings.lifeDaysBefore !== undefined ? notifySettings.lifeDaysBefore : 1;
     const targetDate = addDays(todayStr, daysBefore);
     console.log(`🔍 [行程比對] 尋找 ${daysBefore} 天後 (${targetDate}) 的預定行程...`);
 
-    const upcomingEvents = state.personaEvents.filter(e => 
+    const upcomingEvents = (state.personaEvents || []).filter(e => 
       e.kind === 'schedule' && !e.done && e.date === targetDate
     );
 
@@ -661,11 +643,11 @@ async function checkAndSendDailyLineReminders() {
   }
 
   // -----------------------------------------------------------------
-  // 📋 3. 日常待辦事項提醒 (lifeTodoReminder)
+  // 📋 3. 日常待辦事項提醒
   // -----------------------------------------------------------------
-  if (ns.lifeTodoReminder !== false) {
+  if (notifySettings.lifeTodoReminder !== false) {
     console.log(`🔍 [待辦比對] 尋找今天 (${todayStr}) 未完成的日常待辦...`);
-    const todayTodos = state.personaEvents.filter(e => 
+    const todayTodos = (state.personaEvents || []).filter(e => 
       e.kind === 'todo' && !e.done && e.date === todayStr
     );
 
@@ -676,11 +658,11 @@ async function checkAndSendDailyLineReminders() {
   }
 
   // -----------------------------------------------------------------
-  // 💰 4. 雙週資產盤點提醒 (相容 financeReviewReminder & financeReminder)
+  // 💰 4. 雙週資產盤點提醒
   // -----------------------------------------------------------------
-  const isFinEnabled = ns.financeReviewReminder !== false && ns.financeReminder !== false;
+  const isFinEnabled = notifySettings.financeReviewReminder !== false && notifySettings.financeReminder !== false;
   if (isFinEnabled) {
-    const daysBefore = ns.financeDaysBefore !== undefined ? ns.financeDaysBefore : 1;
+    const daysBefore = notifySettings.financeDaysBefore !== undefined ? notifySettings.financeDaysBefore : 1;
     const targetDate = addDays(todayStr, daysBefore);
     console.log(`🔍 [盤點比對] 檢查 ${daysBefore} 天後 (${targetDate}) 是否為盤點日...`);
 
@@ -697,9 +679,6 @@ async function checkAndSendDailyLineReminders() {
     const fullMessage = `【NOMO.notion 每日夥伴提醒】\n\n` + messages.join('\n\n---\n\n');
     console.log("⏳ 檢測到提醒項目，正在發送 LINE 每日自動推播...");
     
-    // 強制補上連線狀態防呆
-    lineConfig.connected = true;
-    
     const success = await sendLineNotification(fullMessage);
     if (success) {
       localStorage.setItem('nomo_line_last_daily_check', todayStr);
@@ -707,7 +686,6 @@ async function checkAndSendDailyLineReminders() {
     }
   } else {
     console.log("ℹ️ 經比對今日無符合條件之提醒項目。");
-    // 當天無提醒也註記完成，避免重複計算
     localStorage.setItem('nomo_line_last_daily_check', todayStr);
   }
 }
