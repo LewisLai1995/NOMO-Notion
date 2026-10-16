@@ -2,8 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='28' fill='%233B4A5A'/><path d='M50 32 C80 32 94 48 94 66 C94 84 76 88 50 88 C24 88 6 84 6 66 C6 48 20 32 50 32 Z' fill='%23F6F3EC' opacity='0.25'/><path d='M30 44 H38 M62 44 H70' stroke='%232B2A28' stroke-width='4' stroke-linecap='round'/><circle cx='34' cy='56' r='4.5' fill='%232B2A28'/><circle cx='66' cy='56' r='4.5' fill='%232B2A28'/><ellipse cx='50' cy='64' rx='4' ry='2.5' fill='%232B2A28'/><path d='M44 72 Q50 77 56 72' stroke='%232B2A28' stroke-width='3' stroke-linecap='round' fill='none'/></svg>">
-<!-- 引入 Firebase Web SDK (CDN 網址版) -->
-<!-- 引入 Firebase SDK (含 Auth 模組) -->
+
 <!-- 引入 Firebase SDK (含 Auth 模組) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -563,9 +562,33 @@ async function sendLineNotification(message) {
  /* ============================================================ AUTO NOTIFICATION CHECKER (FIXED) ============================================================ */
 
 async function checkAndSendDailyLineReminders() {
-  const lineConfig = state.integrations.find(it => it.id === 'line');
-  if (!lineConfig || !lineConfig.token || !lineConfig.userId) {
+  // 1. 抓取 LINE 設定物件
+  let lineConfig = state.integrations ? state.integrations.find(it => it.id === 'line') : null;
+
+  if (!lineConfig) {
+    console.log("ℹ️ 未找到 LINE 整合設定，跳過每日提醒檢查。");
+    return;
+  }
+
+  // 防呆：自動補充預設值
+  const token = (lineConfig.token || "").trim();
+  const userId = (lineConfig.userId || "").trim();
+
+  // 2. 判斷 Token 與 User ID 是否真的填寫
+  if (!token || !userId) {
     console.log("ℹ️ 未設定 LINE Messaging API Token 或 User ID，跳過每日提醒檢查。");
+    return;
+  }
+
+  // ⭕ 強制啟用連線狀態，確保 API 呼叫不被擋下
+  lineConfig.connected = true;
+
+  const ns = lineConfig.notifySettings || {};
+  const todayStr = state.todayISO || todayISO();
+  const lastCheckDate = localStorage.getItem('nomo_line_last_daily_check');
+
+  if (lastCheckDate === todayStr) {
+    console.log("ℹ️ 今日 (" + todayStr + ") LINE 每日提醒已發送過，跳過自動比對。若要測試請執行 localStorage.removeItem('nomo_line_last_daily_check')");
     return;
   }
 
