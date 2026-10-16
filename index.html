@@ -2637,7 +2637,6 @@ function openInquiryModal(inquiryToEdit = null) {
         
         workbook.SheetNames.forEach(sheetName => {
           const sheet = workbook.Sheets[sheetName];
-          // 轉為 CSV 並過濾多餘空行
           const csv = XLSX.utils.sheet_to_csv(sheet);
           const cleanCsv = csv.split('\n').filter(line => line.trim() && !line.replace(/,/g, '').trim() == '').join('\n');
           if (cleanCsv) {
@@ -2669,25 +2668,24 @@ function openInquiryModal(inquiryToEdit = null) {
         ];
       }
 
-      // 2. 系統提示詞（強化 JSON 結構約束）
-      const promptHeader = `你是一個專業採購助理。請分析這份報價單資料，並**嚴格**只輸出 JSON 格式 (絕對不要包含 markdown \`\`\`json 標記)，JSON 欄位規範如下：
+      // 2. 系統提示詞
+      const promptHeader = `你是一個專業採購助理。請分析這份報價單資料，並**嚴格**只輸出 JSON 格式 (絕對不要包含 markdown \`\`\`json 標記)，JSON 結構必須為：
 {
-  "vendorName": "廠商名稱或公司抬頭",
-  "contact": "聯絡窗口/聯絡人",
-  "phone": "電話號碼",
-  "location": "地區(如台北/台中/全台)",
+  "vendorName": "廠商名稱",
+  "contact": "聯絡窗口",
+  "phone": "電話",
+  "location": "地區",
   "date": "YYYY-MM-DD",
-  "category": "主要類別",
-  "vendorNote": "付款條件、交期或備註說明",
+  "vendorNote": "備註說明",
   "items": [
     {
-      "itemName": "品項/商品名稱",
-      "specDetail": "規格/尺寸/材質/工法",
-      "qty": 數量數字,
-      "unit": "單位(如: 個/組/坪/本/式)",
-      "unitPrice": 單價數字,
-      "taxType": "含稅 或 未稅",
-      "note": "品项備註"
+      "itemName": "品項名稱",
+      "specDetail": "規格說明",
+      "qty": 1,
+      "unit": "個",
+      "unitPrice": 100,
+      "taxType": "未稅",
+      "note": ""
     }
   ]
 }\n\n`;
@@ -2696,69 +2694,111 @@ function openInquiryModal(inquiryToEdit = null) {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 多模型自動降級（Fallback）請求
+      // 3. 多模型 ✕ 3 輪自動重試 (3 Rounds of Fallback with Delay)
       const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
+      const MAX_ROUNDS = 3;
       let response = null;
       let lastErrorMsg = "";
+      let success = false;
 
-      for (const model of modelsToTry) {
-        try {
-          const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-          response = await fetch(targetApiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-goog-api-key": apiKey
-            },
-            body: JSON.stringify({
-              contents: [{ parts: contents }],
-              generationConfig: {
-                response_mime_type: "application/json"
-              }
-            })
-          });
+      // 輔助延遲函式 (毫秒)
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-          if (response.ok) break;
+      retryLoop: for (let round = 1; round <= MAX_ROUNDS; round++) {
+        for (const model of modelsToTry) {
+          try {
+            if (round > 1 || model !== modelsToTry[0]) {
+              statusMsg.textContent = `⏳ AI 伺服器忙碌，正在進行自動重試 (${round}/${MAX_ROUNDS})...`;
+            }
 
-          const errJson = await response.json();
-          lastErrorMsg = errJson.error?.message || `HTTP ${response.status}`;
-        } catch (mErr) {
-          lastErrorMsg = mErr.message;
+            const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            response = await fetch(targetApiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": apiKey
+              },
+              body: JSON.stringify({
+                contents: [{ parts: contents }],
+                generationConfig: {
+                  response_mime_type: "application/json"
+                }
+              })
+            });
+
+            if (response.ok) {
+              success = true;
+              break retryLoop; // 成功解析！跳出重試雙重迴圈
+            }
+
+            const errJson = await response.json();
+            lastErrorMsg = errJson.error?.message || `HTTP ${response.status}`;
+            console.warn(`[Gemini Retry] 第 ${round} 輪 - 模型 ${model} 忙碌，自動切換... 原因: ${lastErrorMsg}`);
+
+            // 如果遇到流量過載限制，小憩 1 秒後再試下一個
+            await delay(1000);
+
+          } catch (mErr) {
+            lastErrorMsg = mErr.message;
+            await delay(1000);
+          }
         }
       }
 
-      if (!response || !response.ok) {
-        throw new Error(lastErrorMsg || "Gemini 服務忙碌中，請稍後再試。");
+      if (!success || !response || !response.ok) {
+        throw new Error("AI 服務目前極度繁忙，已自動嘗試多次。請稍後再試一次！");
       }
 
       const resData = await response.json();
       let rawText = resData.candidates[0].content.parts[0].text;
       
-      // 清理可能的 Markdown 標記
+      console.log("🤖 AI 回傳原始 JSON 文字:", rawText);
+
       rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiParsed = JSON.parse(rawText);
 
-      // 4. 容錯填入 Modal 輸入欄位
-      if (aiParsed.vendorName) wrap.querySelector('#iqVendorName').value = aiParsed.vendorName;
-      if (aiParsed.contact) wrap.querySelector('#iqContact').value = aiParsed.contact;
-      if (aiParsed.phone) wrap.querySelector('#iqPhone').value = aiParsed.phone;
-      if (aiParsed.location) wrap.querySelector('#iqLocation').value = aiParsed.location;
-      if (aiParsed.date) wrap.querySelector('#iqDate').value = aiParsed.date;
-      if (aiParsed.vendorNote) wrap.querySelector('#iqVendorNote').value = aiParsed.vendorNote;
+      // 輔助函式：跨關鍵字自動比對帶入
+      const getValue = (obj, keys) => {
+        for (let k of keys) {
+          if (obj && obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
+            return obj[k];
+          }
+        }
+        return '';
+      };
 
-      // 自動帶入品項列表 (相容陣列與單一物件)
-      const rawItems = Array.isArray(aiParsed.items) ? aiParsed.items : (aiParsed.items ? [aiParsed.items] : []);
-      if (rawItems.length > 0) {
-        itemsContainer.innerHTML = ''; // 清空預設空白列
-        rawItems.forEach(it => {
+      // 4. 彈性自動帶入主欄位
+      const vName = getValue(aiParsed, ['vendorName', 'vendor_name', 'vendor', 'supplier', 'company', '廠商名稱']);
+      const vContact = getValue(aiParsed, ['contact', 'contact_person', 'sales', '聯絡人', '窗口']);
+      const vPhone = getValue(aiParsed, ['phone', 'tel', 'mobile', '電話']);
+      const vLoc = getValue(aiParsed, ['location', 'address', 'city', '地區']);
+      const vDate = getValue(aiParsed, ['date', 'quoteDate', 'quote_date', '日期']);
+      const vNote = getValue(aiParsed, ['vendorNote', 'vendor_note', 'note', 'remark', '備註']);
+
+      if (vName) wrap.querySelector('#iqVendorName').value = vName;
+      if (vContact) wrap.querySelector('#iqContact').value = vContact;
+      if (vPhone) wrap.querySelector('#iqPhone').value = vPhone;
+      if (vLoc) wrap.querySelector('#iqLocation').value = vLoc;
+      if (vDate) wrap.querySelector('#iqDate').value = vDate;
+      if (vNote) wrap.querySelector('#iqVendorNote').value = vNote;
+
+      // 5. 彈性帶入品項列表
+      let itemsList = aiParsed.items || aiParsed.itemList || aiParsed.products || aiParsed.data || [];
+      if (!Array.isArray(itemsList) && typeof itemsList === 'object') {
+        itemsList = [itemsList];
+      }
+
+      if (itemsList && itemsList.length > 0) {
+        itemsContainer.innerHTML = '';
+        itemsList.forEach(it => {
           createItemRow({
-            itemName: it.itemName || it.name || '',
-            specDetail: it.specDetail || it.spec || '',
-            qty: it.qty || it.quantity || 1,
-            unit: it.unit || '個',
-            unitPrice: it.unitPrice || it.price || 0,
-            taxType: it.taxType || '未稅',
-            note: it.note || ''
+            itemName: getValue(it, ['itemName', 'item_name', 'name', 'product', '品項名稱', '品名']),
+            specDetail: getValue(it, ['specDetail', 'spec_detail', 'spec', 'description', '規格']),
+            qty: parseFloat(getValue(it, ['qty', 'quantity', 'amount', '數量'])) || 1,
+            unit: getValue(it, ['unit', '單位']) || '個',
+            unitPrice: parseFloat(getValue(it, ['unitPrice', 'unit_price', 'price', '單價'])) || 0,
+            taxType: getValue(it, ['taxType', 'tax_type', 'tax', '稅別']) || '未稅',
+            note: getValue(it, ['note', 'remark', '備註'])
           });
         });
       }
@@ -2768,7 +2808,7 @@ function openInquiryModal(inquiryToEdit = null) {
 
     } catch (err) {
       console.error("Gemini 解析錯誤:", err);
-      statusMsg.textContent = `❌ 解析失敗：${err.message || '請確認檔案格式是否正確'}`;
+      statusMsg.textContent = `❌ ${err.message || '解析失敗，請確認檔案格式是否正確'}`;
       statusMsg.className = "text-[11px] text-rose-700 font-bold";
     } finally {
       btnUpload.disabled = false;
