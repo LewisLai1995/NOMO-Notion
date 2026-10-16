@@ -2631,7 +2631,6 @@ function openInquiryModal(inquiryToEdit = null) {
 
       // 1. 判斷檔案類型並處理內容
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')) {
-        // Excel / CSV 解析文字
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         let excelText = "";
@@ -2644,7 +2643,6 @@ function openInquiryModal(inquiryToEdit = null) {
         ];
 
       } else {
-        // 圖片或 PDF (轉換為 Base64 傳給 Gemini)
         const base64Data = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result.split(',')[1]);
@@ -2691,26 +2689,40 @@ function openInquiryModal(inquiryToEdit = null) {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 呼叫最新 Gemini 3.8 Flash API
-      const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`;
+      // 3. 帶有自動降級（Fallback）的請求邏輯
+      const modelsToTry = ["gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+      let response = null;
+      let lastErrorMsg = "";
 
-      const response = await fetch(targetApiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey
-        },
-        body: JSON.stringify({
-          contents: [{ parts: contents }],
-          generationConfig: {
-            response_mime_type: "application/json"
-          }
-        })
-      });
+      for (const model of modelsToTry) {
+        try {
+          const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          response = await fetch(targetApiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify({
+              contents: [{ parts: contents }],
+              generationConfig: {
+                response_mime_type: "application/json"
+              }
+            })
+          });
 
-      if (!response.ok) {
-        const errJson = await response.json();
-        throw new Error(errJson.error?.message || `API 請求失敗 (${response.status})`);
+          if (response.ok) break; // 成功即離開迴圈
+
+          const errJson = await response.json();
+          lastErrorMsg = errJson.error?.message || `模型 ${model} 回應 HTTP ${response.status}`;
+          console.warn(`[Gemini Fallback] 模型 ${model} 忙碌或失敗，切換下一模型... Error: ${lastErrorMsg}`);
+        } catch (mErr) {
+          lastErrorMsg = mErr.message;
+        }
+      }
+
+      if (!response || !response.ok) {
+        throw new Error(lastErrorMsg || "所有 Gemini 模型目前皆過載，請稍後重試。");
       }
 
       const resData = await response.json();
