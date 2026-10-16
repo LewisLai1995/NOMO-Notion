@@ -2431,12 +2431,13 @@ function openInquiryModal(inquiryToEdit = null) {
     itemsContainer.querySelectorAll('.item-spec-row').forEach(r => {
       compiledItems.push({
         itemName: r.querySelector('.it-name').value.trim(),
-        specDetail: r.querySelector('.it-spec').value.trim(),
-        qty: parseFloat(r.querySelector('.it-qty').value) || 0,
-        unitPrice: parseFloat(r.querySelector('.it-price').value) || 0,
-        taxType: r.querySelector('.it-tax').value,
-        note: r.querySelector('.it-note').value.trim()
-      });
+  specDetail: r.querySelector('.it-spec').value.trim(),
+  qty: parseFloat(r.querySelector('.it-qty').value) || 0,
+  unit: r.querySelector('.it-unit').value.trim() || '個', // ⭕ 讀取單位
+  unitPrice: parseFloat(r.querySelector('.it-price').value) || 0,
+  taxType: r.querySelector('.it-tax').value,
+  note: r.querySelector('.it-note').value.trim()
+});
     });
 
     return {
@@ -2460,7 +2461,7 @@ function openInquiryModal(inquiryToEdit = null) {
   });
 
   const itemsContainer = wrap.querySelector('#itemsContainer');
-  const initialItems = itemData.items && itemData.items.length ? itemData.items : [{ itemName: "", specDetail: "", qty: 100, unitPrice: 0, taxType: "含稅", note: "" }];
+  const initialItems = itemData.items && itemData.items.length ? itemData.items : [{ itemName: "", specDetail: "", qty: 1, unit: "個", unitPrice: "", taxType: "未稅", note: "" }];
 
   const createItemRow = (itData = {}) => {
     const rowIdx = itemsContainer.children.length;
@@ -2479,17 +2480,20 @@ function openInquiryModal(inquiryToEdit = null) {
         </label>
       </div>
 
-      <div class="grid grid-cols-4 gap-2 items-center">
+      <div class="grid grid-cols-5 gap-2 items-center">
         <label class="text-[11px] text-gray-500">數量
           <input type="number" value="${itData.qty || 1}" min="1" class="it-qty w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
+        </label>
+        <label class="text-[11px] text-gray-500">單位
+          <input type="text" value="${itData.unit || '個'}" placeholder="如：個/組/坪" class="it-unit w-full mt-0.5 border rounded px-2 py-1 text-[12px] text-center" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">單價 (NT$)
           <input type="number" value="${itData.unitPrice !== undefined && itData.unitPrice !== null ? itData.unitPrice : ''}" min="0" placeholder="0" class="it-price w-full mt-0.5 border rounded px-2 py-1 text-[12px] font-mono text-right" style="border-color:var(--line)"/>
         </label>
         <label class="text-[11px] text-gray-500">稅別
           <select class="it-tax w-full mt-0.5 border rounded px-1.5 py-1 text-[12px] bg-white" style="border-color:var(--line)">
-            <option value="含稅" ${itData.taxType === '含稅' || !itData.taxType ? 'selected' : ''}>含稅</option>
-            <option value="未稅" ${itData.taxType === '未稅' ? 'selected' : ''}>未稅</option>
+            <option value="未稅" ${itData.taxType === '未稅' || !itData.taxType ? 'selected' : ''}>未稅</option>
+            <option value="含稅" ${itData.taxType === '含稅' ? 'selected' : ''}>含稅</option>
           </select>
         </label>
         <div>
@@ -2532,8 +2536,8 @@ function openInquiryModal(inquiryToEdit = null) {
   initialItems.forEach(it => createItemRow(it));
 
   wrap.querySelector('#btnAddItemRow').addEventListener('click', () => {
-  createItemRow({ qty: 100, unitPrice: "", taxType: "含稅" });
-});
+    createItemRow({ qty: 1, unit: "個", unitPrice: "", taxType: "未稅" });
+  });
 
   wrap.querySelector('#iqCancel').addEventListener('click', closeModal);
   wrap.querySelector('#iqSubmit').addEventListener('click', () => {
@@ -5150,6 +5154,7 @@ function renderVendors() {
             <td class="py-2 px-2.5 text-[12px] font-bold text-gray-800">${it.itemName || '未具名品項'}</td>
             <td class="py-2 px-2.5 text-[12px] text-gray-600">${it.specDetail || '—'}</td>
             <td class="py-2 px-2.5 text-[12px] font-mono text-center">${qty.toLocaleString()}</td>
+            <td class="py-2 px-2.5 text-[12px] text-center text-gray-500">${unit}</td>
             <td class="py-2 px-2.5 text-[12px] font-mono text-right">$${uPrice.toLocaleString()}</td>
             <td class="py-2 px-2.5 text-[12px] font-mono text-right font-bold" style="color:${color}">NT$ ${total.toLocaleString()}</td>
             <td class="py-2 px-2.5 text-[12px] text-center">
@@ -5187,11 +5192,12 @@ function renderVendors() {
                   <th class="py-1.5 px-2.5">品名</th>
                   <th class="py-1.5 px-2.5">規格/工法</th>
                   <th class="py-1.5 px-2.5 text-center">數量</th>
+                  <th class="py-1.5 px-2.5 text-center">單位</th>
                   <th class="py-1.5 px-2.5 text-right">單價</th>
                   <th class="py-1.5 px-2.5 text-right">總價</th>
                   <th class="py-1.5 px-2.5 text-center">稅別</th>
                   <th class="py-1.5 px-2.5">備註</th>
-                </tr>
+              </tr>
               </thead>
               <tbody>
                 ${tableRowsHtml || '<tr><td colspan="7" class="py-3 text-center text-[11px] text-gray-400">（無規格品項）</td></tr>'}
