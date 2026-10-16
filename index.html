@@ -5147,6 +5147,7 @@ function renderVendors() {
         let tableRowsHtml = "";
         (iq.items || []).forEach(it => {
           const qty = it.qty || 1;
+          const unit = it.unit || '個';
           const uPrice = it.unitPrice || 0;
           const total = it.totalPrice || (qty * uPrice);
 
