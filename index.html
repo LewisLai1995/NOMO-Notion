@@ -2687,35 +2687,19 @@ function openInquiryModal(inquiryToEdit = null) {
   ]
 }\n\n`;
 
-      // 將提示詞加入請求內容
       if (typeof contents[0].text === 'string') {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 呼叫 Gemini 1.5 Flash API (自動判斷 Key 類型)
-      const isAuthKey = apiKey.startsWith('AQ.');
-      const apiUrl = isAuthKey
-        ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`
-        : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
+      // 3. 呼叫 Gemini 1.5 Flash API (支援 AQ... 與 AIzaSy 金鑰)
+      const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       const headers = { "Content-Type": "application/json" };
-      if (isAuthKey) {
-        headers["Authorization"] = `Bearer ${apiKey}`;
+
+      if (apiKey.startsWith('AQ.')) {
         headers["x-goog-api-key"] = apiKey;
       }
 
-      // 3. 呼叫 Gemini 1.5 Flash API (支援 AIzaSy 與 AQ... 金鑰格式)
-      const isAqKey = apiKey.startsWith('AQ.');
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
-      const headers = { "Content-Type": "application/json" };
-      
-      // 如果是 Cloud 專案產生的 AQ... 金鑰，額外帶入 x-goog-api-key 標頭
-      if (isAqKey) {
-        headers["x-goog-api-key"] = apiKey;
-      }
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch(targetApiUrl, {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
