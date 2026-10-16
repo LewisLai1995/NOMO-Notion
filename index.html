@@ -2637,7 +2637,6 @@ function openInquiryModal(inquiryToEdit = null) {
         
         workbook.SheetNames.forEach(sheetName => {
           const sheet = workbook.Sheets[sheetName];
-          // 同時抓取 RAW 二維陣列與 CSV，確保不遺漏任何隱藏或跨欄欄位
           const sheetJson = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
           const jsonStr = JSON.stringify(sheetJson.filter(row => row.some(cell => String(cell).trim() !== "")));
           excelText += `=== Sheet: ${sheetName} ===\n${jsonStr}\n\n`;
@@ -2703,57 +2702,63 @@ function openInquiryModal(inquiryToEdit = null) {
         }
       };
 
-      // 4. 多模型 ✕ 3 輪自動重試 (3 Rounds of Fallback)
-      const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
-      const MAX_ROUNDS = 3;
+      // 4. 針對 gemini-3.8-flash 進行溫和重試 (最多 3 次，間隔遞增)
+      const targetModel = "gemini-3.8-flash";
+      const MAX_ATTEMPTS = 3;
       let response = null;
       let lastErrorMsg = "";
       let success = false;
 
       const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-      retryLoop: for (let round = 1; round <= MAX_ROUNDS; round++) {
-        for (const model of modelsToTry) {
-          try {
-            if (round > 1 || model !== modelsToTry[0]) {
-              statusMsg.textContent = `⏳ AI 伺服器忙碌，正在自動重試中 (${round}/${MAX_ROUNDS})...`;
-            }
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        try {
+          if (attempt > 1) {
+            statusMsg.textContent = `⏳ 伺服器忙碌，進行第 ${attempt}/${MAX_ATTEMPTS} 次嘗試 (等待中)...`;
+            await delay(attempt * 2000); // 遞增等待：2秒, 4秒
+          }
 
-            const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-            response = await fetch(targetApiUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
-              },
-              body: JSON.stringify({
-                contents: [{ parts: contents }],
-                generationConfig: {
-                  response_mime_type: "application/json",
-                  response_schema: jsonSchema
-                }
-              })
-            });
+          const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+          response = await fetch(targetApiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify({
+              contents: [{ parts: contents }],
+              generationConfig: {
+                response_mime_type: "application/json",
+                response_schema: jsonSchema
+              }
+            })
+          });
 
-            if (response.ok) {
-              success = true;
-              break retryLoop;
-            }
+          if (response.ok) {
+            success = true;
+            break;
+          }
 
-            const errJson = await response.json();
-            lastErrorMsg = errJson.error?.message || `HTTP ${response.status}`;
-            console.warn(`[Gemini Retry] 第 ${round} 輪 - 模型 ${model} 忙碌... 原因: ${lastErrorMsg}`);
-            await delay(1000);
+          const errJson = await response.json();
+          lastErrorMsg = errJson.error?.message || `HTTP ${response.status}`;
 
-          } catch (mErr) {
-            lastErrorMsg = mErr.message;
-            await delay(1000);
+          // 如果是額度用盡 (429)，直接跳出，不浪費無謂重試
+          if (response.status === 429) {
+            throw new Error("免費 API 呼叫次數今日已達上限 (429)。請稍後再試或更換新的 Gemini API Key！");
+          }
+
+          console.warn(`[Gemini Retry] 第 ${attempt} 次嘗試失敗... 原因: ${lastErrorMsg}`);
+
+        } catch (mErr) {
+          lastErrorMsg = mErr.message;
+          if (lastErrorMsg.includes("429") || lastErrorMsg.includes("上限")) {
+            throw mErr;
           }
         }
       }
 
       if (!success || !response || !response.ok) {
-        throw new Error("AI 服務目前極度繁忙，已自動嘗試多次。請稍後再試一次！");
+        throw new Error(lastErrorMsg || "AI 服務目前繁忙，請稍後再試。");
       }
 
       const resData = await response.json();
@@ -2772,7 +2777,7 @@ function openInquiryModal(inquiryToEdit = null) {
 
       // 6. 帶入品項列表
       if (aiParsed.items && Array.isArray(aiParsed.items) && aiParsed.items.length > 0) {
-        itemsContainer.innerHTML = ''; // 清空預設列
+        itemsContainer.innerHTML = '';
         aiParsed.items.forEach(it => {
           createItemRow({
             itemName: it.itemName || '',
