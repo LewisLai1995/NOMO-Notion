@@ -2634,12 +2634,19 @@ function openInquiryModal(inquiryToEdit = null) {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         let excelText = "";
+        
         workbook.SheetNames.forEach(sheetName => {
-          excelText += `Sheet: \${sheetName}\n` + XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]) + "\n\n";
+          const sheet = workbook.Sheets[sheetName];
+          // 轉為 CSV 並過濾多餘空行
+          const csv = XLSX.utils.sheet_to_csv(sheet);
+          const cleanCsv = csv.split('\n').filter(line => line.trim() && !line.replace(/,/g, '').trim() == '').join('\n');
+          if (cleanCsv) {
+            excelText += `=== Sheet: ${sheetName} ===\n${cleanCsv}\n\n`;
+          }
         });
 
         contents = [
-          { text: `請分析以下 Excel 報價單內容並擷取結構化資訊：\n\n\${excelText}` }
+          { text: `請仔細分析以下 Excel 報價單資料，擷取廠商與各品項明細資訊：\n\n\${excelText}` }
         ];
 
       } else {
@@ -2662,25 +2669,25 @@ function openInquiryModal(inquiryToEdit = null) {
         ];
       }
 
-      // 2. 系統提示詞
-      const promptHeader = `你是一個專業的採購助理。請分析這份報價單，並嚴格只輸出 JSON 格式 (不要包含 markdown 標記如 \`\`\`json)，JSON 結構必須為：
+      // 2. 系統提示詞（強化 JSON 結構約束）
+      const promptHeader = `你是一個專業採購助理。請分析這份報價單資料，並**嚴格**只輸出 JSON 格式 (絕對不要包含 markdown \`\`\`json 標記)，JSON 欄位規範如下：
 {
-  "vendorName": "廠商公司名稱",
-  "contact": "窗口姓名 (若無則留空)",
-  "phone": "聯絡電話 (若無則留空)",
-  "location": "地區，如台北/全台 (若無則留空)",
-  "date": "YYYY-MM-DD 格式日期 (若無則用今天日期)",
-  "category": "主要類別 (若無法判斷請填 '🎁 贈品製作')",
-  "vendorNote": "廠商備註、交期、付款條件或優惠心得摘要",
+  "vendorName": "廠商名稱或公司抬頭",
+  "contact": "聯絡窗口/聯絡人",
+  "phone": "電話號碼",
+  "location": "地區(如台北/台中/全台)",
+  "date": "YYYY-MM-DD",
+  "category": "主要類別",
+  "vendorNote": "付款條件、交期或備註說明",
   "items": [
     {
-      "itemName": "品項名稱",
-      "specDetail": "規格/尺寸/工法細節",
-      "qty": 數字數量,
-      "unit": "單位，如 個/坪/組/本/式",
-      "unitPrice": 數字單價,
+      "itemName": "品項/商品名稱",
+      "specDetail": "規格/尺寸/材質/工法",
+      "qty": 數量數字,
+      "unit": "單位(如: 個/組/坪/本/式)",
+      "unitPrice": 單價數字,
       "taxType": "含稅 或 未稅",
-      "note": "備註說明"
+      "note": "品项備註"
     }
   ]
 }\n\n`;
@@ -2689,7 +2696,7 @@ function openInquiryModal(inquiryToEdit = null) {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 帶有自動降級（Fallback）的請求邏輯
+      // 3. 多模型自動降級（Fallback）請求
       const modelsToTry = ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
       let response = null;
       let lastErrorMsg = "";
@@ -2711,25 +2718,27 @@ function openInquiryModal(inquiryToEdit = null) {
             })
           });
 
-          if (response.ok) break; // 成功即離開迴圈
+          if (response.ok) break;
 
           const errJson = await response.json();
-          lastErrorMsg = errJson.error?.message || `模型 ${model} 回應 HTTP ${response.status}`;
-          console.warn(`[Gemini Fallback] 模型 ${model} 忙碌或失敗，切換下一模型... Error: ${lastErrorMsg}`);
+          lastErrorMsg = errJson.error?.message || `HTTP ${response.status}`;
         } catch (mErr) {
           lastErrorMsg = mErr.message;
         }
       }
 
       if (!response || !response.ok) {
-        throw new Error(lastErrorMsg || "所有 Gemini 模型目前皆過載，請稍後重試。");
+        throw new Error(lastErrorMsg || "Gemini 服務忙碌中，請稍後再試。");
       }
 
       const resData = await response.json();
-      const rawText = resData.candidates[0].content.parts[0].text;
-      const aiParsed = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
+      let rawText = resData.candidates[0].content.parts[0].text;
+      
+      // 清理可能的 Markdown 標記
+      rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const aiParsed = JSON.parse(rawText);
 
-      // 4. 自動帶入 Modal 輸入欄位
+      // 4. 容錯填入 Modal 輸入欄位
       if (aiParsed.vendorName) wrap.querySelector('#iqVendorName').value = aiParsed.vendorName;
       if (aiParsed.contact) wrap.querySelector('#iqContact').value = aiParsed.contact;
       if (aiParsed.phone) wrap.querySelector('#iqPhone').value = aiParsed.phone;
@@ -2737,10 +2746,21 @@ function openInquiryModal(inquiryToEdit = null) {
       if (aiParsed.date) wrap.querySelector('#iqDate').value = aiParsed.date;
       if (aiParsed.vendorNote) wrap.querySelector('#iqVendorNote').value = aiParsed.vendorNote;
 
-      // 自動帶入品項列表
-      if (aiParsed.items && aiParsed.items.length) {
-        itemsContainer.innerHTML = '';
-        aiParsed.items.forEach(it => createItemRow(it));
+      // 自動帶入品項列表 (相容陣列與單一物件)
+      const rawItems = Array.isArray(aiParsed.items) ? aiParsed.items : (aiParsed.items ? [aiParsed.items] : []);
+      if (rawItems.length > 0) {
+        itemsContainer.innerHTML = ''; // 清空預設空白列
+        rawItems.forEach(it => {
+          createItemRow({
+            itemName: it.itemName || it.name || '',
+            specDetail: it.specDetail || it.spec || '',
+            qty: it.qty || it.quantity || 1,
+            unit: it.unit || '個',
+            unitPrice: it.unitPrice || it.price || 0,
+            taxType: it.taxType || '未稅',
+            note: it.note || ''
+          });
+        });
       }
 
       statusMsg.textContent = "✨ 報價單解析成功！已自動帶入欄位。";
@@ -2748,7 +2768,7 @@ function openInquiryModal(inquiryToEdit = null) {
 
     } catch (err) {
       console.error("Gemini 解析錯誤:", err);
-      statusMsg.textContent = `❌ 解析失敗：${err.message || '請確認 API Key 是否正確或檔案是否清晰'}`;
+      statusMsg.textContent = `❌ 解析失敗：${err.message || '請確認檔案格式是否正確'}`;
       statusMsg.className = "text-[11px] text-rose-700 font-bold";
     } finally {
       btnUpload.disabled = false;
