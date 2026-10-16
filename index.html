@@ -2691,11 +2691,19 @@ function openInquiryModal(inquiryToEdit = null) {
         contents[0].text = promptHeader + contents[0].text;
       }
 
-      // 3. 呼叫 Gemini 1.5 Flash API (支援 AQ... 與 AIzaSy 金鑰)
-      const targetApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+      // 3. 呼叫 Gemini API (支援 AQ... 與 AIzaSy... 兩種金鑰)
+      const isAqKey = apiKey.startsWith('AQ.');
+      
+      // 若為 AQ 金鑰，使用 v1 或相容模型的正確端點
+      const targetApiUrl = isAqKey
+        ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`
+        : `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
       const headers = { "Content-Type": "application/json" };
 
-      if (apiKey.startsWith('AQ.')) {
+      if (isAqKey) {
+        // AQ 金鑰必須透過 Header 帶入認證
+        headers["Authorization"] = `Bearer ${apiKey}`;
         headers["x-goog-api-key"] = apiKey;
       }
 
